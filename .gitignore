@@ -1,0 +1,23 @@
+# Artefactos de compilación
+bin/
+obj/
+node_modules/
+
+# Configuración local y archivos sensibles
+.env
+.env.*
+!.env.example
+secrets.json
+appsettings.*.local.json
+
+# Configuración local de IDE
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Archivos físicos y respaldos de SQL Server
+*.bak
+*.mdf
+*.ldf

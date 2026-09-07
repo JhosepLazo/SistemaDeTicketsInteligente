@@ -1,0 +1,11 @@
+# Define reglas mínimas de formato para mantener consistencia en los archivos SQL.
+# La indentación SQL debe realizarse con Tab y los archivos deben guardarse en UTF-8.
+
+root = true
+
+[*.sql]
+charset = utf-8
+indent_style = tab
+tab_width = 4
+trim_trailing_whitespace = true
+insert_final_newline = true
