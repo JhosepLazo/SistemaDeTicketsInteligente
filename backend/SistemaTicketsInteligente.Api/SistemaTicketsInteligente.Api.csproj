@@ -1,0 +1,32 @@
+<!--
+    Archivo: SistemaTicketsInteligente.Api.csproj
+
+    Objetivo:
+    Definir la configuración de compilación y las dependencias del backend ASP.NET Core.
+
+    Responsabilidad:
+    Declarar el SDK web, el framework objetivo y las referencias de paquetes del proyecto.
+
+    Dependencias:
+    SDK de .NET y paquetes NuGet declarados en este archivo.
+
+    Flujo:
+    Restauración de dependencias -> compilación -> ejecución de la API.
+
+    Consideraciones:
+    La cabecera es únicamente documental y no cambia la configuración existente.
+-->
+
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.2" />
+    </ItemGroup>
+
+</Project>
