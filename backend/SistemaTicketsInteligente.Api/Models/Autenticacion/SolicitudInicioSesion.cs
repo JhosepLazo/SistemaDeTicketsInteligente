@@ -6,3 +6,14 @@
     Flujo: Frontend -> solicitud HTTP -> AutenticacionController.
     Consideraciones: Archivo preparado únicamente con documentación; no contiene propiedades ni validaciones.
 */
+
+namespace SistemaTicketsInteligente.Api.Models.Autenticacion;
+
+public class SolicitudInicioSesion
+{
+    public string Usuario { get; set; } = string.Empty;
+    public string Contrasena { get; set; } = string.Empty;
+}
+
+
+
