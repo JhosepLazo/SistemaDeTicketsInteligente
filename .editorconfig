@@ -1,5 +1,5 @@
-# Define reglas mínimas de formato para mantener consistencia en los archivos SQL.
-# La indentación SQL debe realizarse con Tab y los archivos deben guardarse en UTF-8.
+# Reglas mínimas de formato para mantener consistencia entre backend, frontend y SQL.
+# C# usa 4 espacios; archivos web/configuración 2 espacios; SQL usa tabulaciones de 4 posiciones.
 
 root = true
 

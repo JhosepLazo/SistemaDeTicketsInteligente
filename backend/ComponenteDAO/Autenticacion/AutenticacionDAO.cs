@@ -1,3 +1,12 @@
+/**
+ * Archivo: AutenticacionDAO.cs
+ * Objetivo: Ejecutar las operaciones SQL necesarias para autenticar y auditar accesos.
+ * Responsabilidad: Consultar el usuario mediante Stored Procedure y registrar eventos de autenticación sin aplicar reglas de negocio.
+ * Dependencias: ConexionSqlServer, Microsoft.Data.SqlClient, TI_Usuario, TI_Perfil y TI_Auditoria.
+ * Flujo: AutenticacionBLL -> AutenticacionDAO -> Stored Procedures -> SQL Server.
+ * Consideraciones: No valida contraseñas ni decide permisos; todos los valores se envían mediante parámetros tipados.
+ */
+
 using System.Data;
 using Microsoft.Data.SqlClient;
 using SistemaTicketsInteligente.Datos.ComponenteDAO.Data;
@@ -14,25 +23,17 @@ public sealed class AutenticacionDAO
         this.conexionSqlServer = conexionSqlServer;
     }
 
-    public async Task<UsuarioAutenticacion?> BuscarUsuarioAsync(
-        string usuario,
-        CancellationToken cancellationToken = default)
+    public async Task<UsuarioAutenticacion?> BuscarUsuarioAsync(string usuario, CancellationToken cancellationToken = default)
     {
         await using var conexion = conexionSqlServer.CrearConexion();
-        await using var comando = new SqlCommand("Usp_TI_BuscarUsuarioAutenticacion", conexion)
-        {
-            CommandType = CommandType.StoredProcedure
-        };
+        await using var comando = new SqlCommand("dbo.Usp_TI_Buscar_UsuarioAutenticacion", conexion) { CommandType = CommandType.StoredProcedure };
 
         comando.Parameters.Add("@cUsuario", SqlDbType.VarChar, 20).Value = usuario;
 
         await conexion.OpenAsync(cancellationToken);
         await using var lector = await comando.ExecuteReaderAsync(cancellationToken);
 
-        if (!await lector.ReadAsync(cancellationToken))
-        {
-            return null;
-        }
+        if (!await lector.ReadAsync(cancellationToken)) return null;
 
         return new UsuarioAutenticacion
         {
@@ -46,9 +47,20 @@ public sealed class AutenticacionDAO
         };
     }
 
-    private static string LeerCadena(SqlDataReader lector, string columna)
+    public async Task RegistrarAuditoriaAsync(string? usuario, string registro, string evento, string resultado, Guid idCorrelacion, CancellationToken cancellationToken = default)
     {
-        var ordinal = lector.GetOrdinal(columna);
-        return lector.IsDBNull(ordinal) ? string.Empty : lector.GetString(ordinal);
+        await using var conexion = conexionSqlServer.CrearConexion();
+        await using var comando = new SqlCommand("dbo.Usp_TI_Registrar_AuditoriaAutenticacion", conexion) { CommandType = CommandType.StoredProcedure };
+
+        comando.Parameters.Add("@cUsuario", SqlDbType.VarChar, 20).Value = (object?)usuario ?? DBNull.Value;
+        comando.Parameters.Add("@cRegistro", SqlDbType.VarChar, 200).Value = registro;
+        comando.Parameters.Add("@cEvento", SqlDbType.VarChar, 100).Value = evento;
+        comando.Parameters.Add("@cResultado", SqlDbType.VarChar, 20).Value = resultado;
+        comando.Parameters.Add("@cIdCorrelacion", SqlDbType.UniqueIdentifier).Value = idCorrelacion;
+
+        await conexion.OpenAsync(cancellationToken);
+        await comando.ExecuteNonQueryAsync(cancellationToken);
     }
+
+    private static string LeerCadena(SqlDataReader lector, string columna) => lector[columna].ToString()?.Trim() ?? string.Empty;
 }

@@ -1,3 +1,12 @@
+<!--
+    Archivo: ComponenteBLL.csproj
+    Objetivo: Definir la biblioteca de reglas y coordinación del negocio.
+    Responsabilidad: Configurar .NET y las dependencias requeridas por la capa BLL.
+    Dependencias: ComponenteDAO, ComponenteDTO y Microsoft.Extensions.Identity.Core.
+    Flujo: API -> ComponenteBLL -> ComponenteDAO -> SQL Server.
+    Consideraciones: No referencia componentes HTTP ni frontend.
+-->
+
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -8,6 +17,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="10.0.0" />
     <ProjectReference Include="..\ComponenteDAO\ComponenteDAO.csproj" />
     <ProjectReference Include="..\ComponenteDTO\ComponenteDTO.csproj" />
   </ItemGroup>

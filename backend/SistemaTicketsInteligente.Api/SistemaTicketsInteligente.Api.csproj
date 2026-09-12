@@ -1,24 +1,22 @@
 <!--
-    Archivo: SistemaTicketsInteligente.Api.csproj
-    Objetivo: Definir la configuración de compilación y las dependencias del backend ASP.NET Core.
-    Responsabilidad: Declarar el SDK web, el framework objetivo y las referencias de paquetes del proyecto.
-    Dependencias: SDK de .NET y paquetes NuGet declarados en este archivo.
-    Flujo: Restauración de dependencias -> compilación -> ejecución de la API.
-    Consideraciones: La cabecera es únicamente documental y no cambia la configuración existente.
+  Archivo: SistemaTicketsInteligente.Api.csproj
+  Objetivo: Definir la configuración de compilación y dependencias de la API ASP.NET Core.
+  Responsabilidad: Declarar el SDK web, framework objetivo y referencias hacia BLL, DAO y DTO.
+  Dependencias: SDK de .NET y proyectos internos del backend.
+  Flujo: Restauración -> compilación -> ejecución de la API.
+  Consideraciones: La API compone dependencias, pero las reglas de negocio permanecen en BLL y el acceso SQL en DAO.
 -->
 
 <Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
 
-    <PropertyGroup>
-        <TargetFramework>net10.0</TargetFramework>
-        <Nullable>enable</Nullable>
-        <ImplicitUsings>enable</ImplicitUsings>
-    </PropertyGroup>
-
-    <ItemGroup>
-        <ProjectReference Include="..\ComponenteBLL\ComponenteBLL.csproj" />
-        <ProjectReference Include="..\ComponenteDAO\ComponenteDAO.csproj" />
-        <ProjectReference Include="..\ComponenteDTO\ComponenteDTO.csproj" />
-    </ItemGroup>
-
+  <ItemGroup>
+    <ProjectReference Include="..\ComponenteBLL\ComponenteBLL.csproj" />
+    <ProjectReference Include="..\ComponenteDAO\ComponenteDAO.csproj" />
+    <ProjectReference Include="..\ComponenteDTO\ComponenteDTO.csproj" />
+  </ItemGroup>
 </Project>

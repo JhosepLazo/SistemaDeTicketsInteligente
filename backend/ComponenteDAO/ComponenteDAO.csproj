@@ -1,3 +1,12 @@
+<!--
+    Archivo: ComponenteDAO.csproj
+    Objetivo: Definir la biblioteca de acceso a datos del sistema.
+    Responsabilidad: Configurar SQL Client y la dependencia hacia los DTO compartidos.
+    Dependencias: Microsoft.Data.SqlClient y ComponenteDTO.
+    Flujo: ComponenteBLL -> ComponenteDAO -> SQL Server.
+    Consideraciones: La capa DAO no contiene reglas de negocio ni dependencias HTTP.
+-->
+
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
