@@ -81,9 +81,20 @@ public sealed class AutenticacionController : ControllerBase
 
     [Authorize]
     [HttpPost("cerrar-sesion")]
-    public async Task<IActionResult> CerrarSesion()
+    public async Task<IActionResult> CerrarSesion(CancellationToken cancellationToken)
     {
-        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        var usuario = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(usuario)) return Unauthorized();
+
+        try
+        {
+            await autenticacionBLL.CerrarSesionAsync(usuario, cancellationToken);
+        }
+        finally
+        {
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        }
+
         return NoContent();
     }
 }

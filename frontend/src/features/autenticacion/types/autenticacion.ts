@@ -9,3 +9,5 @@ export interface RespuestaInicioSesion {
   area: string
   perfil: string
 }
+
+export type EstadoAutenticacion = 'comprobandoSesion' | 'autenticado' | 'noAutenticado'

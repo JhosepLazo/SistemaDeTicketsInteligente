@@ -48,6 +48,9 @@ El backend de autenticación utiliza actualmente:
 - Claims mínimos: Usuario, NombreCompleto, Area y Perfil.
 - Rate limiting sobre el endpoint de inicio de sesión.
 - Respuestas genéricas para credenciales incorrectas y manejo general de errores.
+- Auditoría de inicio y cierre de sesión mediante `TI_Auditoria`.
+
+El frontend recupera la sesión al iniciar mediante la cookie HttpOnly, conserva únicamente Usuario, NombreCompleto, Area y Perfil en memoria y protege las rutas `/login` e `/inicio`. No utiliza `localStorage` para persistir la sesión; únicamente puede recordar el nombre de usuario.
 
 La contraseña y su hash no deben enviarse al frontend, registrarse en auditoría ni escribirse en logs.
 
@@ -55,4 +58,3 @@ La contraseña y su hash no deben enviarse al frontend, registrarse en auditorí
 
 - Generar un hash válido para los usuarios de desarrollo y ejecutar pruebas integrales del Login.
 - Validar la futura integración corporativa con Spring, Active Directory o SSO sin copiar contraseñas.
-- Implementar el frontend React después de cerrar las pruebas del backend.

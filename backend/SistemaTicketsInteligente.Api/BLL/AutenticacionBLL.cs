@@ -1,7 +1,7 @@
 /**
  * Archivo: AutenticacionBLL.cs
- * Objetivo: Aplicar las reglas necesarias para validar el inicio de sesión de un usuario.
- * Responsabilidad: Validar entrada, consultar al usuario, verificar la contraseña, revisar estados y devolver únicamente identidad segura.
+ * Objetivo: Aplicar las reglas necesarias para iniciar y cerrar la sesión de un usuario.
+ * Responsabilidad: Validar credenciales y estados, devolver identidad segura y auditar el cierre de sesión.
  * Dependencias: AutenticacionDAO, PasswordHasher y DTO de autenticación.
  * Flujo: AutenticacionController -> AutenticacionBLL -> AutenticacionDAO -> SQL Server.
  * Consideraciones: No conoce HTTP ni React; la contraseña nunca se registra, persiste ni se envía a SQL Server para comparación.
@@ -86,5 +86,19 @@ public sealed class AutenticacionBLL
             Area = usuario.Area,
             Perfil = usuario.Perfil
         });
+    }
+
+    public Task CerrarSesionAsync(string usuario, CancellationToken cancellationToken = default)
+    {
+        var usuarioNormalizado = usuario.Trim();
+        if (usuarioNormalizado.Length == 0) throw new ArgumentException("El usuario autenticado es obligatorio.", nameof(usuario));
+
+        return autenticacionDAO.RegistrarAuditoriaAsync(
+            usuarioNormalizado,
+            usuarioNormalizado,
+            "LOGOUT_EXITOSO",
+            "EXITOSO",
+            Guid.NewGuid(),
+            cancellationToken);
     }
 }

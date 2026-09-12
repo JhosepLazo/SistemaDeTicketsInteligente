@@ -32,4 +32,10 @@ Comprobación básica: `GET /api/salud`.
 
 ## Frontend
 
-El frontend React se desarrollará después de cerrar y validar completamente el backend del inicio de sesión.
+```powershell
+Set-Location frontend
+npm install
+npm run dev
+```
+
+La aplicación consulta la sesión al abrirse, muestra el Login cuando no existe una cookie válida y protege temporalmente la ruta `/inicio`.

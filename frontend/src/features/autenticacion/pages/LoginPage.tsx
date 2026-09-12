@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
-import { iniciarSesion } from '../services/autenticacionService'
+import { useNavigate } from 'react-router-dom'
+import { useAutenticacion } from '../context/AutenticacionContext'
 import './LoginPage.css'
 
 const claveUsuarioRecordado = 'sti.usuarioRecordado'
@@ -146,6 +147,8 @@ function MarcaCalimod({ className = "", size = 55 }) {
 
 export default function LoginPage() {
   const ambiente = import.meta.env.DEV ? 'Desarrollo' : 'Producción'
+  const navigate = useNavigate()
+  const { iniciarSesion, mensajeSesion } = useAutenticacion()
 
   const [usuario, setUsuario] = useState('')
   const [contrasena, setContrasena] = useState('')
@@ -164,6 +167,12 @@ export default function LoginPage() {
     setRecordarme(true)
   }, [])
 
+  useEffect(() => {
+    if (!mensajeSesion) return
+    setTipoMensaje('error')
+    setMensaje(mensajeSesion)
+  }, [mensajeSesion])
+
   function manejarCapsLock(evento: KeyboardEvent<HTMLInputElement>) {
     setCapsLockActivo(evento.getModifierState('CapsLock'))
   }
@@ -181,7 +190,7 @@ export default function LoginPage() {
     setCargando(true)
 
     try {
-      const respuesta = await iniciarSesion({
+      await iniciarSesion({
         usuario: usuario.trim(),
         contrasena,
       })
@@ -189,10 +198,9 @@ export default function LoginPage() {
       if (recordarme) localStorage.setItem(claveUsuarioRecordado, usuario.trim())
       else localStorage.removeItem(claveUsuarioRecordado)
 
-      setTipoMensaje('ok')
-      setMensaje(`Acceso validado correctamente. Bienvenido, ${respuesta.nombreCompleto}.`)
       setContrasena('')
       setCapsLockActivo(false)
+      navigate('/inicio', { replace: true })
     } catch (error) {
       setTipoMensaje('error')
       setMensaje(error instanceof Error ? error.message : 'No fue posible iniciar sesión.')
@@ -427,7 +435,7 @@ export default function LoginPage() {
                     </svg>
                   </span>
 
-                  <span>Recordarme</span>
+                  <span>Recordar usuario</span>
                 </label>
 
                 <button type="button" className="login-link-button" onClick={mostrarAyuda}>
