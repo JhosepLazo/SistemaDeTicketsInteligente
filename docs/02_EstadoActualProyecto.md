@@ -1,5 +1,7 @@
 # Estado actual del proyecto — Sistema de Tickets Inteligente
 
+> **Documento histórico:** este archivo conserva el estado de la etapa de diseño de base de datos al 7 de septiembre de 2026. La estructura vigente de backend y frontend se documenta en [03_EstructuraSolucion.md](03_EstructuraSolucion.md).
+
 **Fecha de actualización:** 7 de septiembre de 2026  
 **Rama:** `main`  
 **Último commit al preparar este documento:** `7fd421c Documentación sobre la BD`

@@ -2,6 +2,8 @@
 bin/
 obj/
 node_modules/
+dist/
+*.tsbuildinfo
 
 # Configuración local y archivos sensibles
 .env

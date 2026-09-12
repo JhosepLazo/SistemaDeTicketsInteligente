@@ -3,9 +3,19 @@
 
 root = true
 
-[*.sql]
+[*]
 charset = utf-8
-indent_style = tab
-tab_width = 4
 trim_trailing_whitespace = true
 insert_final_newline = true
+
+[*.cs]
+indent_style = space
+indent_size = 4
+
+[*.{csproj,sln,json,ts,tsx,css,html,md}]
+indent_style = space
+indent_size = 2
+
+[*.sql]
+indent_style = tab
+tab_width = 4

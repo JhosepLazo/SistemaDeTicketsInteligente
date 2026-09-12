@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>SistemaTicketsInteligente.Negocio.ComponenteBLL</RootNamespace>
+    <AssemblyName>SistemaTicketsInteligente.Negocio.ComponenteBLL</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ComponenteDAO\ComponenteDAO.csproj" />
+    <ProjectReference Include="..\ComponenteDTO\ComponenteDTO.csproj" />
+  </ItemGroup>
+</Project>

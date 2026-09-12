@@ -1,41 +1,36 @@
-/**
-    Archivo: Program.cs
-    Objetivo: Iniciar y configurar la aplicación web ASP.NET Core.
-    Responsabilidad: Registrar controladores, construir la aplicación, mapear las rutas HTTP y ejecutar el servidor.
-    Dependencias: ASP.NET Core y la configuración declarada en el archivo del proyecto.
-    Flujo: Inicio del proceso -> registro de servicios -> construcción de la aplicación -> atención HTTP.
-    Consideraciones: Mantiene una configuración mínima; esta cabecera no agrega servicios ni funcionalidades.
-*/
-
-using SistemaTicketsInteligente.Api.Data;
-using SistemaTicketsInteligente.Api.Repositories;
-
-var conexionSqlServer = new ConexionSqlServer();
-var autenticacionRepository = new AutenticacionRepository(conexionSqlServer);
-
-var usuario = await autenticacionRepository.BuscarUsuarioAsync("JSILVA");
-
-if (usuario is null)
-{
-    Console.WriteLine("Usuario no encontrado.");
-}
-else
-{
-    Console.WriteLine(
-        $"Usuario: {usuario.Usuario} | " +
-        $"Nombre: {usuario.NombreCompleto} | " +
-        $"Área: {usuario.Area} | " +
-        $"Perfil: {usuario.Perfil} | " +
-        $"Estado usuario: {usuario.EstadoUsuario} | " +
-        $"Estado perfil: {usuario.EstadoPerfil}");
-}
+using SistemaTicketsInteligente.Datos.ComponenteDAO.Autenticacion;
+using SistemaTicketsInteligente.Datos.ComponenteDAO.Data;
+using SistemaTicketsInteligente.Negocio.ComponenteBLL.Autenticacion;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 
+var cadenaConexion = builder.Configuration.GetConnectionString("CnnGestionTi")
+    ?? throw new InvalidOperationException("No se configuró la conexión 'CnnGestionTi'.");
+
+builder.Services.AddSingleton(new ConexionSqlServer(cadenaConexion));
+builder.Services.AddScoped<AutenticacionDAO>();
+builder.Services.AddScoped<AutenticacionBLL>();
+
+builder.Services.AddCors(opciones =>
+{
+    opciones.AddPolicy("Frontend", politica =>
+    {
+        var origenes = builder.Configuration
+            .GetSection("Cors:AllowedOrigins")
+            .Get<string[]>() ?? [];
+
+        politica.WithOrigins(origenes)
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
 var app = builder.Build();
 
+app.UseCors("Frontend");
 app.MapControllers();
+app.MapGet("/api/salud", () => Results.Ok(new { estado = "ok" }));
 
 app.Run();

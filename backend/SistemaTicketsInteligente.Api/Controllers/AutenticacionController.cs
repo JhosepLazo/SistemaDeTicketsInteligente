@@ -1,8 +1,19 @@
-/**
-    Archivo: AutenticacionController.cs
-    Objetivo: Reservar el punto de entrada HTTP del módulo de autenticación.
-    Responsabilidad: Recibir solicitudes de autenticación y delegarlas al servicio correspondiente cuando se implemente.
-    Dependencias: AutenticacionService y los contratos de autenticación, pendientes de implementación.
-    Flujo: Frontend -> AutenticacionController -> AutenticacionService.
-    Consideraciones: Archivo preparado únicamente con documentación; no contiene código funcional.
-*/
+using Microsoft.AspNetCore.Mvc;
+using SistemaTicketsInteligente.Negocio.ComponenteBLL.Autenticacion;
+
+namespace SistemaTicketsInteligente.Api.Controllers;
+
+[ApiController]
+[Route("api/autenticacion")]
+public sealed class AutenticacionController : ControllerBase
+{
+    private readonly AutenticacionBLL autenticacionBLL;
+
+    public AutenticacionController(AutenticacionBLL autenticacionBLL)
+    {
+        this.autenticacionBLL = autenticacionBLL;
+    }
+
+    // El endpoint se agregará cuando se aprueben el origen de identidad,
+    // el algoritmo de hash y el contrato definitivo de autenticación.
+}
