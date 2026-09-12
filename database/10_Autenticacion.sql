@@ -11,13 +11,13 @@ Use [SistemaTicketsInteligente]
 Go
 
 -- Exec dbo.Usp_TI_Buscar_UsuarioAutenticacion 'USR001'
-Create Or Alter Procedure dbo.Usp_TI_Buscar_UsuarioAutenticacion
+Create Or Alter Procedure Usp_TI_Buscar_UsuarioAutenticacion
 /*================================================================================
 Objetivo            : Obtener los datos mínimos necesarios para validar la autenticación de un usuario.
 Creado Por          : Jhosep S. Lazo
-Fecha Creación      : 11/09/2026
-SP Anterior         : Ninguno
-Comentario Cambios  : Creación inicial para el backend ASP.NET Core.
+Fecha Creación      : Sep. 2026
+SP Anterior         : 
+Comentario Cambios  : 
 ================================================================================*/
 @cUsuario varchar(20)
 As
@@ -34,18 +34,18 @@ Go
 /* Ejecuta Procedure */
 
 -- Exec dbo.Usp_TI_Registrar_AuditoriaAutenticacion Null, 'USR001', 'LOGIN_FALLIDO', 'DENEGADO', '00000000-0000-0000-0000-000000000000'
-Create Or Alter Procedure dbo.Usp_TI_Registrar_AuditoriaAutenticacion
+Create Or Alter Procedure Usp_TI_Registrar_AuditoriaAutenticacion
 /*================================================================================
 Objetivo            : Registrar eventos de autenticación en la auditoría transversal del sistema.
 Creado Por          : Jhosep S. Lazo
-Fecha Creación      : 11/09/2026
-SP Anterior         : Ninguno
-Comentario Cambios  : Creación inicial para trazabilidad de accesos al sistema.
+Fecha Creación      : Sep. 2026
+SP Anterior         : 
+Comentario Cambios  : 
 ================================================================================*/
-@cUsuario varchar(20),
-@cRegistro varchar(200),
-@cEvento varchar(100),
-@cResultado varchar(20),
+@cUsuario 		varchar(20),
+@cRegistro 		varchar(200),
+@cEvento 		varchar(100),
+@cResultado 	varchar(20),
 @cIdCorrelacion uniqueidentifier
 As
 Begin

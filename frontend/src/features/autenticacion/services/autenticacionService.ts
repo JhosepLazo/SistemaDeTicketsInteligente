@@ -5,22 +5,26 @@ import type {
 
 const rutaAutenticacion = '/api/autenticacion/iniciar-sesion'
 
+async function obtenerMensajeError(respuesta: Response) {
+  try {
+    const error = await respuesta.json() as { mensaje?: string }
+    return error.mensaje ?? 'No fue posible iniciar sesión.'
+  } catch {
+    return 'No fue posible iniciar sesión.'
+  }
+}
+
 export async function iniciarSesion(
   solicitud: SolicitudInicioSesion,
-  signal?: AbortSignal,
 ): Promise<RespuestaInicioSesion> {
   const respuesta = await fetch(rutaAutenticacion, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify(solicitud),
-    signal,
   })
 
-  if (!respuesta.ok) {
-    throw new Error('No fue posible iniciar sesión.')
-  }
+  if (!respuesta.ok) throw new Error(await obtenerMensajeError(respuesta))
 
   return respuesta.json() as Promise<RespuestaInicioSesion>
 }

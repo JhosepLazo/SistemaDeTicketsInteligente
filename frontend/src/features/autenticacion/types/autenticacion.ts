@@ -4,10 +4,8 @@ export interface SolicitudInicioSesion {
 }
 
 export interface RespuestaInicioSesion {
-  autenticado: boolean
-  usuario?: string
-  nombreCompleto?: string
-  area?: string
-  perfil?: string
-  mensaje?: string
+  usuario: string
+  nombreCompleto: string
+  area: string
+  perfil: string
 }
