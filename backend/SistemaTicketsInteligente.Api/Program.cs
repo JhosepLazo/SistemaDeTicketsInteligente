@@ -2,16 +2,15 @@
  * Archivo: Program.cs
  * Objetivo: Configurar y ejecutar la API ASP.NET Core del Sistema de Tickets Inteligente.
  * Responsabilidad: Registrar dependencias, autenticación, autorización, CORS, rate limiting y manejo general de errores.
- * Dependencias: ComponenteBLL, ComponenteDAO, ASP.NET Core y appsettings.json.
+ * Dependencias: BLL, DAO, ASP.NET Core y appsettings.json.
  * Flujo: Inicio de aplicación -> configuración -> middleware -> Controllers.
  * Consideraciones: Mantiene únicamente configuración transversal; no contiene reglas de negocio ni acceso SQL.
  */
 
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using SistemaTicketsInteligente.Datos.ComponenteDAO.Autenticacion;
-using SistemaTicketsInteligente.Datos.ComponenteDAO.Data;
-using SistemaTicketsInteligente.Negocio.ComponenteBLL.Autenticacion;
+using SistemaTicketsInteligente.Api.BLL;
+using SistemaTicketsInteligente.Api.DAO;
 
 var builder = WebApplication.CreateBuilder(args);
 

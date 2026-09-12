@@ -7,7 +7,7 @@
  * Consideraciones: Nunca debe contener contraseña, hash, estados internos ni datos técnicos de autenticación.
  */
 
-namespace SistemaTicketsInteligente.Entidades.ComponenteDTO.Autenticacion;
+namespace SistemaTicketsInteligente.Api.DTO.Autenticacion;
 
 public sealed class RespuestaInicioSesion
 {

@@ -2,17 +2,16 @@
  * Archivo: AutenticacionDAO.cs
  * Objetivo: Ejecutar las operaciones SQL necesarias para autenticar y auditar accesos.
  * Responsabilidad: Consultar el usuario mediante Stored Procedure y registrar eventos de autenticación sin aplicar reglas de negocio.
- * Dependencias: ConexionSqlServer, Microsoft.Data.SqlClient, TI_Usuario, TI_Perfil y TI_Auditoria.
+ * Dependencias: ConexionSqlServer, Microsoft.Data.SqlClient, DTO de autenticación y Stored Procedures de autenticación.
  * Flujo: AutenticacionBLL -> AutenticacionDAO -> Stored Procedures -> SQL Server.
  * Consideraciones: No valida contraseñas ni decide permisos; todos los valores se envían mediante parámetros tipados.
  */
 
 using System.Data;
 using Microsoft.Data.SqlClient;
-using SistemaTicketsInteligente.Datos.ComponenteDAO.Data;
-using SistemaTicketsInteligente.Entidades.ComponenteDTO.Autenticacion;
+using SistemaTicketsInteligente.Api.DTO.Autenticacion;
 
-namespace SistemaTicketsInteligente.Datos.ComponenteDAO.Autenticacion;
+namespace SistemaTicketsInteligente.Api.DAO;
 
 public sealed class AutenticacionDAO
 {

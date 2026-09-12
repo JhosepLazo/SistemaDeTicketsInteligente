@@ -1,17 +1,17 @@
 /**
  * Archivo: AutenticacionBLL.cs
  * Objetivo: Aplicar las reglas necesarias para validar el inicio de sesión de un usuario.
- * Responsabilidad: Validar entrada, consultar al usuario, verificar el hash, revisar estados y devolver únicamente identidad segura.
- * Dependencias: AutenticacionDAO, PasswordHasher y contratos de ComponenteDTO.
+ * Responsabilidad: Validar entrada, consultar al usuario, verificar la contraseña, revisar estados y devolver únicamente identidad segura.
+ * Dependencias: AutenticacionDAO, PasswordHasher y DTO de autenticación.
  * Flujo: AutenticacionController -> AutenticacionBLL -> AutenticacionDAO -> SQL Server.
  * Consideraciones: No conoce HTTP ni React; la contraseña nunca se registra, persiste ni se envía a SQL Server para comparación.
  */
 
 using Microsoft.AspNetCore.Identity;
-using SistemaTicketsInteligente.Datos.ComponenteDAO.Autenticacion;
-using SistemaTicketsInteligente.Entidades.ComponenteDTO.Autenticacion;
+using SistemaTicketsInteligente.Api.DAO;
+using SistemaTicketsInteligente.Api.DTO.Autenticacion;
 
-namespace SistemaTicketsInteligente.Negocio.ComponenteBLL.Autenticacion;
+namespace SistemaTicketsInteligente.Api.BLL;
 
 public enum ResultadoInicioSesion
 {

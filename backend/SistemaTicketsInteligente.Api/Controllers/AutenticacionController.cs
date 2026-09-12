@@ -2,7 +2,7 @@
  * Archivo: AutenticacionController.cs
  * Objetivo: Exponer los endpoints HTTP necesarios para iniciar, consultar y cerrar la sesión del usuario.
  * Responsabilidad: Recibir solicitudes, delegar la autenticación a BLL y administrar la identidad web mediante cookie segura.
- * Dependencias: AutenticacionBLL, ComponenteDTO y autenticación de ASP.NET Core.
+ * Dependencias: AutenticacionBLL, DTO de autenticación y autenticación de ASP.NET Core.
  * Flujo: Frontend -> AutenticacionController -> AutenticacionBLL -> AutenticacionDAO -> SQL Server.
  * Consideraciones: No contiene SQL ni valida hashes; los códigos HTTP se determinan a partir del resultado entregado por BLL.
  */
@@ -13,8 +13,8 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using SistemaTicketsInteligente.Entidades.ComponenteDTO.Autenticacion;
-using SistemaTicketsInteligente.Negocio.ComponenteBLL.Autenticacion;
+using SistemaTicketsInteligente.Api.BLL;
+using SistemaTicketsInteligente.Api.DTO.Autenticacion;
 
 namespace SistemaTicketsInteligente.Api.Controllers;
 

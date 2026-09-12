@@ -2,49 +2,57 @@
 
 ## Objetivo
 
-La solución conserva la separación de responsabilidades observada en el sistema corporativo `GestionIncidencias`, adaptada a ASP.NET Core, C# y React.
+La solución conserva la separación de responsabilidades observada en el sistema corporativo, adaptada a ASP.NET Core, C# y React, pero evitando dividir cada responsabilidad en proyectos independientes cuando no aporta valor de mantenimiento.
 
 ```text
 SistemaTicketsInteligente/
 ├── SistemaTicketsInteligente.sln
 ├── backend/
-│   ├── SistemaTicketsInteligente.Api/   Entrada HTTP y composición
-│   ├── ComponenteBLL/                   Reglas y coordinación del negocio
-│   ├── ComponenteDAO/                   Acceso a SQL Server y sistemas externos
-│   └── ComponenteDTO/                   Contratos y modelos compartidos
-├── frontend/                            Aplicación React independiente
-│   └── src/
-│       ├── app/                         Composición global
-│       ├── features/                    Módulos por capacidad de negocio
-│       └── styles/                      Estilos globales
-├── database/                            DDL, datos iniciales y validación SQL
+│   └── SistemaTicketsInteligente.Api/
+│       ├── Controllers/                 Entrada HTTP y sesión web
+│       ├── BLL/                         Reglas y coordinación del negocio
+│       ├── DAO/                         Acceso a SQL Server y Stored Procedures
+│       ├── DTO/                         Contratos y modelos
+│       ├── Program.cs                   Composición y middleware
+│       └── appsettings.json             Configuración no sensible
+├── frontend/                            Aplicación React
+├── database/                            DDL, datos iniciales y Stored Procedures
 └── docs/                                Documentación funcional y técnica
 ```
 
 ## Dependencias permitidas
 
 ```text
-React → API
-API → BLL + DTO + DAO (solo para composición de dependencias)
-BLL → DAO + DTO
-DAO → DTO + SQL Server
-DTO → ninguna capa del sistema
+React -> API
+Controller -> BLL + DTO
+BLL -> DAO + DTO
+DAO -> DTO + SQL Server
+DTO -> ninguna responsabilidad funcional
 ```
 
-La API no debe contener SQL. La BLL no debe conocer HTTP ni componentes de React. La DAO no debe decidir permisos o reglas del workflow. DTO no debe contener acceso a datos.
+La API no debe contener SQL. La BLL no debe conocer detalles de SQL ni componentes React. La DAO no debe decidir permisos ni reglas de negocio. Los DTO solo transportan información.
 
-## Organización por funcionalidad
+## Criterio de mantenimiento
 
-En cada componente, las clases se agrupan por capacidad (`Autenticacion`, `Incidencias`, `Maestros`, `Aprobaciones`, etc.). React sigue el mismo criterio dentro de `src/features` para evitar reproducir una página independiente por cada Web Form legado.
+La separación se realiza mediante carpetas y responsabilidades dentro de un único proyecto ASP.NET Core. Solo se crearán nuevos proyectos, interfaces, servicios base o abstracciones cuando exista una necesidad técnica concreta que justifique su mantenimiento.
 
-## Configuración
+El criterio general es mantener el menor número de archivos y capas posible sin mezclar responsabilidades.
 
-La conexión mantiene el nombre corporativo `CnnGestionTi`, pero su valor se obtiene mediante configuración de ASP.NET Core. Los secretos de producción no deben almacenarse en el repositorio.
+## Autenticación
 
-## Decisiones pendientes
+El backend de autenticación utiliza actualmente:
 
-- Origen de identidad: Spring, Active Directory, SSO o autenticación local.
-- Algoritmo y transición de contraseñas heredadas.
-- Contrato definitivo del inicio de sesión.
-- Stored Procedure `Usp_TI_BuscarUsuarioAutenticacion`.
-- Política corporativa de versiones de .NET, Node.js y paquetes npm.
+- Stored Procedures para consultar usuario y registrar auditoría.
+- `PasswordHasher` de ASP.NET Core para verificar la contraseña.
+- Cookie Authentication para mantener la sesión web.
+- Claims mínimos: Usuario, NombreCompleto, Area y Perfil.
+- Rate limiting sobre el endpoint de inicio de sesión.
+- Respuestas genéricas para credenciales incorrectas y manejo general de errores.
+
+La contraseña y su hash no deben enviarse al frontend, registrarse en auditoría ni escribirse en logs.
+
+## Pendiente
+
+- Generar un hash válido para los usuarios de desarrollo y ejecutar pruebas integrales del Login.
+- Validar la futura integración corporativa con Spring, Active Directory o SSO sin copiar contraseñas.
+- Implementar el frontend React después de cerrar las pruebas del backend.

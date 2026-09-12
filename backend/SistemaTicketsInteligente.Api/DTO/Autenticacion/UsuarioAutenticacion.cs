@@ -7,7 +7,7 @@
  * Consideraciones: Es un modelo interno y nunca debe enviarse al frontend porque contiene ClaveHash.
  */
 
-namespace SistemaTicketsInteligente.Entidades.ComponenteDTO.Autenticacion;
+namespace SistemaTicketsInteligente.Api.DTO.Autenticacion;
 
 public sealed class UsuarioAutenticacion
 {

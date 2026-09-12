@@ -7,7 +7,7 @@
  * Consideraciones: El usuario se normaliza en BLL; la contraseña no se recorta ni se transforma en este DTO.
  */
 
-namespace SistemaTicketsInteligente.Entidades.ComponenteDTO.Autenticacion;
+namespace SistemaTicketsInteligente.Api.DTO.Autenticacion;
 
 public sealed class SolicitudInicioSesion
 {
