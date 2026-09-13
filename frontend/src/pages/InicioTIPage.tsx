@@ -3,8 +3,8 @@
  * Objetivo: Implementar el módulo Inicio para la visión del operador TI autenticado.
  * Responsabilidad: Presentar carga operativa, tickets que requieren intervención, recordatorios, tickets activos y actividad reciente sin duplicar funciones de los módulos especializados.
  * Dependencias: AutenticacionContext, inicioTIService, NotificacionesCampana, InicioPage.css e InicioTIPage.css.
- * Flujo: Ruta protegida /inicio -> selección por perfil -> InicioTIPage -> API /api/inicio/ti -> presentación, búsqueda, filtros y accesos a Gestión de Tickets, Base de Conocimiento y Reportes.
- * Consideraciones: El Inicio conserva únicamente acciones de resumen; la atención detallada se delega a Gestión de Tickets, el conocimiento reusable a Base de Conocimiento y el análisis histórico a Reportes. Asistente TI permanece pendiente de implementación.
+ * Flujo: Ruta protegida /inicio -> selección por perfil -> InicioTIPage -> API /api/inicio/ti -> presentación, búsqueda, filtros y accesos a Gestión de Tickets, Base de Conocimiento, Reportes y Configuración TI para SUP/ADM.
+ * Consideraciones: El Inicio conserva únicamente acciones de resumen; la atención detallada se delega a Gestión de Tickets, el conocimiento reusable a Base de Conocimiento y el análisis histórico a Reportes. Configuración TI solo se muestra a SUP/ADM. Asistente TI permanece pendiente de implementación.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -198,6 +198,7 @@ export default function InicioTIPage() {
   async function manejarCierreSesion() { await cerrarSesion(); navigate('/login', { replace: true }) }
 
   const nombre = obtenerPrimerNombre(usuario.nombreCompleto)
+  const puedeConfigurar = ['SUP', 'ADM'].includes(usuario.perfil)
   const hayFiltros = busqueda.trim().length > 0 || filtroAsignacion !== 'TODOS' || filtroOperativo !== 'TODOS'
   const irArriba = () => window.scrollTo({ top: 0, behavior: 'smooth' })
   const irAElemento = (elemento: HTMLElement | null) => {
@@ -212,6 +213,7 @@ export default function InicioTIPage() {
   const irAGestion = () => navigate('/gestion-tickets')
   const irAConocimiento = () => navigate('/base-conocimiento')
   const irAReportes = () => navigate('/reportes')
+  const irAConfiguracion = () => navigate('/configuracion-ti')
 
   return (
     <div className="inicio-shell inicio-ti-page">
@@ -223,6 +225,7 @@ export default function InicioTIPage() {
           <button className="inicio-menu__item" type="button" onClick={irAGestion}><Icono nombre="gestion" /> <span>Gestión de Tickets</span></button>
           <button className="inicio-menu__item" type="button" onClick={irAConocimiento}><Icono nombre="carpeta" /> <span>Base de Conocimiento</span></button>
           <button className="inicio-menu__item" type="button" onClick={irAReportes}><Icono nombre="actividad" /> <span>Reportes</span></button>
+          {puedeConfigurar && <button className="inicio-menu__item" type="button" onClick={irAConfiguracion}><Icono nombre="engranaje" /> <span>Configuración TI</span></button>}
         </nav>
         <div className="inicio-sidebar__mensaje"><span>La tecnología también impulsa grandes historias.</span><strong>CALIMOD</strong></div>
         <div className="inicio-sidebar__pie"><span className="inicio-sidebar__ayuda-icono">?</span><span>¿Necesitas ayuda?</span><small>Disponible desde Asistente TI</small></div>
