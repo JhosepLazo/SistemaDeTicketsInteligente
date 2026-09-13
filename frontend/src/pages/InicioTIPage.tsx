@@ -3,7 +3,7 @@
  * Objetivo: Implementar el módulo Inicio para la visión del operador TI autenticado.
  * Responsabilidad: Presentar carga operativa, tickets que requieren intervención, recordatorios, tickets activos y actividad reciente sin duplicar funciones de Gestión de Tickets.
  * Dependencias: AutenticacionContext, inicioTIService, InicioPage.css e InicioTIPage.css.
- * Flujo: Ruta protegida /inicio -> selección por perfil -> InicioTIPage -> API /api/inicio/ti -> presentación operativa.
+ * Flujo: Ruta protegida /inicio -> selección por perfil -> InicioTIPage -> API /api/inicio/ti -> presentación, búsqueda y filtros operativos locales.
  * Consideraciones: Las funciones propias del Inicio quedan operativas; los accesos que pertenecen a Gestión de Tickets, Asistente TI o Nuevo Ticket permanecen deshabilitados hasta implementar esos módulos.
  */
 
@@ -21,8 +21,11 @@ import './InicioPage.css'
 import './InicioTIPage.css'
 
 type NombreIcono = 'inicio' | 'asistente' | 'nuevo' | 'tickets' | 'gestion' | 'buscar' | 'campana' | 'carpeta' | 'engranaje' | 'alerta' | 'fuego' | 'check' | 'actividad' | 'salir' | 'flecha' | 'reloj' | 'aprobacion' | 'reabrir'
-
 type FiltroAsignacion = 'TODOS' | 'MIOS'
+type FiltroOperativo = 'TODOS' | 'PENDIENTES' | 'ATENCION' | 'PRIORIDAD_ALTA' | 'APROBACION' | 'REABIERTOS'
+
+const estadosPendientes = new Set(['NV', 'RC', 'PA', 'RA'])
+const estadosAtencion = new Set(['DG', 'EJ', 'ES', 'PV'])
 
 function Icono({ nombre, size = 20 }: { nombre: NombreIcono; size?: number }) {
   const trazos: Record<NombreIcono, React.ReactNode> = {
@@ -97,6 +100,24 @@ function claseEstado(estado: string) {
   return 'estado estado--atencion'
 }
 
+function cumpleFiltroOperativo(ticket: InicioTITicketActivo, filtro: FiltroOperativo) {
+  if (filtro === 'PENDIENTES') return estadosPendientes.has(ticket.estado)
+  if (filtro === 'ATENCION') return estadosAtencion.has(ticket.estado)
+  if (filtro === 'PRIORIDAD_ALTA') return (ticket.prioridad ?? 0) >= 4
+  if (filtro === 'APROBACION') return ticket.estado === 'PA'
+  if (filtro === 'REABIERTOS') return ticket.estado === 'RA'
+  return true
+}
+
+function textoFiltroOperativo(filtro: FiltroOperativo) {
+  if (filtro === 'PENDIENTES') return 'Pendientes'
+  if (filtro === 'ATENCION') return 'En atención'
+  if (filtro === 'PRIORIDAD_ALTA') return 'Prioridad alta'
+  if (filtro === 'APROBACION') return 'Aprobaciones'
+  if (filtro === 'REABIERTOS') return 'Reabiertos'
+  return 'Todos'
+}
+
 function etiquetaAtencion(ticket: InicioTITicketPrioritario) {
   if (ticket.tipoAtencion === 'SIN_ASIGNAR') return 'Sin asignar'
   if (ticket.tipoAtencion === 'REABIERTO') return 'Ticket reabierto'
@@ -114,7 +135,7 @@ function detalleAtencion(ticket: InicioTITicketPrioritario) {
     const horas = Math.ceil(minutos / 60)
     return `SLA en ${horas} ${horas === 1 ? 'hora' : 'horas'}`
   }
-  if (ticket.tipoAtencion === 'APROBACION') return `Esperando desde ${tiempoRelativo(ticket.ultimaFechaModif).replace('hace ', 'hace ')}`
+  if (ticket.tipoAtencion === 'APROBACION') return `Esperando desde ${tiempoRelativo(ticket.ultimaFechaModif)}`
   return tiempoRelativo(ticket.ultimaFechaModif)
 }
 
@@ -142,8 +163,10 @@ export default function InicioTIPage() {
   const [error, setError] = useState('')
   const [busqueda, setBusqueda] = useState('')
   const [filtroAsignacion, setFiltroAsignacion] = useState<FiltroAsignacion>('TODOS')
+  const [filtroOperativo, setFiltroOperativo] = useState<FiltroOperativo>('TODOS')
   const buscadorRef = useRef<HTMLInputElement>(null)
   const pendientesRef = useRef<HTMLElement>(null)
+  const tablaRef = useRef<HTMLElement>(null)
 
   async function cargarInicio() {
     setCargando(true)
@@ -186,11 +209,12 @@ export default function InicioTIPage() {
     const texto = busqueda.trim().toLowerCase()
     return datos.ticketsActivos.filter(ticket => {
       if (filtroAsignacion === 'MIOS' && ticket.usuarioTI !== usuario.usuario) return false
+      if (!cumpleFiltroOperativo(ticket, filtroOperativo)) return false
       if (!texto) return true
 
       return `${ticket.incidenciaNumero} ${ticket.usuarioSolicitante} ${ticket.titulo} ${ticket.estadoDescripcion} ${ticket.responsable}`.toLowerCase().includes(texto)
     })
-  }, [busqueda, datos, filtroAsignacion, usuario])
+  }, [busqueda, datos, filtroAsignacion, filtroOperativo, usuario])
 
   if (!usuario) return null
 
@@ -201,11 +225,23 @@ export default function InicioTIPage() {
 
   const nombre = obtenerPrimerNombre(usuario.nombreCompleto)
   const totalNotificaciones = datos?.resumen.requierenAccion ?? 0
+  const hayFiltros = busqueda.trim().length > 0 || filtroAsignacion !== 'TODOS' || filtroOperativo !== 'TODOS'
   const irArriba = () => window.scrollTo({ top: 0, behavior: 'smooth' })
-  const irAPendientes = () => {
-    if (!pendientesRef.current) return
-    const posicion = pendientesRef.current.getBoundingClientRect().top + window.scrollY - 78
+  const irAElemento = (elemento: HTMLElement | null) => {
+    if (!elemento) return
+    const posicion = elemento.getBoundingClientRect().top + window.scrollY - 78
     window.scrollTo({ top: posicion, behavior: 'smooth' })
+  }
+  const irAPendientes = () => irAElemento(pendientesRef.current)
+  const irATicketsActivos = () => irAElemento(tablaRef.current)
+  const aplicarFiltroOperativo = (filtro: FiltroOperativo) => {
+    setFiltroOperativo(filtro)
+    requestAnimationFrame(irATicketsActivos)
+  }
+  const limpiarFiltros = () => {
+    setBusqueda('')
+    setFiltroAsignacion('TODOS')
+    setFiltroOperativo('TODOS')
   }
 
   return (
@@ -245,7 +281,7 @@ export default function InicioTIPage() {
           </label>
 
           <div className="inicio-topbar__usuario">
-            <button className="inicio-notificacion" type="button" onClick={irAPendientes} disabled={totalNotificaciones === 0} title={totalNotificaciones > 0 ? 'Ir a tickets que requieren atención' : 'No hay tickets que requieran atención'}>
+            <button className="inicio-notificacion" type="button" onClick={irAPendientes} disabled={totalNotificaciones === 0} title={totalNotificaciones > 0 ? 'Ir a tickets que requieren atención' : 'No hay tickets que requieran atención'} aria-label={totalNotificaciones > 0 ? `${totalNotificaciones} tickets requieren atención. Ir a pendientes.` : 'No hay tickets que requieran atención'}>
               <Icono nombre="campana" size={21} />
               {totalNotificaciones > 0 && <span>{totalNotificaciones > 9 ? '9+' : totalNotificaciones}</span>}
             </button>
@@ -287,17 +323,17 @@ export default function InicioTIPage() {
           {!cargando && datos && (
             <>
               <section className="inicio-metricas" aria-label="Resumen operativo de TI">
-                <article className="inicio-metrica"><div className="inicio-metrica__icono inicio-metrica__icono--turquesa"><Icono nombre="carpeta" size={24} /></div><div><span>Pendientes</span><strong>{datos.resumen.pendientes}</strong><small>{datos.resumen.pendientesDesdeAyer} registrados desde ayer</small></div></article>
-                <article className="inicio-metrica"><div className="inicio-metrica__icono inicio-metrica__icono--azul"><Icono nombre="engranaje" size={24} /></div><div><span>En atención</span><strong>{datos.resumen.enAtencion}</strong><small>{datos.resumen.enProgresoHoy} con movimiento hoy</small></div></article>
-                <article className="inicio-metrica"><div className="inicio-metrica__icono inicio-metrica__icono--rojo"><Icono nombre="alerta" size={24} /></div><div><span>Requieren acción</span><strong>{datos.resumen.requierenAccion}</strong><small>{datos.resumen.sinAsignar} sin asignar</small></div></article>
-                <article className="inicio-metrica inicio-ti-metrica--prioridad"><div className="inicio-metrica__icono inicio-ti-metrica__icono--prioridad"><Icono nombre="fuego" size={24} /></div><div><span>Prioridad alta</span><strong>{datos.resumen.prioridadAlta}</strong><small>requieren atención inmediata</small></div></article>
+                <button type="button" className={`inicio-metrica inicio-ti-metrica-interactiva ${filtroOperativo === 'PENDIENTES' ? 'inicio-ti-metrica--activa' : ''}`} onClick={() => aplicarFiltroOperativo('PENDIENTES')} aria-pressed={filtroOperativo === 'PENDIENTES'} title="Filtrar la tabla por tickets pendientes"><div className="inicio-metrica__icono inicio-metrica__icono--turquesa"><Icono nombre="carpeta" size={24} /></div><div><span>Pendientes</span><strong>{datos.resumen.pendientes}</strong><small>{datos.resumen.pendientesDesdeAyer} registrados desde ayer</small></div></button>
+                <button type="button" className={`inicio-metrica inicio-ti-metrica-interactiva ${filtroOperativo === 'ATENCION' ? 'inicio-ti-metrica--activa' : ''}`} onClick={() => aplicarFiltroOperativo('ATENCION')} aria-pressed={filtroOperativo === 'ATENCION'} title="Filtrar la tabla por tickets en atención"><div className="inicio-metrica__icono inicio-metrica__icono--azul"><Icono nombre="engranaje" size={24} /></div><div><span>En atención</span><strong>{datos.resumen.enAtencion}</strong><small>{datos.resumen.enProgresoHoy} con movimiento hoy</small></div></button>
+                <button type="button" className="inicio-metrica inicio-ti-metrica-interactiva" onClick={irAPendientes} title="Ir a tickets que requieren intervención"><div className="inicio-metrica__icono inicio-metrica__icono--rojo"><Icono nombre="alerta" size={24} /></div><div><span>Requieren acción</span><strong>{datos.resumen.requierenAccion}</strong><small>{datos.resumen.sinAsignar} sin asignar</small></div></button>
+                <button type="button" className={`inicio-metrica inicio-ti-metrica-interactiva inicio-ti-metrica--prioridad ${filtroOperativo === 'PRIORIDAD_ALTA' ? 'inicio-ti-metrica--activa' : ''}`} onClick={() => aplicarFiltroOperativo('PRIORIDAD_ALTA')} aria-pressed={filtroOperativo === 'PRIORIDAD_ALTA'} title="Filtrar la tabla por prioridad alta"><div className="inicio-metrica__icono inicio-ti-metrica__icono--prioridad"><Icono nombre="fuego" size={24} /></div><div><span>Prioridad alta</span><strong>{datos.resumen.prioridadAlta}</strong><small>requieren atención inmediata</small></div></button>
               </section>
 
               <section className="inicio-ti-grid-superior" ref={pendientesRef}>
                 <article className="inicio-panel inicio-ti-panel-atencion">
                   <div className="inicio-panel__cabecera">
                     <div><span className="inicio-panel__titulo-icono inicio-panel__titulo-icono--rojo"><Icono nombre="alerta" size={18} /></span><div><h2>Requiere atención</h2><p>Tickets que necesitan una intervención operativa para continuar.</p></div></div>
-                    <button className="inicio-panel__enlace" type="button" disabled>Ver todos los pendientes <Icono nombre="flecha" size={14} /></button>
+                    <button className="inicio-panel__enlace" type="button" disabled title="Disponible desde Gestión de Tickets">Ver todos los pendientes <Icono nombre="flecha" size={14} /></button>
                   </div>
                   <div className="inicio-ti-lista-atencion">
                     {datos.requierenAtencion.length === 0 ? <div className="inicio-vacio"><Icono nombre="check" size={21} /><span>No hay tickets que requieran una intervención prioritaria.</span></div> : datos.requierenAtencion.map(ticket => (
@@ -314,22 +350,33 @@ export default function InicioTIPage() {
                 <article className="inicio-panel inicio-ti-panel-recordatorios">
                   <div className="inicio-panel__cabecera"><div><span className="inicio-panel__titulo-icono"><Icono nombre="reloj" size={18} /></span><div><h2>Recordatorios operativos</h2><p>Mantén al día las tareas críticas del equipo.</p></div></div></div>
                   <div className="inicio-ti-recordatorios">
-                    <div className="inicio-ti-recordatorio"><span className="inicio-ti-recordatorio__icono inicio-ti-recordatorio__icono--amarillo"><Icono nombre="aprobacion" size={19} /></span><div><strong>Aprobaciones pendientes</strong><span>{datos.recordatorios.aprobacionesPendientes}</span><small>Solicitudes pendientes de respuesta</small></div><span className="inicio-ti-recordatorio__flecha">›</span></div>
-                    <div className="inicio-ti-recordatorio"><span className="inicio-ti-recordatorio__icono inicio-ti-recordatorio__icono--rojo"><Icono nombre="reloj" size={19} /></span><div><strong>SLA por vencer</strong><span>{datos.recordatorios.slaPorVencer}</span><small>En las próximas 4 horas</small></div><span className="inicio-ti-recordatorio__flecha">›</span></div>
-                    <div className="inicio-ti-recordatorio"><span className="inicio-ti-recordatorio__icono inicio-ti-recordatorio__icono--violeta"><Icono nombre="reabrir" size={19} /></span><div><strong>Tickets reabiertos</strong><span>{datos.recordatorios.ticketsReabiertos}</span><small>Requieren nueva revisión</small></div><span className="inicio-ti-recordatorio__flecha">›</span></div>
+                    <button className="inicio-ti-recordatorio" type="button" disabled={datos.recordatorios.aprobacionesPendientes === 0} onClick={() => aplicarFiltroOperativo('APROBACION')} title="Filtrar tickets pendientes de aprobación"><span className="inicio-ti-recordatorio__icono inicio-ti-recordatorio__icono--amarillo"><Icono nombre="aprobacion" size={19} /></span><div><strong>Aprobaciones pendientes</strong><span>{datos.recordatorios.aprobacionesPendientes}</span><small>Solicitudes pendientes de respuesta</small></div><span className="inicio-ti-recordatorio__flecha">›</span></button>
+                    <button className="inicio-ti-recordatorio" type="button" disabled={datos.recordatorios.slaPorVencer === 0} onClick={irAPendientes} title="Ir a tickets que requieren intervención por SLA"><span className="inicio-ti-recordatorio__icono inicio-ti-recordatorio__icono--rojo"><Icono nombre="reloj" size={19} /></span><div><strong>SLA por vencer</strong><span>{datos.recordatorios.slaPorVencer}</span><small>En las próximas 4 horas</small></div><span className="inicio-ti-recordatorio__flecha">›</span></button>
+                    <button className="inicio-ti-recordatorio" type="button" disabled={datos.recordatorios.ticketsReabiertos === 0} onClick={() => aplicarFiltroOperativo('REABIERTOS')} title="Filtrar tickets reabiertos"><span className="inicio-ti-recordatorio__icono inicio-ti-recordatorio__icono--violeta"><Icono nombre="reabrir" size={19} /></span><div><strong>Tickets reabiertos</strong><span>{datos.recordatorios.ticketsReabiertos}</span><small>Requieren nueva revisión</small></div><span className="inicio-ti-recordatorio__flecha">›</span></button>
                   </div>
                 </article>
               </section>
 
-              <section className="inicio-ti-grid-inferior">
+              <section className="inicio-ti-grid-inferior" ref={tablaRef}>
                 <article className="inicio-panel inicio-ti-panel-tabla">
                   <div className="inicio-panel__cabecera inicio-ti-panel__cabecera-tabla">
                     <div><span className="inicio-panel__titulo-icono"><Icono nombre="gestion" size={18} /></span><div><h2>Tickets activos</h2><p>Visualiza y prioriza la carga operativa actual.</p></div></div>
-                    <div className="inicio-ti-tabs" role="group" aria-label="Filtrar tickets activos">
-                      <button type="button" className={filtroAsignacion === 'TODOS' ? 'inicio-ti-tab inicio-ti-tab--activo' : 'inicio-ti-tab'} onClick={() => setFiltroAsignacion('TODOS')}>Todos ({datos.resumen.ticketsActivos})</button>
-                      <button type="button" className={filtroAsignacion === 'MIOS' ? 'inicio-ti-tab inicio-ti-tab--activo' : 'inicio-ti-tab'} onClick={() => setFiltroAsignacion('MIOS')}>Mis asignados ({datos.resumen.misAsignados})</button>
+                    <div className="inicio-ti-tabs" role="group" aria-label="Filtrar tickets activos por asignación">
+                      <button type="button" className={filtroAsignacion === 'TODOS' ? 'inicio-ti-tab inicio-ti-tab--activo' : 'inicio-ti-tab'} onClick={() => setFiltroAsignacion('TODOS')} aria-pressed={filtroAsignacion === 'TODOS'}>Todos ({datos.resumen.ticketsActivos})</button>
+                      <button type="button" className={filtroAsignacion === 'MIOS' ? 'inicio-ti-tab inicio-ti-tab--activo' : 'inicio-ti-tab'} onClick={() => setFiltroAsignacion('MIOS')} aria-pressed={filtroAsignacion === 'MIOS'}>Mis asignados ({datos.resumen.misAsignados})</button>
                     </div>
                   </div>
+
+                  {hayFiltros && (
+                    <div className="inicio-ti-filtros-resumen" aria-live="polite">
+                      <span><strong>{ticketsFiltrados.length}</strong> tickets visibles</span>
+                      {filtroOperativo !== 'TODOS' && <span className="inicio-ti-filtro-chip">Vista: {textoFiltroOperativo(filtroOperativo)}</span>}
+                      {filtroAsignacion === 'MIOS' && <span className="inicio-ti-filtro-chip">Solo mis asignados</span>}
+                      {busqueda.trim() && <span className="inicio-ti-filtro-chip">Búsqueda: “{busqueda.trim()}”</span>}
+                      <button type="button" onClick={limpiarFiltros}>Limpiar filtros</button>
+                    </div>
+                  )}
+
                   <div className="inicio-tabla-wrap">
                     <table className="inicio-tabla inicio-ti-tabla">
                       <thead><tr><th>Ticket</th><th>Usuario</th><th>Título</th><th>Prioridad</th><th>Estado</th><th>Responsable</th><th>Última actualización</th></tr></thead>
