@@ -4,7 +4,7 @@
  * Responsabilidad: Presentar el estado general de sus tickets, pendientes personales, actividad reciente y accesos principales sin duplicar funciones de otros módulos.
  * Dependencias: AutenticacionContext, inicioUsuarioService y InicioPage.css.
  * Flujo: Ruta protegida /inicio -> carga del dashboard -> API /api/inicio/usuario -> presentación de información personal.
- * Consideraciones: Las funciones propias de Inicio quedan operativas; los accesos que pertenecen a Asistente TI, Nuevo Ticket o Mis Tickets permanecen deshabilitados hasta implementar esos módulos.
+ * Consideraciones: Inicio mantiene solo funciones de resumen; Nuevo Ticket navega a su módulo propio y los accesos a Asistente TI y Mis Tickets permanecen deshabilitados hasta su implementación.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -158,7 +158,7 @@ export default function InicioPage() {
         <nav className="inicio-menu">
           <button className="inicio-menu__item inicio-menu__item--activo" type="button" onClick={irArriba} aria-current="page"><Icono nombre="inicio" /> <span>Inicio</span></button>
           <button className="inicio-menu__item" type="button" disabled title="Se implementará en el módulo Asistente TI"><Icono nombre="asistente" /> <span>Asistente TI</span></button>
-          <button className="inicio-menu__item" type="button" disabled title="Se implementará en el módulo Nuevo Ticket"><Icono nombre="nuevo" /> <span>Nuevo Ticket</span></button>
+          <button className="inicio-menu__item" type="button" onClick={() => navigate('/nuevo-ticket')}><Icono nombre="nuevo" /> <span>Nuevo Ticket</span></button>
           <button className="inicio-menu__item" type="button" disabled title="Se implementará en el módulo Mis Tickets"><Icono nombre="tickets" /> <span>Mis Tickets</span></button>
         </nav>
 
@@ -215,7 +215,7 @@ export default function InicioPage() {
             </div>
             <div className="inicio-hero__acciones">
               <button type="button" disabled title="Disponible cuando se implemente Asistente TI"><Icono nombre="asistente" size={19} /> Consultar al Asistente TI <Icono nombre="flecha" size={17} /></button>
-              <button type="button" className="inicio-hero__secundario" disabled title="Disponible cuando se implemente Nuevo Ticket"><Icono nombre="nuevo" size={19} /> Reportar incidencia <Icono nombre="flecha" size={17} /></button>
+              <button type="button" className="inicio-hero__secundario" onClick={() => navigate('/nuevo-ticket')}><Icono nombre="nuevo" size={19} /> Reportar incidencia <Icono nombre="flecha" size={17} /></button>
             </div>
             <div className="inicio-hero__firma"><span>Personas</span><span>que avanzan</span><strong>CALIMOD</strong></div>
           </section>
