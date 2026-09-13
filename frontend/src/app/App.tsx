@@ -2,7 +2,7 @@
  * Archivo: App.tsx
  * Objetivo: Definir las rutas públicas y protegidas de la aplicación.
  * Responsabilidad: Esperar la comprobación inicial de sesión y dirigir al usuario a las vistas permitidas según su perfil autenticado.
- * Dependencias: React Router, AutenticacionContext, LoginPage, InicioPage, InicioTIPage, NuevoTicketPage y MisTicketsUsuarioPage.
+ * Dependencias: React Router, AutenticacionContext, LoginPage, InicioPage, InicioTIPage, NuevoTicketPage, MisTicketsUsuarioPage y GestionTicketsTIPage.
  * Flujo: main.tsx -> App -> comprobación de sesión -> validación de perfil -> ruta pública o protegida.
  * Consideraciones: La navegación visual aplica una primera separación por perfil; la autorización definitiva de cada endpoint permanece en el backend.
  */
@@ -15,6 +15,7 @@ import InicioPage from '../pages/InicioPage'
 import InicioTIPage from '../pages/InicioTIPage'
 import NuevoTicketPage from '../pages/NuevoTicketPage'
 import MisTicketsUsuarioPage from '../pages/MisTicketsUsuarioPage'
+import GestionTicketsTIPage from '../pages/GestionTicketsTIPage'
 
 function RutaProtegida({ children }: { children: ReactNode }) {
   const { estado } = useAutenticacion()
@@ -29,6 +30,11 @@ function RutaPublica({ children }: { children: ReactNode }) {
 function RutaUsuario({ children }: { children: ReactNode }) {
   const { usuario } = useAutenticacion()
   return usuario?.perfil === 'USR' ? children : <Navigate to="/inicio" replace />
+}
+
+function RutaTI({ children }: { children: ReactNode }) {
+  const { usuario } = useAutenticacion()
+  return usuario && ['TEC', 'SUP', 'ADM'].includes(usuario.perfil) ? children : <Navigate to="/inicio" replace />
 }
 
 function InicioSegunPerfil() {
@@ -51,6 +57,7 @@ function RutasAplicacion() {
       <Route path="/inicio" element={<RutaProtegida><InicioSegunPerfil /></RutaProtegida>} />
       <Route path="/nuevo-ticket" element={<RutaProtegida><RutaUsuario><NuevoTicketPage /></RutaUsuario></RutaProtegida>} />
       <Route path="/mis-tickets" element={<RutaProtegida><RutaUsuario><MisTicketsUsuarioPage /></RutaUsuario></RutaProtegida>} />
+      <Route path="/gestion-tickets" element={<RutaProtegida><RutaTI><GestionTicketsTIPage /></RutaTI></RutaProtegida>} />
       <Route path="*" element={<Navigate to={estado === 'autenticado' ? '/inicio' : '/login'} replace />} />
     </Routes>
   )
