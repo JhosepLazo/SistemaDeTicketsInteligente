@@ -2,9 +2,9 @@
  * Archivo: NuevoTicketPage.tsx
  * Objetivo: Implementar el módulo Nuevo Ticket para el usuario autenticado siguiendo la estructura visual definida para Calimod.
  * Responsabilidad: Cargar identidad y catálogos, validar el formulario, administrar borrador y evidencias, mostrar un resumen previo y registrar la incidencia.
- * Dependencias: AutenticacionContext, nuevoTicketService, InicioPage.css y NuevoTicketPage.css.
+ * Dependencias: React Router, AutenticacionContext, nuevoTicketService, InicioPage.css y NuevoTicketPage.css.
  * Flujo: Ruta protegida /nuevo-ticket -> carga de datos -> edición y validación -> POST /api/tickets/nuevo -> confirmación del ticket.
- * Consideraciones: El usuario no clasifica prioridad, impacto, complejidad, categoría ni responsable TI; esos datos pertenecen al flujo posterior de diagnóstico y atención.
+ * Consideraciones: El usuario no clasifica prioridad, impacto, complejidad, categoría ni responsable TI; la navegación mantiene acceso a Inicio, Nuevo Ticket y Mis Tickets, mientras Asistente TI permanece pendiente de implementación.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -24,7 +24,7 @@ type NombreIcono = 'inicio' | 'asistente' | 'nuevo' | 'tickets' | 'buscar' | 'ca
 function Icono({ nombre, size = 20 }: { nombre: NombreIcono; size?: number }) {
   const trazos: Record<NombreIcono, React.ReactNode> = {
     inicio: <><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10.5V20h13v-9.5"/><path d="M9.5 20v-6h5v6"/></>,
-    asistente: <><path d="m12 3 1.2 3.1L16 7.5l-2.8 1.4L12 12l-1.2-3.1L8 7.5l2.8-1.4L12 3Z"/><path d="m5 13 .8 2.2L8 16l-2.2.8L5 19l-.8-2.2L2 16l2.2-.8L5 13Z"/></>,
+    asistente: <><path d="m12 3 1.2 3.1L16 7.5l-2.8 1.4L12 12l-1.2-3.1L8 7.5l2.8-1.4L5 13Z"/><path d="m5 13 .8 2.2L8 16l-2.2.8L5 19l-.8-2.2L2 16l2.2-.8L5 13Z"/></>,
     nuevo: <><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></>,
     tickets: <><path d="M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z"/><path d="M8 9h8M8 13h6M8 17h4"/></>,
     buscar: <><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></>,
@@ -212,7 +212,7 @@ export default function NuevoTicketPage() {
           <button className="inicio-menu__item" type="button" onClick={() => navigate('/inicio')}><Icono nombre="inicio" /> <span>Inicio</span></button>
           <button className="inicio-menu__item" type="button" disabled title="Se implementará en el módulo Asistente TI"><Icono nombre="asistente" /> <span>Asistente TI</span></button>
           <button className="inicio-menu__item inicio-menu__item--activo" type="button" aria-current="page"><Icono nombre="nuevo" /> <span>Nuevo Ticket</span></button>
-          <button className="inicio-menu__item" type="button" disabled title="Se implementará en el módulo Mis Tickets"><Icono nombre="tickets" /> <span>Mis Tickets</span></button>
+          <button className="inicio-menu__item" type="button" onClick={() => navigate('/mis-tickets')}><Icono nombre="tickets" /> <span>Mis Tickets</span></button>
         </nav>
 
         <div className="inicio-sidebar__mensaje"><span>La tecnología también impulsa grandes historias.</span><strong>CALIMOD</strong></div>
@@ -221,7 +221,7 @@ export default function NuevoTicketPage() {
 
       <section className="inicio-principal">
         <header className="inicio-topbar">
-          <label className="inicio-buscador nuevo-ticket-buscador" title="La búsqueda global se habilitará con Mis Tickets y la base de conocimiento">
+          <label className="inicio-buscador nuevo-ticket-buscador" title="La búsqueda global se habilitará al implementar la base de conocimiento y el Asistente TI">
             <Icono nombre="buscar" size={19} />
             <input placeholder="Buscar tickets, artículos o soluciones..." aria-label="Búsqueda global" disabled />
             <span>Ctrl + K</span>
