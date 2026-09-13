@@ -19,7 +19,7 @@ public sealed class BaseConocimientoTIResumen
     public int CandidatosDesdeTickets { get; set; }
 }
 
-public sealed class BaseConocimientoTIItem
+public class BaseConocimientoTIItem
 {
     public string ConocimientoCodigo { get; set; } = string.Empty;
     public string Titulo { get; set; } = string.Empty;
@@ -54,7 +54,7 @@ public sealed class BaseConocimientoTIDetalle : BaseConocimientoTIItem
     public string UsuarioValida { get; set; } = string.Empty;
 }
 
-public sealed class BaseConocimientoTICatalogo
+public class BaseConocimientoTICatalogo
 {
     public string Codigo { get; set; } = string.Empty;
     public string Descripcion { get; set; } = string.Empty;
