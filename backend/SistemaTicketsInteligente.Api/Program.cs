@@ -24,6 +24,8 @@ builder.Services.AddScoped<AutenticacionDAO>();
 builder.Services.AddScoped<AutenticacionBLL>();
 builder.Services.AddScoped<InicioUsuarioDAO>();
 builder.Services.AddScoped<InicioUsuarioBLL>();
+builder.Services.AddScoped<InicioTIDAO>();
+builder.Services.AddScoped<InicioTIBLL>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(opciones =>
