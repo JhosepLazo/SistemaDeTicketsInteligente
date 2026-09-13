@@ -43,6 +43,8 @@ builder.Services.AddScoped<GestionTicketsTIDAO>();
 builder.Services.AddScoped<GestionTicketsTIBLL>();
 builder.Services.AddScoped<BaseConocimientoTIDAO>();
 builder.Services.AddScoped<BaseConocimientoTIBLL>();
+builder.Services.AddScoped<ReportesTIDAO>();
+builder.Services.AddScoped<ReportesTIBLL>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(opciones =>
