@@ -1,10 +1,10 @@
 /**
  * Archivo: AutenticacionController.cs
  * Objetivo: Exponer los endpoints HTTP necesarios para iniciar, consultar y cerrar la sesión del usuario.
- * Responsabilidad: Recibir solicitudes, delegar la autenticación a BLL y administrar la identidad web mediante cookie segura.
+ * Responsabilidad: Recibir solicitudes, delegar la autenticación a BLL y administrar la identidad web mediante cookie segura y persistente durante su vigencia.
  * Dependencias: AutenticacionBLL, DTO de autenticación y autenticación de ASP.NET Core.
  * Flujo: Frontend -> AutenticacionController -> AutenticacionBLL -> AutenticacionDAO -> SQL Server.
- * Consideraciones: No contiene SQL ni valida hashes; los códigos HTTP se determinan a partir del resultado entregado por BLL.
+ * Consideraciones: No contiene SQL ni valida hashes; la cookie permanece disponible al cerrar y volver a abrir el navegador hasta que expire o el usuario cierre sesión.
  */
 
 using System.Security.Claims;
@@ -58,7 +58,12 @@ public sealed class AutenticacionController : ControllerBase
         };
 
         var identidad = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identidad));
+        var propiedades = new AuthenticationProperties { IsPersistent = true, AllowRefresh = true };
+
+        await HttpContext.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            new ClaimsPrincipal(identidad),
+            propiedades);
 
         return Ok(usuario);
     }
