@@ -2,11 +2,12 @@
  * Archivo: NuevoTicketBLL.cs
  * Objetivo: Aplicar las reglas mínimas necesarias para cargar y registrar tickets creados por el usuario.
  * Responsabilidad: Validar campos, controlar evidencias permitidas, guardar físicamente los archivos y coordinar el registro transaccional mediante DAO.
- * Dependencias: NuevoTicketDAO, NuevoTicketDTO y sistema de archivos local del backend.
+ * Dependencias: NuevoTicketDAO, NuevoTicketDTO, ASP.NET Core y sistema de archivos local del backend.
  * Flujo: NuevoTicketController -> NuevoTicketBLL -> NuevoTicketDAO -> SQL Server.
  * Consideraciones: Máximo 5 adjuntos de 10 MB cada uno; solo se permiten imágenes, PDF y Excel. Si la persistencia falla, elimina los archivos guardados para evitar evidencias huérfanas.
  */
 
+using Microsoft.AspNetCore.Http;
 using SistemaTicketsInteligente.Api.DAO;
 using SistemaTicketsInteligente.Api.DTO;
 
@@ -19,6 +20,10 @@ public sealed class NuevoTicketBLL
     private static readonly HashSet<string> ExtensionesPermitidas = new(StringComparer.OrdinalIgnoreCase)
     {
         ".png", ".jpg", ".jpeg", ".webp", ".pdf", ".xls", ".xlsx"
+    };
+    private static readonly HashSet<string> TiposMimePermitidos = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "image/png", "image/jpeg", "image/webp", "application/pdf", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     };
 
     private readonly NuevoTicketDAO nuevoTicketDAO;
@@ -68,7 +73,7 @@ public sealed class NuevoTicketBLL
                         NombreOriginal = Path.GetFileName(archivo.FileName),
                         NombreArchivo = nombreArchivo,
                         RutaArchivo = $"uploads/incidencias/{idCorrelacion:N}/{nombreArchivo}",
-                        TipoMime = string.IsNullOrWhiteSpace(archivo.ContentType) ? "application/octet-stream" : archivo.ContentType,
+                        TipoMime = archivo.ContentType,
                         TamanoBytes = archivo.Length
                     });
                 }
@@ -101,7 +106,7 @@ public sealed class NuevoTicketBLL
         if (solicitud.Linea.Length != 3) throw new ArgumentException("Selecciona el sistema o módulo afectado.");
         if (solicitud.Tipo.Length != 3) throw new ArgumentException("Selecciona el tipo de ticket.");
         if (solicitud.Titulo.Length < 5 || solicitud.Titulo.Length > 250) throw new ArgumentException("El título debe contener entre 5 y 250 caracteres.");
-        if (solicitud.Detalle.Length < 20 || solicitud.Detalle.Length > 4000) throw new ArgumentException("La descripción debe contener entre 20 y 4000 caracteres.");
+        if (solicitud.Detalle.Length < 20 || solicitud.Detalle.Length > 1000) throw new ArgumentException("La descripción debe contener entre 20 y 1000 caracteres.");
         if ((solicitud.MensajeError?.Length ?? 0) > 1000) throw new ArgumentException("El mensaje de error no puede superar los 1000 caracteres.");
     }
 
@@ -112,10 +117,11 @@ public sealed class NuevoTicketBLL
 
         foreach (var archivo in adjuntos)
         {
-            var extension = Path.GetExtension(archivo.FileName);
-            if (archivo.Length <= 0) throw new ArgumentException($"El archivo '{Path.GetFileName(archivo.FileName)}' está vacío.");
-            if (archivo.Length > MaximoBytesPorAdjunto) throw new ArgumentException($"El archivo '{Path.GetFileName(archivo.FileName)}' supera el límite de 10 MB.");
-            if (!ExtensionesPermitidas.Contains(extension)) throw new ArgumentException($"El archivo '{Path.GetFileName(archivo.FileName)}' no tiene un formato permitido.");
+            var nombre = Path.GetFileName(archivo.FileName);
+            var extension = Path.GetExtension(nombre);
+            if (archivo.Length <= 0) throw new ArgumentException($"El archivo '{nombre}' está vacío.");
+            if (archivo.Length > MaximoBytesPorAdjunto) throw new ArgumentException($"El archivo '{nombre}' supera el límite de 10 MB.");
+            if (!ExtensionesPermitidas.Contains(extension) || !TiposMimePermitidos.Contains(archivo.ContentType)) throw new ArgumentException($"El archivo '{nombre}' no tiene un formato permitido.");
         }
     }
 }
