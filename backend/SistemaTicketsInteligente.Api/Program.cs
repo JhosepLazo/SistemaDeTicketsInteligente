@@ -39,6 +39,8 @@ builder.Services.AddScoped<NuevoTicketDAO>();
 builder.Services.AddScoped<NuevoTicketBLL>();
 builder.Services.AddScoped<MisTicketsUsuarioDAO>();
 builder.Services.AddScoped<MisTicketsUsuarioBLL>();
+builder.Services.AddScoped<GestionTicketsTIDAO>();
+builder.Services.AddScoped<GestionTicketsTIBLL>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(opciones =>
