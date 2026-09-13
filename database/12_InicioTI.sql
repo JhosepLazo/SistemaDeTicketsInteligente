@@ -35,7 +35,7 @@ Begin
 		EnAtencion = IsNull(Sum(Case When i.Estado In ('DG', 'EJ', 'ES', 'PV') Then 1 Else 0 End), 0),
 		EnProgresoHoy = IsNull(Sum(Case When i.Estado In ('DG', 'EJ', 'ES', 'PV') and i.UltimaFechaModif >= @dInicioHoy Then 1 Else 0 End), 0),
 		RequierenAccion = IsNull(Sum(Case When i.Estado Not In ('RS', 'CA') and (
-			i.UsuarioTI Is Null or i.Estado In ('ES', 'RA') or
+			i.UsuarioTI Is Null or i.Estado In ('ES', 'RA', 'PA') or
 			(i.SlaObjetivoMinutos Is Not Null and DateAdd(Minute, i.SlaObjetivoMinutos, i.FechaRegistro) Between @dAhora and DateAdd(Hour, 4, @dAhora))
 		) Then 1 Else 0 End), 0),
 		SinAsignar = IsNull(Sum(Case When i.Estado Not In ('RS', 'CA') and i.UsuarioTI Is Null Then 1 Else 0 End), 0),
