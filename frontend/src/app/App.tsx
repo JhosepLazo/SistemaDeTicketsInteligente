@@ -1,10 +1,10 @@
 /**
  * Archivo: App.tsx
  * Objetivo: Definir las rutas públicas y protegidas de la aplicación.
- * Responsabilidad: Esperar la comprobación inicial de sesión y dirigir al usuario al Inicio correspondiente según su perfil autenticado.
- * Dependencias: React Router, AutenticacionContext, LoginPage, InicioPage e InicioTIPage.
- * Flujo: main.tsx -> App -> comprobación de sesión -> selección de Inicio -> ruta pública o protegida.
- * Consideraciones: La selección visual por perfil se realiza en frontend; la autorización definitiva de cada endpoint permanece en el backend.
+ * Responsabilidad: Esperar la comprobación inicial de sesión y dirigir al usuario a las vistas permitidas según su perfil autenticado.
+ * Dependencias: React Router, AutenticacionContext, LoginPage, InicioPage, InicioTIPage y NuevoTicketPage.
+ * Flujo: main.tsx -> App -> comprobación de sesión -> validación de perfil -> ruta pública o protegida.
+ * Consideraciones: La navegación visual aplica una primera separación por perfil; la autorización definitiva de cada endpoint permanece en el backend.
  */
 
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
@@ -13,6 +13,7 @@ import { AutenticacionProvider, useAutenticacion } from '../features/autenticaci
 import LoginPage from '../features/autenticacion/pages/LoginPage'
 import InicioPage from '../pages/InicioPage'
 import InicioTIPage from '../pages/InicioTIPage'
+import NuevoTicketPage from '../pages/NuevoTicketPage'
 
 function RutaProtegida({ children }: { children: ReactNode }) {
   const { estado } = useAutenticacion()
@@ -22,6 +23,11 @@ function RutaProtegida({ children }: { children: ReactNode }) {
 function RutaPublica({ children }: { children: ReactNode }) {
   const { estado } = useAutenticacion()
   return estado === 'autenticado' ? <Navigate to="/inicio" replace /> : children
+}
+
+function RutaUsuario({ children }: { children: ReactNode }) {
+  const { usuario } = useAutenticacion()
+  return usuario?.perfil === 'USR' ? children : <Navigate to="/inicio" replace />
 }
 
 function InicioSegunPerfil() {
@@ -42,6 +48,7 @@ function RutasAplicacion() {
     <Routes>
       <Route path="/login" element={<RutaPublica><LoginPage /></RutaPublica>} />
       <Route path="/inicio" element={<RutaProtegida><InicioSegunPerfil /></RutaProtegida>} />
+      <Route path="/nuevo-ticket" element={<RutaProtegida><RutaUsuario><NuevoTicketPage /></RutaUsuario></RutaProtegida>} />
       <Route path="*" element={<Navigate to={estado === 'autenticado' ? '/inicio' : '/login'} replace />} />
     </Routes>
   )
