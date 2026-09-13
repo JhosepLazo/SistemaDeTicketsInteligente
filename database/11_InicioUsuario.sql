@@ -25,11 +25,11 @@ Begin
 	Set NoCount On
 
 	Select
-		TicketsActivos = Sum(Case When Estado Not In ('RS', 'CA') Then 1 Else 0 End),
-		EnAtencion = Sum(Case When Estado In ('DG', 'PA', 'EJ', 'ES') Then 1 Else 0 End),
-		RequierenAtencion = Sum(Case When Estado In ('RC', 'PV') Then 1 Else 0 End),
-		Resueltos30Dias = Sum(Case When Estado = 'RS' and FechaCierre >= DateAdd(Day, -30, GetDate()) Then 1 Else 0 End),
-		PendientesCalificacion = Sum(Case When Estado = 'RS' and Calificacion Is Null Then 1 Else 0 End)
+		TicketsActivos = IsNull(Sum(Case When Estado Not In ('RS', 'CA') Then 1 Else 0 End), 0),
+		EnAtencion = IsNull(Sum(Case When Estado In ('DG', 'PA', 'EJ', 'ES') Then 1 Else 0 End), 0),
+		RequierenAtencion = IsNull(Sum(Case When Estado In ('RC', 'PV') Then 1 Else 0 End), 0),
+		Resueltos30Dias = IsNull(Sum(Case When Estado = 'RS' and FechaCierre >= DateAdd(Day, -30, GetDate()) Then 1 Else 0 End), 0),
+		PendientesCalificacion = IsNull(Sum(Case When Estado = 'RS' and Calificacion Is Null Then 1 Else 0 End), 0)
 	From dbo.TI_Incidencia
 	Where UsuarioSolicitante = @cUsuario
 
