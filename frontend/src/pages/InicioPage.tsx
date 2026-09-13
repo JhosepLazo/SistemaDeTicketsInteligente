@@ -4,10 +4,10 @@
  * Responsabilidad: Presentar el estado general de sus tickets, pendientes personales, actividad reciente y accesos principales sin duplicar funciones de otros módulos.
  * Dependencias: AutenticacionContext, inicioUsuarioService y InicioPage.css.
  * Flujo: Ruta protegida /inicio -> carga del dashboard -> API /api/inicio/usuario -> presentación de información personal.
- * Consideraciones: Los accesos a Asistente TI, Nuevo Ticket y Mis Tickets se muestran como navegación futura, pero no se implementan aquí para mantener el alcance del módulo Inicio.
+ * Consideraciones: Las funciones propias de Inicio quedan operativas; los accesos que pertenecen a Asistente TI, Nuevo Ticket o Mis Tickets permanecen deshabilitados hasta implementar esos módulos.
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAutenticacion } from '../features/autenticacion/context/AutenticacionContext'
 import {
@@ -86,6 +86,8 @@ export default function InicioPage() {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [busqueda, setBusqueda] = useState('')
+  const buscadorRef = useRef<HTMLInputElement>(null)
+  const pendientesRef = useRef<HTMLElement>(null)
 
   async function cargarInicio() {
     setCargando(true)
@@ -104,6 +106,24 @@ export default function InicioPage() {
     void cargarInicio()
   }, [])
 
+  useEffect(() => {
+    function manejarAtajos(event: KeyboardEvent) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        buscadorRef.current?.focus()
+        buscadorRef.current?.select()
+      }
+
+      if (event.key === 'Escape' && document.activeElement === buscadorRef.current) {
+        setBusqueda('')
+        buscadorRef.current?.blur()
+      }
+    }
+
+    window.addEventListener('keydown', manejarAtajos)
+    return () => window.removeEventListener('keydown', manejarAtajos)
+  }, [])
+
   const ticketsFiltrados = useMemo(() => {
     if (!datos) return []
     const texto = busqueda.trim().toLowerCase()
@@ -120,6 +140,8 @@ export default function InicioPage() {
 
   const nombre = obtenerPrimerNombre(usuario.nombreCompleto)
   const totalNotificaciones = datos ? datos.resumen.requierenAtencion + datos.resumen.pendientesCalificacion : 0
+  const irArriba = () => window.scrollTo({ top: 0, behavior: 'smooth' })
+  const irAPendientes = () => pendientesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
   return (
     <div className="inicio-shell">
@@ -130,7 +152,7 @@ export default function InicioPage() {
         </div>
 
         <nav className="inicio-menu">
-          <button className="inicio-menu__item inicio-menu__item--activo" type="button"><Icono nombre="inicio" /> <span>Inicio</span></button>
+          <button className="inicio-menu__item inicio-menu__item--activo" type="button" onClick={irArriba} aria-current="page"><Icono nombre="inicio" /> <span>Inicio</span></button>
           <button className="inicio-menu__item" type="button" disabled title="Se implementará en el módulo Asistente TI"><Icono nombre="asistente" /> <span>Asistente TI</span></button>
           <button className="inicio-menu__item" type="button" disabled title="Se implementará en el módulo Nuevo Ticket"><Icono nombre="nuevo" /> <span>Nuevo Ticket</span></button>
           <button className="inicio-menu__item" type="button" disabled title="Se implementará en el módulo Mis Tickets"><Icono nombre="tickets" /> <span>Mis Tickets</span></button>
@@ -144,8 +166,7 @@ export default function InicioPage() {
         <div className="inicio-sidebar__pie">
           <span className="inicio-sidebar__ayuda-icono">?</span>
           <span>¿Necesitas ayuda?</span>
-          <small>Centro de ayuda</small>
-          <span className="inicio-sidebar__ayuda-enlace" aria-hidden="true">↗</span>
+          <small>Disponible desde Asistente TI</small>
         </div>
       </aside>
 
@@ -153,21 +174,28 @@ export default function InicioPage() {
         <header className="inicio-topbar">
           <label className="inicio-buscador">
             <Icono nombre="buscar" size={19} />
-            <input value={busqueda} onChange={event => setBusqueda(event.target.value)} placeholder="Buscar entre tus tickets recientes..." aria-label="Buscar tickets recientes" />
+            <input ref={buscadorRef} value={busqueda} onChange={event => setBusqueda(event.target.value)} placeholder="Buscar entre tus tickets recientes..." aria-label="Buscar tickets recientes" />
             <span>Ctrl + K</span>
           </label>
 
           <div className="inicio-topbar__usuario">
-            <div className="inicio-notificacion" title={`${totalNotificaciones} pendientes personales`}>
+            <button
+              className="inicio-notificacion"
+              type="button"
+              onClick={irAPendientes}
+              disabled={totalNotificaciones === 0}
+              title={totalNotificaciones > 0 ? 'Ir a tus pendientes' : 'No tienes pendientes personales'}
+              aria-label={totalNotificaciones > 0 ? `${totalNotificaciones} pendientes personales. Ir a pendientes.` : 'No tienes pendientes personales'}
+            >
               <Icono nombre="campana" size={21} />
               {totalNotificaciones > 0 && <span>{totalNotificaciones > 9 ? '9+' : totalNotificaciones}</span>}
-            </div>
+            </button>
             <div className="inicio-avatar" aria-hidden="true">{nombre.slice(0, 1).toUpperCase()}</div>
             <div className="inicio-identidad">
               <strong>{nombre}</strong>
               <span>{usuario.perfil === 'USR' ? 'Colaborador' : usuario.perfil}</span>
             </div>
-            <button className="inicio-salir" type="button" onClick={manejarCierreSesion} title="Cerrar sesión"><Icono nombre="salir" size={18} /></button>
+            <button className="inicio-salir" type="button" onClick={manejarCierreSesion} title="Cerrar sesión" aria-label="Cerrar sesión"><Icono nombre="salir" size={18} /></button>
           </div>
         </header>
 
@@ -205,11 +233,11 @@ export default function InicioPage() {
                 <article className="inicio-metrica"><div className="inicio-metrica__icono inicio-metrica__icono--verde"><Icono nombre="check" size={24} /></div><div><span>Resueltos</span><strong>{datos.resumen.resueltos30Dias}</strong><small>en los últimos 30 días</small></div></article>
               </section>
 
-              <section className="inicio-grid-superior">
+              <section className="inicio-grid-superior" ref={pendientesRef}>
                 <article className="inicio-panel inicio-panel--atencion">
                   <div className="inicio-panel__cabecera">
                     <div><span className="inicio-panel__titulo-icono inicio-panel__titulo-icono--rojo"><Icono nombre="alerta" size={18} /></span><div><h2>Requiere tu atención</h2><p>Casos que necesitan información o confirmación de tu parte.</p></div></div>
-                    <button className="inicio-panel__enlace" type="button" disabled>Ver todos mis tickets <Icono nombre="flecha" size={14} /></button>
+                    <button className="inicio-panel__enlace" type="button" disabled title="Disponible cuando se implemente Mis Tickets">Ver todos mis tickets <Icono nombre="flecha" size={14} /></button>
                   </div>
                   <div className="inicio-lista-atencion">
                     {datos.requierenAtencion.length === 0 ? <div className="inicio-vacio"><Icono nombre="check" size={21} /><span>No tienes tickets esperando una acción tuya.</span></div> : datos.requierenAtencion.map(ticket => (
@@ -217,7 +245,7 @@ export default function InicioPage() {
                         <div className="inicio-ticket-atencion__numero">{ticket.incidenciaNumero}</div>
                         <div className="inicio-ticket-atencion__detalle"><strong>{ticket.titulo}</strong><span>{textoAccion(ticket)}</span></div>
                         <div className="inicio-ticket-atencion__estado"><span className={claseEstado(ticket.estado)}>{ticket.estadoDescripcion}</span><small>{tiempoRelativo(ticket.ultimaFechaModif)}</small></div>
-                        <button className="inicio-ticket-atencion__boton" type="button" disabled>{ticket.accion === 'CONFIRMAR_SOLUCION' ? 'Confirmar' : 'Completar'} <Icono nombre="flecha" size={14} /></button>
+                        <button className="inicio-ticket-atencion__boton" type="button" disabled title="Disponible desde el detalle del ticket">{ticket.accion === 'CONFIRMAR_SOLUCION' ? 'Confirmar' : 'Completar'} <Icono nombre="flecha" size={14} /></button>
                       </div>
                     ))}
                   </div>
@@ -227,10 +255,9 @@ export default function InicioPage() {
                   <div className="inicio-panel__cabecera"><div><span className="inicio-panel__titulo-icono"><Icono nombre="check" size={18} /></span><div><h2>Pendientes de cierre</h2><p>Confirmaciones y calificaciones que aún puedes completar.</p></div></div></div>
                   <div className="inicio-acciones-lista">
                     {datos.accionesPendientes.length === 0 ? <div className="inicio-vacio"><Icono nombre="check" size={21} /><span>No tienes acciones pendientes de cierre.</span></div> : datos.accionesPendientes.map(accion => (
-                      <div className="inicio-accion" key={`${accion.incidenciaNumero}-${accion.tipoAccion}`}>
+                      <div className="inicio-accion" key={`${accion.incidenciaNumero}-${accion.tipoAccion}`} title="La acción estará disponible desde el detalle del ticket">
                         <span className={`inicio-accion__icono ${accion.tipoAccion === 'CALIFICAR_ATENCION' ? 'inicio-accion__icono--estrella' : ''}`}>{accion.tipoAccion === 'CALIFICAR_ATENCION' ? '★' : '✓'}</span>
                         <div><strong>{accion.tipoAccion === 'CALIFICAR_ATENCION' ? 'Calificar atención' : 'Confirmar solución'}</strong><span>{accion.incidenciaNumero}</span><small>{accion.titulo}</small></div>
-                        <span className="inicio-accion__flecha" aria-hidden="true">›</span>
                       </div>
                     ))}
                   </div>
@@ -239,7 +266,7 @@ export default function InicioPage() {
 
               <section className="inicio-grid-inferior">
                 <article className="inicio-panel inicio-panel--tabla">
-                  <div className="inicio-panel__cabecera"><div><span className="inicio-panel__titulo-icono"><Icono nombre="tickets" size={18} /></span><div><h2>Tus tickets recientes</h2><p>Consulta rápidamente el estado de tus últimos tickets.</p></div></div>{busqueda ? <span className="inicio-resultados">{ticketsFiltrados.length} resultado(s)</span> : <button className="inicio-panel__enlace" type="button" disabled>Ver todos <Icono nombre="flecha" size={14} /></button>}</div>
+                  <div className="inicio-panel__cabecera"><div><span className="inicio-panel__titulo-icono"><Icono nombre="tickets" size={18} /></span><div><h2>Tus tickets recientes</h2><p>Consulta rápidamente el estado de tus últimos tickets.</p></div></div>{busqueda ? <span className="inicio-resultados" aria-live="polite">{ticketsFiltrados.length} resultado(s)</span> : <button className="inicio-panel__enlace" type="button" disabled title="Disponible cuando se implemente Mis Tickets">Ver todos <Icono nombre="flecha" size={14} /></button>}</div>
                   <div className="inicio-tabla-wrap">
                     <table className="inicio-tabla">
                       <thead><tr><th>Ticket</th><th>Título</th><th>Estado</th><th>Responsable</th><th>Última actualización</th></tr></thead>
