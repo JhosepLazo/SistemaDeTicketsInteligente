@@ -2,9 +2,9 @@
  * Archivo: NuevoTicketPage.tsx
  * Objetivo: Implementar el módulo Nuevo Ticket para el usuario autenticado siguiendo la estructura visual definida para Calimod.
  * Responsabilidad: Cargar identidad y catálogos, validar el formulario, administrar borrador y evidencias, mostrar un resumen previo y registrar la incidencia.
- * Dependencias: AutenticacionContext, nuevoTicketService, InicioPage.css y NuevoTicketPage.css.
+ * Dependencias: React Router, AutenticacionContext, nuevoTicketService, InicioPage.css y NuevoTicketPage.css.
  * Flujo: Ruta protegida /nuevo-ticket -> carga de datos -> edición y validación -> POST /api/tickets/nuevo -> confirmación del ticket.
- * Consideraciones: El usuario no clasifica prioridad, impacto, complejidad, categoría ni responsable TI; esos datos pertenecen al flujo posterior de diagnóstico y atención.
+ * Consideraciones: El usuario no clasifica prioridad, impacto, complejidad, categoría ni responsable TI; la navegación mantiene acceso a Inicio, Nuevo Ticket y Mis Tickets, mientras Asistente TI permanece pendiente de implementación.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -212,7 +212,7 @@ export default function NuevoTicketPage() {
           <button className="inicio-menu__item" type="button" onClick={() => navigate('/inicio')}><Icono nombre="inicio" /> <span>Inicio</span></button>
           <button className="inicio-menu__item" type="button" disabled title="Se implementará en el módulo Asistente TI"><Icono nombre="asistente" /> <span>Asistente TI</span></button>
           <button className="inicio-menu__item inicio-menu__item--activo" type="button" aria-current="page"><Icono nombre="nuevo" /> <span>Nuevo Ticket</span></button>
-          <button className="inicio-menu__item" type="button" disabled title="Se implementará en el módulo Mis Tickets"><Icono nombre="tickets" /> <span>Mis Tickets</span></button>
+          <button className="inicio-menu__item" type="button" onClick={() => navigate('/mis-tickets')}><Icono nombre="tickets" /> <span>Mis Tickets</span></button>
         </nav>
 
         <div className="inicio-sidebar__mensaje"><span>La tecnología también impulsa grandes historias.</span><strong>CALIMOD</strong></div>
@@ -221,7 +221,7 @@ export default function NuevoTicketPage() {
 
       <section className="inicio-principal">
         <header className="inicio-topbar">
-          <label className="inicio-buscador nuevo-ticket-buscador" title="La búsqueda global se habilitará con Mis Tickets y la base de conocimiento">
+          <label className="inicio-buscador nuevo-ticket-buscador" title="La búsqueda global se habilitará al implementar la base de conocimiento y el Asistente TI">
             <Icono nombre="buscar" size={19} />
             <input placeholder="Buscar tickets, artículos o soluciones..." aria-label="Búsqueda global" disabled />
             <span>Ctrl + K</span>

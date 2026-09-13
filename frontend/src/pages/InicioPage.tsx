@@ -4,7 +4,7 @@
  * Responsabilidad: Presentar el estado general de sus tickets, pendientes personales, actividad reciente y accesos principales sin duplicar funciones de otros módulos.
  * Dependencias: AutenticacionContext, inicioUsuarioService y InicioPage.css.
  * Flujo: Ruta protegida /inicio -> carga del dashboard -> API /api/inicio/usuario -> presentación de información personal.
- * Consideraciones: Inicio mantiene solo funciones de resumen; Nuevo Ticket navega a su módulo propio y los accesos a Asistente TI y Mis Tickets permanecen deshabilitados hasta su implementación.
+ * Consideraciones: Inicio mantiene solo funciones de resumen; Nuevo Ticket y Mis Tickets navegan a sus módulos propios, mientras Asistente TI permanece deshabilitado hasta su implementación.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -159,7 +159,7 @@ export default function InicioPage() {
           <button className="inicio-menu__item inicio-menu__item--activo" type="button" onClick={irArriba} aria-current="page"><Icono nombre="inicio" /> <span>Inicio</span></button>
           <button className="inicio-menu__item" type="button" disabled title="Se implementará en el módulo Asistente TI"><Icono nombre="asistente" /> <span>Asistente TI</span></button>
           <button className="inicio-menu__item" type="button" onClick={() => navigate('/nuevo-ticket')}><Icono nombre="nuevo" /> <span>Nuevo Ticket</span></button>
-          <button className="inicio-menu__item" type="button" disabled title="Se implementará en el módulo Mis Tickets"><Icono nombre="tickets" /> <span>Mis Tickets</span></button>
+          <button className="inicio-menu__item" type="button" onClick={() => navigate('/mis-tickets')}><Icono nombre="tickets" /> <span>Mis Tickets</span></button>
         </nav>
 
         <div className="inicio-sidebar__mensaje">
@@ -242,7 +242,7 @@ export default function InicioPage() {
                 <article className="inicio-panel inicio-panel--atencion">
                   <div className="inicio-panel__cabecera">
                     <div><span className="inicio-panel__titulo-icono inicio-panel__titulo-icono--rojo"><Icono nombre="alerta" size={18} /></span><div><h2>Requiere tu atención</h2><p>Casos que necesitan información o confirmación de tu parte.</p></div></div>
-                    <button className="inicio-panel__enlace" type="button" disabled title="Disponible cuando se implemente Mis Tickets">Ver todos mis tickets <Icono nombre="flecha" size={14} /></button>
+                    <button className="inicio-panel__enlace" type="button" onClick={() => navigate('/mis-tickets')}>Ver todos mis tickets <Icono nombre="flecha" size={14} /></button>
                   </div>
                   <div className="inicio-lista-atencion">
                     {datos.requierenAtencion.length === 0 ? <div className="inicio-vacio"><Icono nombre="check" size={21} /><span>No tienes tickets esperando una acción tuya.</span></div> : datos.requierenAtencion.map(ticket => (
@@ -250,7 +250,7 @@ export default function InicioPage() {
                         <div className="inicio-ticket-atencion__numero">{ticket.incidenciaNumero}</div>
                         <div className="inicio-ticket-atencion__detalle"><strong>{ticket.titulo}</strong><span>{textoAccion(ticket)}</span></div>
                         <div className="inicio-ticket-atencion__estado"><span className={claseEstado(ticket.estado)}>{ticket.estadoDescripcion}</span><small>{tiempoRelativo(ticket.ultimaFechaModif)}</small></div>
-                        <button className="inicio-ticket-atencion__boton" type="button" disabled title="Disponible desde el detalle del ticket">{ticket.accion === 'CONFIRMAR_SOLUCION' ? 'Confirmar' : 'Completar'} <Icono nombre="flecha" size={14} /></button>
+                        <button className="inicio-ticket-atencion__boton" type="button" onClick={() => navigate('/mis-tickets')}>{ticket.accion === 'CONFIRMAR_SOLUCION' ? 'Confirmar' : 'Completar'} <Icono nombre="flecha" size={14} /></button>
                       </div>
                     ))}
                   </div>
@@ -260,10 +260,10 @@ export default function InicioPage() {
                   <div className="inicio-panel__cabecera"><div><span className="inicio-panel__titulo-icono"><Icono nombre="check" size={18} /></span><div><h2>Pendientes de cierre</h2><p>Confirmaciones y calificaciones que aún puedes completar.</p></div></div></div>
                   <div className="inicio-acciones-lista">
                     {datos.accionesPendientes.length === 0 ? <div className="inicio-vacio"><Icono nombre="check" size={21} /><span>No tienes acciones pendientes de cierre.</span></div> : datos.accionesPendientes.map(accion => (
-                      <div className="inicio-accion" key={`${accion.incidenciaNumero}-${accion.tipoAccion}`} title="La acción estará disponible desde el detalle del ticket">
+                      <button className="inicio-accion" type="button" key={`${accion.incidenciaNumero}-${accion.tipoAccion}`} onClick={() => navigate('/mis-tickets')}>
                         <span className={`inicio-accion__icono ${accion.tipoAccion === 'CALIFICAR_ATENCION' ? 'inicio-accion__icono--estrella' : ''}`}>{accion.tipoAccion === 'CALIFICAR_ATENCION' ? '★' : '✓'}</span>
                         <div><strong>{accion.tipoAccion === 'CALIFICAR_ATENCION' ? 'Calificar atención' : 'Confirmar solución'}</strong><span>{accion.incidenciaNumero}</span><small>{accion.titulo}</small></div>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </article>
@@ -271,13 +271,13 @@ export default function InicioPage() {
 
               <section className="inicio-grid-inferior">
                 <article className="inicio-panel inicio-panel--tabla">
-                  <div className="inicio-panel__cabecera"><div><span className="inicio-panel__titulo-icono"><Icono nombre="tickets" size={18} /></span><div><h2>Tus tickets recientes</h2><p>Consulta rápidamente el estado de tus últimos tickets.</p></div></div>{busqueda ? <span className="inicio-resultados" aria-live="polite">{ticketsFiltrados.length} resultado(s)</span> : <button className="inicio-panel__enlace" type="button" disabled title="Disponible cuando se implemente Mis Tickets">Ver todos <Icono nombre="flecha" size={14} /></button>}</div>
+                  <div className="inicio-panel__cabecera"><div><span className="inicio-panel__titulo-icono"><Icono nombre="tickets" size={18} /></span><div><h2>Tus tickets recientes</h2><p>Consulta rápidamente el estado de tus últimos tickets.</p></div></div>{busqueda ? <span className="inicio-resultados" aria-live="polite">{ticketsFiltrados.length} resultado(s)</span> : <button className="inicio-panel__enlace" type="button" onClick={() => navigate('/mis-tickets')}>Ver todos <Icono nombre="flecha" size={14} /></button>}</div>
                   <div className="inicio-tabla-wrap">
                     <table className="inicio-tabla">
                       <thead><tr><th>Ticket</th><th>Título</th><th>Estado</th><th>Responsable</th><th>Última actualización</th></tr></thead>
                       <tbody>
                         {ticketsFiltrados.length === 0 ? <tr><td colSpan={5} className="inicio-tabla__vacio">No encontramos tickets con ese criterio.</td></tr> : ticketsFiltrados.map(ticket => (
-                          <tr key={ticket.incidenciaNumero}><td><strong>{ticket.incidenciaNumero}</strong></td><td>{ticket.titulo}</td><td><span className={claseEstado(ticket.estado)}>{ticket.estadoDescripcion}</span></td><td>{ticket.responsable}</td><td>{tiempoRelativo(ticket.ultimaFechaModif)}</td></tr>
+                          <tr key={ticket.incidenciaNumero} onClick={() => navigate('/mis-tickets')} style={{ cursor: 'pointer' }}><td><strong>{ticket.incidenciaNumero}</strong></td><td>{ticket.titulo}</td><td><span className={claseEstado(ticket.estado)}>{ticket.estadoDescripcion}</span></td><td>{ticket.responsable}</td><td>{tiempoRelativo(ticket.ultimaFechaModif)}</td></tr>
                         ))}
                       </tbody>
                     </table>
