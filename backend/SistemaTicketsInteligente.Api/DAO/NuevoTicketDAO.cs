@@ -4,7 +4,7 @@
  * Responsabilidad: Consultar datos del formulario y persistir la incidencia con la metadata de sus adjuntos dentro de una misma transacción SQL.
  * Dependencias: ConexionSqlServer, Microsoft.Data.SqlClient, NuevoTicketDTO y procedimientos dbo.Usp_TI_Obtener_DatosNuevoTicket, dbo.Usp_TI_Registrar_Incidencia y dbo.Usp_TI_Registrar_IncidenciaAdjunto.
  * Flujo: NuevoTicketBLL -> NuevoTicketDAO -> Stored Procedures -> SQL Server.
- * Consideraciones: No contiene reglas de negocio; utiliza parámetros tipados y una transacción para evitar registrar metadata de adjuntos parcialmente.
+ * Consideraciones: No contiene reglas de negocio; utiliza parámetros tipados y una transacción para evitar registrar metadata de adjuntos parcialmente. Si SQL Server ya revirtió la transacción, conserva el error original.
  */
 
 using System.Data;
@@ -73,15 +73,15 @@ public sealed class NuevoTicketDAO
     {
         await using var conexion = conexionSqlServer.CrearConexion();
         await conexion.OpenAsync(cancellationToken);
-        await using var transaccion = await conexion.BeginTransactionAsync(cancellationToken);
+        await using var transaccion = (SqlTransaction)await conexion.BeginTransactionAsync(cancellationToken);
 
         try
         {
-            var creado = await RegistrarIncidenciaAsync(conexion, (SqlTransaction)transaccion, usuario, solicitud, idCorrelacion, cancellationToken);
+            var creado = await RegistrarIncidenciaAsync(conexion, transaccion, usuario, solicitud, idCorrelacion, cancellationToken);
 
             foreach (var adjunto in adjuntos)
             {
-                await RegistrarAdjuntoAsync(conexion, (SqlTransaction)transaccion, creado.IncidenciaNumero, usuario, adjunto, cancellationToken);
+                await RegistrarAdjuntoAsync(conexion, transaccion, creado.IncidenciaNumero, usuario, adjunto, cancellationToken);
             }
 
             await transaccion.CommitAsync(cancellationToken);
@@ -89,7 +89,15 @@ public sealed class NuevoTicketDAO
         }
         catch
         {
-            await transaccion.RollbackAsync(cancellationToken);
+            try
+            {
+                if (transaccion.Connection is not null) await transaccion.RollbackAsync(CancellationToken.None);
+            }
+            catch
+            {
+                // El procedimiento puede haber revertido toda la transacción; se conserva la excepción que originó el fallo.
+            }
+
             throw;
         }
     }
