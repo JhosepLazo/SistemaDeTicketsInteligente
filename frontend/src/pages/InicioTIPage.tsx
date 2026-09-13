@@ -2,7 +2,7 @@
  * Archivo: InicioTIPage.tsx
  * Objetivo: Implementar el módulo Inicio para la visión del operador TI autenticado.
  * Responsabilidad: Presentar carga operativa, tickets que requieren intervención, recordatorios, tickets activos y actividad reciente sin duplicar funciones de los módulos especializados.
- * Dependencias: AutenticacionContext, inicioTIService, InicioPage.css e InicioTIPage.css.
+ * Dependencias: AutenticacionContext, inicioTIService, NotificacionesCampana, InicioPage.css e InicioTIPage.css.
  * Flujo: Ruta protegida /inicio -> selección por perfil -> InicioTIPage -> API /api/inicio/ti -> presentación, búsqueda, filtros y accesos a Gestión de Tickets, Base de Conocimiento y Reportes.
  * Consideraciones: El Inicio conserva únicamente acciones de resumen; la atención detallada se delega a Gestión de Tickets, el conocimiento reusable a Base de Conocimiento y el análisis histórico a Reportes. Asistente TI permanece pendiente de implementación.
  */
@@ -17,6 +17,7 @@ import {
   type InicioTITicketActivo,
   type InicioTITicketPrioritario,
 } from '../features/inicioTI/services/inicioTIService'
+import NotificacionesCampana from '../components/NotificacionesCampana'
 import './InicioPage.css'
 import './InicioTIPage.css'
 
@@ -197,7 +198,6 @@ export default function InicioTIPage() {
   async function manejarCierreSesion() { await cerrarSesion(); navigate('/login', { replace: true }) }
 
   const nombre = obtenerPrimerNombre(usuario.nombreCompleto)
-  const totalNotificaciones = datos?.resumen.requierenAccion ?? 0
   const hayFiltros = busqueda.trim().length > 0 || filtroAsignacion !== 'TODOS' || filtroOperativo !== 'TODOS'
   const irArriba = () => window.scrollTo({ top: 0, behavior: 'smooth' })
   const irAElemento = (elemento: HTMLElement | null) => {
@@ -232,7 +232,7 @@ export default function InicioTIPage() {
         <header className="inicio-topbar">
           <label className="inicio-buscador"><Icono nombre="buscar" size={19} /><input ref={buscadorRef} value={busqueda} onChange={event => setBusqueda(event.target.value)} placeholder="Buscar tickets, usuarios o responsables..." aria-label="Buscar tickets activos" /><span>Ctrl + K</span></label>
           <div className="inicio-topbar__usuario">
-            <button className="inicio-notificacion" type="button" onClick={irAPendientes} disabled={totalNotificaciones === 0} title={totalNotificaciones > 0 ? 'Ir a tickets que requieren atención' : 'No hay tickets que requieran atención'}><Icono nombre="campana" size={21} />{totalNotificaciones > 0 && <span>{totalNotificaciones > 9 ? '9+' : totalNotificaciones}</span>}</button>
+            <NotificacionesCampana />
             <div className="inicio-avatar" aria-hidden="true">{nombre.slice(0, 1).toUpperCase()}</div><div className="inicio-identidad"><strong>{nombre}</strong><span>Operador TI</span></div>
             <button className="inicio-salir" type="button" onClick={manejarCierreSesion} title="Cerrar sesión"><Icono nombre="salir" size={18} /></button>
           </div>

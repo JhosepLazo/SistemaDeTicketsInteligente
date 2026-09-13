@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAutenticacion } from '../features/autenticacion/context/AutenticacionContext'
 import {
   asignarTicketTI,
@@ -78,6 +78,8 @@ function tiempoRelativo(fecha: string) { const m=Math.floor((Date.now()-new Date
 
 export default function GestionTicketsTIPage() {
   const navigate = useNavigate()
+  const [parametros] = useSearchParams()
+  const ticketNotificacion = parametros.get('ticket')?.trim().toUpperCase()
   const { usuario, cerrarSesion: finalizarSesion } = useAutenticacion()
   const buscadorRef = useRef<HTMLInputElement>(null)
   const filtrosRef = useRef<HTMLDivElement>(null)
@@ -111,18 +113,19 @@ export default function GestionTicketsTIPage() {
   async function cargarDetalle(numero: string) { setSeleccionado(numero); setCargandoDetalle(true); try { setDetalle(await obtenerDetalleGestionTicketTI(numero)) } catch(e){setError(e instanceof Error?e.message:'No fue posible cargar el detalle.')} finally{setCargandoDetalle(false)} }
   async function cargarBandeja(preferido?: string) { setCargando(true);setError('');try{const [respuesta,datosOperativos]=await Promise.all([obtenerGestionTicketsTI(),obtenerDatosGestionOperativaTI()]);setDatos(respuesta);setOperativa(datosOperativos);const numero=preferido||seleccionado||respuesta.tickets[0]?.incidenciaNumero||'';if(numero)await cargarDetalle(numero);else{setSeleccionado('');setDetalle(null)}}catch(e){setError(e instanceof Error?e.message:'No fue posible cargar Gestión de Tickets.')}finally{setCargando(false)} }
 
-  useEffect(()=>{void cargarBandeja()},[])
+  useEffect(()=>{void cargarBandeja(ticketNotificacion)},[ticketNotificacion])
   useEffect(()=>{const manejar=(e:KeyboardEvent)=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();buscadorRef.current?.focus()}if(e.key==='Escape'&&!procesando){setModal(null);setMesaAyudaAbierta(false)}};window.addEventListener('keydown',manejar);return()=>window.removeEventListener('keydown',manejar)},[procesando])
 
   const ticketsFiltrados=useMemo(()=>{if(!datos||!usuario)return[];const texto=busqueda.trim().toLowerCase();return datos.tickets.filter(ticket=>{if(filtroRapido==='SIN_ASIGNAR'&&ticket.usuarioTI)return false;if(filtroRapido==='MIOS'&&ticket.usuarioTI!==usuario.usuario)return false;if(filtroRapido==='PRIORIDAD_ALTA'&&(ticket.prioridad??0)<4)return false;if(filtroRapido==='POR_VENCER'&&!(ticket.slaMinutosRestantes!==null&&ticket.slaMinutosRestantes>=0&&ticket.slaMinutosRestantes<=1440))return false;if(estado&&ticket.estado!==estado)return false;if(prioridad==='ALTA'&&(ticket.prioridad??0)<4)return false;if(prioridad==='MEDIA'&&ticket.prioridad!==3)return false;if(prioridad==='BAJA'&&(ticket.prioridad===null||ticket.prioridad>2))return false;if(area&&ticket.areaSolicitante!==area)return false;if(responsable==='SIN_ASIGNAR'&&ticket.usuarioTI)return false;if(responsable&&responsable!=='SIN_ASIGNAR'&&ticket.usuarioTI!==responsable)return false;return!texto||`${ticket.incidenciaNumero} ${ticket.solicitante} ${ticket.usuarioSolicitante} ${ticket.titulo} ${ticket.areaDescripcion} ${ticket.estadoDescripcion} ${ticket.responsable}`.toLowerCase().includes(texto)})},[area,busqueda,datos,estado,filtroRapido,prioridad,responsable,usuario])
 
   if(!usuario)return null
   const nombre=primerNombre(usuario.nombreCompleto)
+  const usuarioActual=usuario.usuario
   const puedeConfigurar=['SUP','ADM'].includes(usuario.perfil)
   const puedeResponderAprobacion=['SUP','ADM'].includes(usuario.perfil)
 
   function limpiarFiltros(){setBusqueda('');setFiltroRapido('TODOS');setEstado('');setPrioridad('');setArea('');setResponsable('')}
-  function abrirModal(tipo:Exclude<ModalAccion,null>){if(!detalle)return;setTextoAccion('');setVisibleUsuario(false);setResponsableAccion(detalle.usuarioTI||usuario.usuario);setTiempoAvance(15);setAreaCausanteAvance(detalle.areaCausante||'');setAprobacion({accionCodigo:operativa?.accionesAprobacion[0]?.accionCodigo||'',justificacion:''});setClasificacion({linea:detalle.linea,item:detalle.item,tipo:detalle.tipo,subTipo:detalle.subTipo,categoria:detalle.categoria,areaCausante:detalle.areaCausante||null,prioridad:null,impacto:null,complejidad:null});setResolucion({causaRaiz:detalle.causaRaiz,solucion:detalle.solucionTecnica,respuestaUsuario:detalle.respuestaUsuario||'Se completó la atención. Por favor vuelve a realizar el proceso y confirma si el inconveniente fue solucionado.',tipoResolucion:detalle.tipoResolucion||'CORRECCION'});setModal(tipo)}
+  function abrirModal(tipo:Exclude<ModalAccion,null>){if(!detalle)return;setTextoAccion('');setVisibleUsuario(false);setResponsableAccion(detalle.usuarioTI||usuarioActual);setTiempoAvance(15);setAreaCausanteAvance(detalle.areaCausante||'');setAprobacion({accionCodigo:operativa?.accionesAprobacion[0]?.accionCodigo||'',justificacion:''});setClasificacion({linea:detalle.linea,item:detalle.item,tipo:detalle.tipo,subTipo:detalle.subTipo,categoria:detalle.categoria,areaCausante:detalle.areaCausante||null,prioridad:null,impacto:null,complejidad:null});setResolucion({causaRaiz:detalle.causaRaiz,solucion:detalle.solucionTecnica,respuestaUsuario:detalle.respuestaUsuario||'Se completó la atención. Por favor vuelve a realizar el proceso y confirma si el inconveniente fue solucionado.',tipoResolucion:detalle.tipoResolucion||'CORRECCION'});setModal(tipo)}
   async function ejecutar(accion:()=>Promise<void>,exito:string){if(!detalle)return;setProcesando(true);setError('');setMensaje('');try{await accion();setModal(null);setMensaje(exito);await cargarBandeja(detalle.incidenciaNumero)}catch(e){setError(e instanceof Error?e.message:'No fue posible completar la operación.')}finally{setProcesando(false)}}
   async function registrarMesaAyuda(){setProcesando(true);setError('');setMensaje('');try{const creado=await crearTicketMesaAyudaTI(mesaAyuda);setMesaAyudaAbierta(false);setMensaje(`Se registró ${creado.incidenciaNumero} a nombre del usuario.`);setMesaAyuda({usuarioSolicitante:'',linea:'',tipo:'',titulo:'',detalle:'',mensajeError:''});await cargarBandeja(creado.incidenciaNumero)}catch(e){setError(e instanceof Error?e.message:'No fue posible registrar el ticket.')}finally{setProcesando(false)}}
   function exportarCsv(){const filas=[['Ticket','Solicitante','Título','Área','Prioridad','Estado','Responsable','Última actualización'],...ticketsFiltrados.map(x=>[x.incidenciaNumero,x.solicitante,x.titulo,x.areaDescripcion,textoPrioridad(x.prioridad),x.estadoDescripcion,x.responsable,fechaHora(x.ultimaFechaModif)])];const contenido=filas.map(f=>f.map(v=>`"${String(v).replaceAll('"','""')}"`).join(',')).join('\n');const url=URL.createObjectURL(new Blob([`\uFEFF${contenido}`],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=`gestion-tickets-${new Date().toISOString().slice(0,10)}.csv`;a.click();URL.revokeObjectURL(url)}

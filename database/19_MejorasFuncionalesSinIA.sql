@@ -662,7 +662,7 @@ Begin
 
     Begin Try
         Begin Transaction
-        Declare @nEstado int, @cSolicitante varchar(20), @dFecha datetime2(0) = SysDateTime()
+        Declare @nEstado int, @cSolicitante varchar(20), @cMensajeNotificacion nvarchar(500), @dFecha datetime2(0) = SysDateTime()
 
         If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Estado = 'A' and Perfil In ('SUP','ADM')) Throw 50230, 'Solo un Supervisor o Administrador puede responder esta aprobación.', 1
         Select @cSolicitante = UsuarioSolicitante From dbo.TI_SolicitudAprobacion Where IncidenciaNumero = @cIncidenciaNumero and Secuencia = @nSecuencia and Estado = 'P'
@@ -679,8 +679,14 @@ Begin
         Insert dbo.TI_IncidenciaEstado (IncidenciaNumero, Secuencia, Estado, UsuarioCambio, FechaCambio, Observacion)
         Values (@cIncidenciaNumero, @nEstado, 'DG', @cUsuario, @dFecha, Case When @lAprobar = 1 Then N'La aprobación fue concedida; el ticket puede continuar.' Else N'La aprobación fue rechazada; el ticket vuelve a diagnóstico.' End)
 
-        Exec dbo.Usp_TI_Registrar_Notificacion @cSolicitante, @cIncidenciaNumero, 'APROBACION_RESPUESTA', N'Respuesta de aprobación',
-            Case When @lAprobar = 1 Then N'La solicitud fue aprobada y el ticket puede continuar.' Else N'La solicitud fue rechazada. Revisa el comentario registrado.' End, '/gestion-tickets'
+        Set @cMensajeNotificacion = Case When @lAprobar = 1 Then N'La solicitud fue aprobada y el ticket puede continuar.' Else N'La solicitud fue rechazada. Revisa el comentario registrado.' End
+        Exec dbo.Usp_TI_Registrar_Notificacion
+            @cUsuario = @cSolicitante,
+            @cIncidenciaNumero = @cIncidenciaNumero,
+            @cTipo = 'APROBACION_RESPUESTA',
+            @cTitulo = N'Respuesta de aprobación',
+            @cMensaje = @cMensajeNotificacion,
+            @cRuta = '/gestion-tickets'
 
         Insert dbo.TI_Auditoria (IncidenciaNumero, Usuario, TipoActor, Entidad, Registro, Evento, Resultado, DetalleJson, IdCorrelacion, Fecha)
         Values (@cIncidenciaNumero, @cUsuario, 'T', 'TI_SolicitudAprobacion', Concat(@cIncidenciaNumero, '-', @nSecuencia), Case When @lAprobar = 1 Then 'APROBAR_ACCION' Else 'RECHAZAR_ACCION' End, 'EXITOSO', Null, @cIdCorrelacion, @dFecha)
@@ -774,7 +780,7 @@ Begin
     Set NoCount On
     Set Xact_Abort On
 
-    Declare @cAreaSolicitante char(3), @cIncidenciaNumero varchar(12), @nCorrelativo int, @dFecha datetime2(0) = SysDateTime()
+    Declare @cAreaSolicitante char(3), @cIncidenciaNumero varchar(12), @cMensajeNotificacion nvarchar(500), @nCorrelativo int, @dFecha datetime2(0) = SysDateTime()
 
     If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuarioTI and Area = @cAreaTI and Estado = 'A' and Perfil In ('TEC','SUP','ADM')) Throw 50440, 'El operador TI no es válido.', 1
     Select @cAreaSolicitante = Area From dbo.TI_Usuario Where Usuario = @cUsuarioSolicitante and Estado = 'A'
@@ -794,7 +800,14 @@ Begin
         Insert dbo.TI_IncidenciaEstado (IncidenciaNumero, Secuencia, Estado, UsuarioCambio, FechaCambio, Observacion)
         Values (@cIncidenciaNumero, 1, 'NV', @cUsuarioTI, @dFecha, N'Ticket registrado por mesa de ayuda a nombre del usuario solicitante.')
 
-        Exec dbo.Usp_TI_Registrar_Notificacion @cUsuarioSolicitante, @cIncidenciaNumero, 'TICKET_CREADO', N'Ticket registrado por TI', Concat(N'TI registró el ticket ', @cIncidenciaNumero, N' a tu nombre.'), '/mis-tickets'
+        Set @cMensajeNotificacion = Concat(N'TI registró el ticket ', @cIncidenciaNumero, N' a tu nombre.')
+        Exec dbo.Usp_TI_Registrar_Notificacion
+            @cUsuario = @cUsuarioSolicitante,
+            @cIncidenciaNumero = @cIncidenciaNumero,
+            @cTipo = 'TICKET_CREADO',
+            @cTitulo = N'Ticket registrado por TI',
+            @cMensaje = @cMensajeNotificacion,
+            @cRuta = '/mis-tickets'
 
         Insert dbo.TI_Auditoria (IncidenciaNumero, Usuario, TipoActor, Entidad, Registro, Evento, Resultado, DetalleJson, IdCorrelacion, Fecha)
         Values (@cIncidenciaNumero, @cUsuarioTI, 'T', 'TI_Incidencia', @cIncidenciaNumero, 'CREAR_TICKET_POR_USUARIO', 'EXITOSO', Concat('{"solicitante":"', @cUsuarioSolicitante, '"}'), @cIdCorrelacion, @dFecha)

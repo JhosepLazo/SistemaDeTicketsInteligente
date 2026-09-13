@@ -2,13 +2,13 @@
  * Archivo: MisTicketsUsuarioPage.tsx
  * Objetivo: Implementar el módulo Mis Tickets para el usuario autenticado siguiendo la estructura visual definida para Calimod.
  * Responsabilidad: Mostrar la bandeja personal, filtros, detalle rápido/completo y permitir responder observaciones, validar/reabrir soluciones, calificar y consultar adjuntos.
- * Dependencias: AutenticacionContext, misTicketsUsuarioService, InicioPage.css y MisTicketsUsuarioPage.css.
+ * Dependencias: AutenticacionContext, misTicketsUsuarioService, NotificacionesCampana, InicioPage.css y MisTicketsUsuarioPage.css.
  * Flujo: Ruta protegida /mis-tickets -> listado personal -> selección de ticket -> detalle/acción -> actualización de bandeja.
  * Consideraciones: El módulo no permite asignar, priorizar ni clasificar técnicamente tickets; esas funciones pertenecen a TI. Las acciones disponibles dependen del estado real retornado por backend.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAutenticacion } from '../features/autenticacion/context/AutenticacionContext'
 import {
   calificarTicket,
@@ -21,6 +21,7 @@ import {
   type MisTicketItem,
   type MisTicketsRespuesta,
 } from '../features/misTickets/services/misTicketsUsuarioService'
+import NotificacionesCampana from '../components/NotificacionesCampana'
 import './InicioPage.css'
 import './MisTicketsUsuarioPage.css'
 
@@ -115,6 +116,8 @@ function prioridadTexto(prioridad: number | null) {
 
 export default function MisTicketsUsuarioPage() {
   const navigate = useNavigate()
+  const [parametros] = useSearchParams()
+  const ticketNotificacion = parametros.get('ticket')?.trim().toUpperCase()
   const { usuario, cerrarSesion } = useAutenticacion()
   const buscadorRef = useRef<HTMLInputElement>(null)
   const archivoRef = useRef<HTMLInputElement>(null)
@@ -183,8 +186,8 @@ export default function MisTicketsUsuarioPage() {
   }
 
   useEffect(() => {
-    void cargarListado()
-  }, [])
+    void cargarListado(ticketNotificacion)
+  }, [ticketNotificacion])
 
   useEffect(() => {
     function manejarAtajos(event: KeyboardEvent) {
@@ -355,7 +358,6 @@ export default function MisTicketsUsuarioPage() {
   }
 
   const nombre = primerNombre(usuario.nombreCompleto)
-  const notificaciones = datos?.resumen.pendientesRespuesta ?? 0
 
   return (
     <div className="inicio-shell mis-tickets-shell">
@@ -379,9 +381,7 @@ export default function MisTicketsUsuarioPage() {
             <span>Ctrl + K</span>
           </label>
           <div className="inicio-topbar__usuario">
-            <button className="inicio-notificacion" type="button" disabled={notificaciones === 0} onClick={() => setFiltro('PENDIENTES')} title={notificaciones ? 'Ver tickets que requieren tu respuesta' : 'No tienes respuestas pendientes'} style={{ border: 0, padding: 0, background: 'transparent', cursor: notificaciones ? 'pointer' : 'default' }}>
-              <Icono nombre="campana" size={21} />{notificaciones > 0 && <span>{notificaciones > 9 ? '9+' : notificaciones}</span>}
-            </button>
+            <NotificacionesCampana />
             <div className="inicio-avatar" aria-hidden="true">{nombre.slice(0, 1).toUpperCase()}</div>
             <div className="inicio-identidad"><strong>{nombre}</strong><span>Colaborador</span></div>
             <button className="inicio-salir" type="button" onClick={manejarCierreSesion} title="Cerrar sesión" aria-label="Cerrar sesión"><Icono nombre="salir" size={18} /></button>

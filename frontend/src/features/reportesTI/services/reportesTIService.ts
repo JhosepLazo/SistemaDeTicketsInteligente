@@ -28,6 +28,8 @@ export interface ReportesTIResumen {
   resueltosAnterior: number
   tiempoPromedioHorasAnterior: number | null
   satisfaccionAnterior: number | null
+  horasEfectivas: number
+  ticketsConEsfuerzo: number
 }
 
 export interface ReportesTIEvolucion { fecha: string; cantidad: number }

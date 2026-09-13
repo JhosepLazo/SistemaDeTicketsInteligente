@@ -26,7 +26,7 @@ type Catalogo = 'AREA' | 'LINEA' | 'ITEM' | 'TIPO' | 'CATEGORIA' | 'SUBTIPO'
 const vacioCatalogo = { codigo:'', descripcion:'', relacion:'', relacion2:'', abreviatura:'', telefono:'', estado:'A' }
 
 export default function ConfiguracionTIPage(){
-  const navigate=useNavigate(); const {usuario,finalizarSesion}=useAutenticacion()
+  const navigate=useNavigate(); const {usuario,cerrarSesion:finalizarSesion}=useAutenticacion()
   const [datos,setDatos]=useState<ConfiguracionTIRespuesta|null>(null); const [cargando,setCargando]=useState(true); const [procesando,setProcesando]=useState(false)
   const [error,setError]=useState(''); const [mensaje,setMensaje]=useState(''); const [seccion,setSeccion]=useState<Seccion>('CATALOGOS'); const [catalogo,setCatalogo]=useState<Catalogo>('AREA')
   const [form,setForm]=useState(vacioCatalogo); const [matriz,setMatriz]=useState({item:'',categoria:'',prioridad:3,impacto:3,complejidad:3,estado:'A'}); const [sla,setSla]=useState({prioridad:3,slaObjetivoMinutos:1440,estado:'A'})

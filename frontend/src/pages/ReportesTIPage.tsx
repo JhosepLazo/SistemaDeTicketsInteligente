@@ -2,7 +2,7 @@
  * Archivo: ReportesTIPage.tsx
  * Objetivo: Implementar el módulo Reportes para el operador TI autenticado.
  * Responsabilidad: Presentar indicadores, filtros, evolución, distribución, tiempos, tickets prioritarios y exportación del período seleccionado.
- * Dependencias: AutenticacionContext, reportesTIService, InicioPage.css y ReportesTIPage.css.
+ * Dependencias: AutenticacionContext, reportesTIService, NotificacionesCampana, InicioPage.css y ReportesTIPage.css.
  * Flujo: Ruta protegida /reportes -> ReportesTIPage -> API /api/reportes/ti -> Stored Procedure -> SQL Server.
  * Consideraciones: No incorpora programación ni envío de reportes porque esas funciones requieren infraestructura adicional; prioriza análisis operativo real, exportación simple y mantenimiento reducido.
  */
@@ -17,6 +17,7 @@ import {
   type ReportesTIEvolucion,
   type ReportesTIEstado,
 } from '../features/reportesTI/services/reportesTIService'
+import NotificacionesCampana from '../components/NotificacionesCampana'
 import './InicioPage.css'
 import './ReportesTIPage.css'
 
@@ -158,7 +159,7 @@ export default function ReportesTIPage() {
       <header className="inicio-topbar">
         <label className="inicio-buscador"><Icono nombre="buscar"/><input ref={buscadorRef} value={busqueda} onChange={e => setBusqueda(e.target.value)} placeholder="Buscar ticket crítico del período..."/><span>Ctrl + K</span></label>
         <div className="inicio-topbar__usuario">
-          <button className="inicio-notificacion" type="button" onClick={() => navigate('/gestion-tickets')} aria-label="Ir a Gestión de Tickets"><Icono nombre="campana"/></button>
+          <NotificacionesCampana />
           <div className="inicio-avatar">{nombre.slice(0, 1).toUpperCase()}</div><div className="inicio-identidad"><strong>{nombre}</strong><span>Operador TI</span></div>
           <button className="inicio-salir" type="button" onClick={() => void cerrarSesion().then(() => navigate('/login', { replace: true }))} title="Cerrar sesión"><Icono nombre="salir"/></button>
         </div>
@@ -261,7 +262,7 @@ function BarrasAreas({ datos }: { datos: { area: string; areaDescripcion: string
 function ResumenEjecutivo({ datos }: { datos: ReportesTIRespuesta | null }) {
   const r = datos?.resumen
   const tasaResolucion = r && r.total > 0 ? (r.resueltos / r.total) * 100 : null
-  return <div className="reportes-ti-resumen-lista"><div><span className="reportes-ti-resumen-lista__icono"><Icono nombre="grafico" size={17}/></span><p><strong>{r?.total ?? 0}</strong><small>tickets registrados</small></p></div><div><span className="reportes-ti-resumen-lista__icono"><Icono nombre="check" size={17}/></span><p><strong>{r?.resueltos ?? 0}</strong><small>tickets resueltos · {tasaResolucion === null ? '—' : `${tasaResolucion.toFixed(0)}%`}</small></p></div><div><span className="reportes-ti-resumen-lista__icono"><Icono nombre="reloj" size={17}/></span><p><strong>{numero(r?.cumplimientoSla ?? null)}%</strong><small>cumplimiento de SLA</small></p></div><div><span className="reportes-ti-resumen-lista__icono"><Icono nombre="alerta" size={17}/></span><p><strong>{r?.reabiertos ?? 0}</strong><small>tickets reabiertos</small></p></div><div><span className="reportes-ti-resumen-lista__icono"><Icono nombre="estrella" size={17}/></span><p><strong>{r?.satisfaccion === null || r?.satisfaccion === undefined ? '—' : `${numero(r.satisfaccion)} / 5`}</strong><small>satisfacción de usuarios</small></p></div></div>
+  return <div className="reportes-ti-resumen-lista"><div><span className="reportes-ti-resumen-lista__icono"><Icono nombre="grafico" size={17}/></span><p><strong>{r?.total ?? 0}</strong><small>tickets registrados</small></p></div><div><span className="reportes-ti-resumen-lista__icono"><Icono nombre="check" size={17}/></span><p><strong>{r?.resueltos ?? 0}</strong><small>tickets resueltos · {tasaResolucion === null ? '—' : `${tasaResolucion.toFixed(0)}%`}</small></p></div><div><span className="reportes-ti-resumen-lista__icono"><Icono nombre="reloj" size={17}/></span><p><strong>{numero(r?.horasEfectivas ?? null)} h</strong><small>esfuerzo efectivo · {r?.ticketsConEsfuerzo ?? 0} tickets</small></p></div><div><span className="reportes-ti-resumen-lista__icono"><Icono nombre="reloj" size={17}/></span><p><strong>{numero(r?.cumplimientoSla ?? null)}%</strong><small>cumplimiento de SLA</small></p></div><div><span className="reportes-ti-resumen-lista__icono"><Icono nombre="alerta" size={17}/></span><p><strong>{r?.reabiertos ?? 0}</strong><small>tickets reabiertos</small></p></div><div><span className="reportes-ti-resumen-lista__icono"><Icono nombre="estrella" size={17}/></span><p><strong>{r?.satisfaccion === null || r?.satisfaccion === undefined ? '—' : `${numero(r.satisfaccion)} / 5`}</strong><small>satisfacción de usuarios</small></p></div></div>
 }
 
 function formatearHoras(valor: number | null) {

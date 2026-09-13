@@ -212,3 +212,22 @@ El siguiente orden funcional recomendado es:
 5. Recien despues avanzar con Asistente TI, RAG y diagnostico inteligente.
 
 Con esa ruta, el sistema no crece por cantidad de pantallas, sino por calidad operacional.
+
+## Estado de implementacion
+
+Actualizado el 13 de septiembre de 2026 despues de contrastar este analisis con la rama funcional vigente.
+
+| Recomendacion | Estado | Implementacion funcional |
+|---|---|---|
+| Identidad corporativa | Implementada | Autenticacion contra Spring configurable, sincronizacion segura de metadata, cargos y asignacion local de area/perfil. |
+| Configuracion TI | Implementada | Un unico modulo restringido a SUP/ADM administra catalogos, usuarios, formatos, visibilidad de conocimiento, matriz y SLA. |
+| Matriz de clasificacion | Implementada | Prioridad, impacto y complejidad se obtienen de Item/Categoria; el operador no los decide manualmente. |
+| Aprobaciones con bloqueo | Implementada | El estado PA bloquea la operacion hasta aprobar o rechazar. Se impide que el solicitante responda su propia aprobacion. |
+| Tiempo efectivo y area causante | Implementada | Cada avance tecnico exige minutos reales y area causante; Reportes TI resume el esfuerzo con sus filtros operativos. |
+| Ticket a nombre de otro usuario | Implementada | TEC/SUP/ADM puede registrar por mesa de ayuda, conservando solicitante y operador registrador por separado. |
+| Formatos y autoservicio | Implementada | Nuevo Ticket consume formatos descargables y articulos de conocimiento publicados, sin crear modulos separados. |
+| Edicion temprana del ticket | Implementada | El usuario puede corregir datos basicos propios antes del procesamiento, sin modificar clasificacion tecnica. |
+| Notificaciones accionables | Implementada | Asignacion, informacion requerida, respuesta del usuario, avance visible, validacion, reapertura, aprobacion y No Procede generan avisos persistidos que abren el ticket correspondiente. |
+| Conocimiento reutilizable | Implementada | Los articulos requieren gestion y validacion antes de hacerse visibles al usuario; quedan preparados para el RAG futuro. |
+
+No se agrego un modulo de Gestion de Calidad porque el analisis lo condiciona a la existencia actual de ese proceso empresarial y no hay evidencia suficiente para crear un rol nuevo. Tampoco se agrego correo saliente: la campana persistida cumple la necesidad operativa inmediata sin inventar servidores, credenciales o reglas de entrega corporativas. La integracion de IA, RAG y diagnostico permanece fuera de esta etapa por decision del proyecto.

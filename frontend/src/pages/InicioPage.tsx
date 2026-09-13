@@ -2,7 +2,7 @@
  * Archivo: InicioPage.tsx
  * Objetivo: Implementar el módulo Inicio para la visión del usuario autenticado.
  * Responsabilidad: Presentar el estado general de sus tickets, pendientes personales, actividad reciente y accesos principales sin duplicar funciones de otros módulos.
- * Dependencias: AutenticacionContext, inicioUsuarioService y InicioPage.css.
+ * Dependencias: AutenticacionContext, inicioUsuarioService, NotificacionesCampana e InicioPage.css.
  * Flujo: Ruta protegida /inicio -> carga del dashboard -> API /api/inicio/usuario -> presentación de información personal.
  * Consideraciones: Inicio mantiene solo funciones de resumen; Nuevo Ticket y Mis Tickets navegan a sus módulos propios, mientras Asistente TI permanece deshabilitado hasta su implementación.
  */
@@ -15,6 +15,7 @@ import {
   type InicioUsuarioRespuesta,
   type InicioUsuarioTicket,
 } from '../features/inicioUsuario/services/inicioUsuarioService'
+import NotificacionesCampana from '../components/NotificacionesCampana'
 import './InicioPage.css'
 
 type NombreIcono = 'inicio' | 'asistente' | 'nuevo' | 'tickets' | 'buscar' | 'campana' | 'carpeta' | 'engranaje' | 'alerta' | 'check' | 'actividad' | 'salir' | 'flecha'
@@ -139,13 +140,7 @@ export default function InicioPage() {
   }
 
   const nombre = obtenerPrimerNombre(usuario.nombreCompleto)
-  const totalNotificaciones = datos ? datos.resumen.requierenAtencion + datos.resumen.pendientesCalificacion : 0
   const irArriba = () => window.scrollTo({ top: 0, behavior: 'smooth' })
-  const irAPendientes = () => {
-    if (!pendientesRef.current) return
-    const posicion = pendientesRef.current.getBoundingClientRect().top + window.scrollY - 78
-    window.scrollTo({ top: posicion, behavior: 'smooth' })
-  }
 
   return (
     <div className="inicio-shell">
@@ -183,18 +178,7 @@ export default function InicioPage() {
           </label>
 
           <div className="inicio-topbar__usuario">
-            <button
-              className="inicio-notificacion"
-              type="button"
-              onClick={irAPendientes}
-              disabled={totalNotificaciones === 0}
-              title={totalNotificaciones > 0 ? 'Ir a tus pendientes' : 'No tienes pendientes personales'}
-              aria-label={totalNotificaciones > 0 ? `${totalNotificaciones} pendientes personales. Ir a pendientes.` : 'No tienes pendientes personales'}
-              style={{ border: 0, padding: 0, background: 'transparent', cursor: totalNotificaciones > 0 ? 'pointer' : 'default' }}
-            >
-              <Icono nombre="campana" size={21} />
-              {totalNotificaciones > 0 && <span>{totalNotificaciones > 9 ? '9+' : totalNotificaciones}</span>}
-            </button>
+            <NotificacionesCampana />
             <div className="inicio-avatar" aria-hidden="true">{nombre.slice(0, 1).toUpperCase()}</div>
             <div className="inicio-identidad">
               <strong>{nombre}</strong>

@@ -149,9 +149,36 @@ public sealed class ReportesTIDAO
                 });
             }
 
+            await lector.DisposeAsync();
+            await CargarEsfuerzoAsync(conexion, filtros, respuesta.Resumen, cancellationToken);
             return respuesta;
         }
         catch (SqlException ex) when (ex.Number is >= 50300 and <= 50399)
+        {
+            throw new InvalidOperationException(ex.Message, ex);
+        }
+    }
+
+    private static async Task CargarEsfuerzoAsync(SqlConnection conexion, ReportesTIFiltros filtros, ReportesTIResumen resumen, CancellationToken cancellationToken)
+    {
+        await using var comando = new SqlCommand("dbo.Usp_TI_Obtener_EsfuerzoOperativoTI", conexion) { CommandType = CommandType.StoredProcedure };
+        comando.Parameters.Add("@dFechaInicio", SqlDbType.Date).Value = filtros.FechaInicio.Date;
+        comando.Parameters.Add("@dFechaFin", SqlDbType.Date).Value = filtros.FechaFin.Date;
+        comando.Parameters.Add("@cArea", SqlDbType.Char, 3).Value = ValorDb(filtros.Area);
+        comando.Parameters.Add("@cEstado", SqlDbType.Char, 2).Value = ValorDb(filtros.Estado);
+        comando.Parameters.Add("@cPrioridad", SqlDbType.VarChar, 10).Value = ValorDb(filtros.Prioridad);
+        comando.Parameters.Add("@cTipo", SqlDbType.Char, 3).Value = ValorDb(filtros.Tipo);
+        comando.Parameters.Add("@cUsuarioTI", SqlDbType.VarChar, 20).Value = ValorDb(filtros.UsuarioTI);
+
+        try
+        {
+            await using var lector = await comando.ExecuteReaderAsync(cancellationToken);
+            if (!await lector.ReadAsync(cancellationToken)) return;
+
+            resumen.HorasEfectivas = LeerDecimalNullable(lector, "HorasEfectivas") ?? 0;
+            resumen.TicketsConEsfuerzo = LeerEntero(lector, "TicketsConEsfuerzo");
+        }
+        catch (SqlException ex) when (ex.Number is 50450 or 50451)
         {
             throw new InvalidOperationException(ex.Message, ex);
         }

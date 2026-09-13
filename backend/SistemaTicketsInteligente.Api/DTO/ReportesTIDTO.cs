@@ -32,6 +32,8 @@ public sealed class ReportesTIResumen
     public int ResueltosAnterior { get; set; }
     public decimal? TiempoPromedioHorasAnterior { get; set; }
     public decimal? SatisfaccionAnterior { get; set; }
+    public decimal HorasEfectivas { get; set; }
+    public int TicketsConEsfuerzo { get; set; }
 }
 
 public sealed class ReportesTIEvolucion

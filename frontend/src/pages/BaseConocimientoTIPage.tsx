@@ -2,7 +2,7 @@
  * Archivo: BaseConocimientoTIPage.tsx
  * Objetivo: Implementar el módulo Base de Conocimiento para el operador TI autenticado.
  * Responsabilidad: Permitir buscar, revisar, crear, editar, validar, revalidar e inactivar conocimiento reutilizable, incluyendo la creación guiada desde tickets resueltos.
- * Dependencias: AutenticacionContext, baseConocimientoTIService, InicioPage.css y BaseConocimientoTIPage.css.
+ * Dependencias: AutenticacionContext, baseConocimientoTIService, NotificacionesCampana, InicioPage.css y BaseConocimientoTIPage.css.
  * Flujo: Ruta protegida /base-conocimiento -> BaseConocimientoTIPage -> API /api/base-conocimiento -> Stored Procedures -> SQL Server.
  * Consideraciones: La vista conserva el patrón visual CALIMOD; no inventa métricas de favoritos o visualizaciones que el modelo actual no registra y separa borrador, validación, publicación e inactivación.
  */
@@ -24,6 +24,7 @@ import {
   type BaseConocimientoTITicketOrigen,
   type GuardarBaseConocimientoTISolicitud,
 } from '../features/baseConocimientoTI/services/baseConocimientoTIService'
+import NotificacionesCampana from '../components/NotificacionesCampana'
 import './InicioPage.css'
 import './BaseConocimientoTIPage.css'
 
@@ -228,7 +229,7 @@ export default function BaseConocimientoTIPage() {
       <header className="inicio-topbar">
         <label className="inicio-buscador"><Icono nombre="buscar"/><input ref={buscadorRef} value={busqueda} onChange={e => setBusqueda(e.target.value)} placeholder="Buscar artículos, errores o soluciones..."/><span>Ctrl + K</span></label>
         <div className="inicio-topbar__usuario">
-          <button className="inicio-notificacion" type="button" onClick={() => filtrarEstado('P')} aria-label="Ver artículos pendientes de validación"><Icono nombre="campana"/>{(datos?.resumen.pendientesValidacion ?? 0) > 0 && <span>{(datos?.resumen.pendientesValidacion ?? 0) > 9 ? '9+' : datos?.resumen.pendientesValidacion}</span>}</button>
+          <NotificacionesCampana />
           <div className="inicio-avatar">{nombre.slice(0, 1).toUpperCase()}</div><div className="inicio-identidad"><strong>{nombre}</strong><span>Operador TI</span></div>
           <button className="inicio-salir" type="button" onClick={() => void cerrarSesion().then(() => navigate('/login', { replace: true }))} title="Cerrar sesión"><Icono nombre="salir"/></button>
         </div>

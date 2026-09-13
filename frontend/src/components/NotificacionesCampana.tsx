@@ -29,10 +29,14 @@ export default function NotificacionesCampana() {
     return () => document.removeEventListener('mousedown', cerrar)
   }, [])
 
-  async function abrirNotificacion(id: number, ruta: string) {
+  async function abrirNotificacion(id: number, ruta: string, incidenciaNumero: string) {
     try { await marcarNotificacionLeida(id); await cargar() } finally {
       setAbierta(false)
-      if (ruta) navigate(ruta)
+      if (ruta) {
+        const separador = ruta.includes('?') ? '&' : '?'
+        const destino = incidenciaNumero ? `${ruta}${separador}ticket=${encodeURIComponent(incidenciaNumero)}` : ruta
+        navigate(destino)
+      }
     }
   }
 
@@ -45,7 +49,7 @@ export default function NotificacionesCampana() {
       <header><strong>Notificaciones</strong><small>{datos.noLeidas} pendientes</small></header>
       <div className="notificaciones__lista">
         {datos.notificaciones.length === 0 ? <p className="notificaciones__vacio">No tienes notificaciones recientes.</p> : datos.notificaciones.map(item =>
-          <button key={item.notificacionNumero} className={item.leida ? '' : 'no-leida'} onClick={() => void abrirNotificacion(item.notificacionNumero, item.ruta)}>
+          <button key={item.notificacionNumero} className={item.leida ? '' : 'no-leida'} onClick={() => void abrirNotificacion(item.notificacionNumero, item.ruta, item.incidenciaNumero)}>
             <strong>{item.titulo}</strong><span>{item.mensaje}</span><small>{new Date(item.fecha).toLocaleString('es-PE')}</small>
           </button>)}
       </div>
