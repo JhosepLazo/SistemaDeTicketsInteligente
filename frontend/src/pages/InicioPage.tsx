@@ -142,8 +142,10 @@ export default function InicioPage() {
         </div>
 
         <div className="inicio-sidebar__pie">
+          <span className="inicio-sidebar__ayuda-icono">?</span>
           <span>¿Necesitas ayuda?</span>
-          <small>El Asistente TI estará disponible desde su módulo.</small>
+          <small>Centro de ayuda</small>
+          <span className="inicio-sidebar__ayuda-enlace" aria-hidden="true">↗</span>
         </div>
       </aside>
 
@@ -172,12 +174,11 @@ export default function InicioPage() {
         <main className="inicio-contenido">
           <section className="inicio-hero">
             <div className="inicio-hero__contenido">
-              <span className="inicio-hero__eyebrow">TU CENTRO DE SOPORTE</span>
               <h1>{obtenerSaludo()}, {nombre} <span aria-hidden="true">👋</span></h1>
               <p className="inicio-hero__resumen">
                 {datos ? <>Tienes <strong>{datos.resumen.ticketsActivos} tickets activos</strong>{datos.resumen.requierenAtencion > 0 ? <> y <strong>{datos.resumen.requierenAtencion} {datos.resumen.requierenAtencion === 1 ? 'requiere' : 'requieren'} tu atención</strong>.</> : '.'}</> : 'Aquí encontrarás el estado de tus solicitudes y pendientes.'}
               </p>
-              <p className="inicio-hero__detalle">Información clara, acciones visibles y seguimiento sin perder tiempo.</p>
+              <p className="inicio-hero__detalle">Estamos aquí para ayudarte. La tecnología también impulsa tu trabajo.</p>
             </div>
             <div className="inicio-hero__acciones">
               <button type="button" disabled title="Disponible cuando se implemente Asistente TI"><Icono nombre="asistente" size={19} /> Consultar al Asistente TI <Icono nombre="flecha" size={17} /></button>
@@ -208,6 +209,7 @@ export default function InicioPage() {
                 <article className="inicio-panel inicio-panel--atencion">
                   <div className="inicio-panel__cabecera">
                     <div><span className="inicio-panel__titulo-icono inicio-panel__titulo-icono--rojo"><Icono nombre="alerta" size={18} /></span><div><h2>Requiere tu atención</h2><p>Casos que necesitan información o confirmación de tu parte.</p></div></div>
+                    <button className="inicio-panel__enlace" type="button" disabled>Ver todos mis tickets <Icono nombre="flecha" size={14} /></button>
                   </div>
                   <div className="inicio-lista-atencion">
                     {datos.requierenAtencion.length === 0 ? <div className="inicio-vacio"><Icono nombre="check" size={21} /><span>No tienes tickets esperando una acción tuya.</span></div> : datos.requierenAtencion.map(ticket => (
@@ -215,6 +217,7 @@ export default function InicioPage() {
                         <div className="inicio-ticket-atencion__numero">{ticket.incidenciaNumero}</div>
                         <div className="inicio-ticket-atencion__detalle"><strong>{ticket.titulo}</strong><span>{textoAccion(ticket)}</span></div>
                         <div className="inicio-ticket-atencion__estado"><span className={claseEstado(ticket.estado)}>{ticket.estadoDescripcion}</span><small>{tiempoRelativo(ticket.ultimaFechaModif)}</small></div>
+                        <button className="inicio-ticket-atencion__boton" type="button" disabled>{ticket.accion === 'CONFIRMAR_SOLUCION' ? 'Confirmar' : 'Completar'} <Icono nombre="flecha" size={14} /></button>
                       </div>
                     ))}
                   </div>
@@ -227,6 +230,7 @@ export default function InicioPage() {
                       <div className="inicio-accion" key={`${accion.incidenciaNumero}-${accion.tipoAccion}`}>
                         <span className={`inicio-accion__icono ${accion.tipoAccion === 'CALIFICAR_ATENCION' ? 'inicio-accion__icono--estrella' : ''}`}>{accion.tipoAccion === 'CALIFICAR_ATENCION' ? '★' : '✓'}</span>
                         <div><strong>{accion.tipoAccion === 'CALIFICAR_ATENCION' ? 'Calificar atención' : 'Confirmar solución'}</strong><span>{accion.incidenciaNumero}</span><small>{accion.titulo}</small></div>
+                        <span className="inicio-accion__flecha" aria-hidden="true">›</span>
                       </div>
                     ))}
                   </div>
@@ -235,7 +239,7 @@ export default function InicioPage() {
 
               <section className="inicio-grid-inferior">
                 <article className="inicio-panel inicio-panel--tabla">
-                  <div className="inicio-panel__cabecera"><div><span className="inicio-panel__titulo-icono"><Icono nombre="tickets" size={18} /></span><div><h2>Tus tickets recientes</h2><p>Consulta rápidamente el estado de tus últimos tickets.</p></div></div>{busqueda && <span className="inicio-resultados">{ticketsFiltrados.length} resultado(s)</span>}</div>
+                  <div className="inicio-panel__cabecera"><div><span className="inicio-panel__titulo-icono"><Icono nombre="tickets" size={18} /></span><div><h2>Tus tickets recientes</h2><p>Consulta rápidamente el estado de tus últimos tickets.</p></div></div>{busqueda ? <span className="inicio-resultados">{ticketsFiltrados.length} resultado(s)</span> : <button className="inicio-panel__enlace" type="button" disabled>Ver todos <Icono nombre="flecha" size={14} /></button>}</div>
                   <div className="inicio-tabla-wrap">
                     <table className="inicio-tabla">
                       <thead><tr><th>Ticket</th><th>Título</th><th>Estado</th><th>Responsable</th><th>Última actualización</th></tr></thead>
