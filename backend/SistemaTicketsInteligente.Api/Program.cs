@@ -22,6 +22,8 @@ var cadenaConexion = builder.Configuration.GetConnectionString("CnnGestionTi")
 builder.Services.AddSingleton(new ConexionSqlServer(cadenaConexion));
 builder.Services.AddScoped<AutenticacionDAO>();
 builder.Services.AddScoped<AutenticacionBLL>();
+builder.Services.AddScoped<InicioUsuarioDAO>();
+builder.Services.AddScoped<InicioUsuarioBLL>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(opciones =>
