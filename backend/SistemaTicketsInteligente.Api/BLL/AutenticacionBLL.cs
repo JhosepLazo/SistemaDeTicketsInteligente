@@ -2,12 +2,13 @@
  * Archivo: AutenticacionBLL.cs
  * Objetivo: Aplicar las reglas necesarias para iniciar y cerrar la sesión de un usuario.
  * Responsabilidad: Usar identidad corporativa cuando esté habilitada, conservar autenticación local para desarrollo, validar estados y devolver identidad segura.
- * Dependencias: AutenticacionDAO, IdentidadCorporativaDAO, PasswordHasher y DTO de autenticación.
+ * Dependencias: AutenticacionDAO, IdentidadCorporativaDAO, PasswordHasher, Microsoft.Data.SqlClient y DTO de autenticación.
  * Flujo: AutenticacionController -> AutenticacionBLL -> identidad corporativa/local -> SQL Server.
  * Consideraciones: La contraseña corporativa solo se entrega al procedimiento de autenticación de Spring; nunca se registra ni persiste localmente. Área y perfil continúan siendo autorización propia del sistema.
  */
 
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Data.SqlClient;
 using SistemaTicketsInteligente.Api.DAO;
 using SistemaTicketsInteligente.Api.DTO.Autenticacion;
 
