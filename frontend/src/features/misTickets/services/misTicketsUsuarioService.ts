@@ -110,13 +110,15 @@ async function procesarRespuesta(respuesta: Response, mensajePredeterminado: str
   if (respuesta.status === 401) throw new Error('Tu sesión ya no se encuentra disponible. Vuelve a iniciar sesión.')
   if (respuesta.ok) return
 
+  let mensaje = mensajePredeterminado
   try {
     const datos = await respuesta.json() as { mensaje?: string }
-    throw new Error(datos.mensaje || mensajePredeterminado)
-  } catch (error) {
-    if (error instanceof Error && error.message !== 'Unexpected end of JSON input') throw error
-    throw new Error(mensajePredeterminado)
+    if (datos.mensaje) mensaje = datos.mensaje
+  } catch {
+    // Si el backend no devuelve JSON se conserva el mensaje funcional definido por la vista.
   }
+
+  throw new Error(mensaje)
 }
 
 export async function obtenerMisTickets(): Promise<MisTicketsRespuesta> {
