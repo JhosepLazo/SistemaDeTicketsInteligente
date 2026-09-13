@@ -2,7 +2,7 @@
  * Archivo: App.tsx
  * Objetivo: Definir las rutas públicas y protegidas de la aplicación.
  * Responsabilidad: Esperar la comprobación inicial de sesión y dirigir al usuario a las vistas permitidas según su perfil autenticado.
- * Dependencias: React Router, AutenticacionContext, LoginPage, InicioPage, InicioTIPage, NuevoTicketPage, MisTicketsUsuarioPage y GestionTicketsTIPage.
+ * Dependencias: React Router, AutenticacionContext, LoginPage, InicioPage, InicioTIPage, NuevoTicketPage, MisTicketsUsuarioPage, GestionTicketsTIPage y BaseConocimientoTIPage.
  * Flujo: main.tsx -> App -> comprobación de sesión -> validación de perfil -> ruta pública o protegida.
  * Consideraciones: La navegación visual aplica una primera separación por perfil; la autorización definitiva de cada endpoint permanece en el backend.
  */
@@ -16,6 +16,7 @@ import InicioTIPage from '../pages/InicioTIPage'
 import NuevoTicketPage from '../pages/NuevoTicketPage'
 import MisTicketsUsuarioPage from '../pages/MisTicketsUsuarioPage'
 import GestionTicketsTIPage from '../pages/GestionTicketsTIPage'
+import BaseConocimientoTIPage from '../pages/BaseConocimientoTIPage'
 
 function RutaProtegida({ children }: { children: ReactNode }) {
   const { estado } = useAutenticacion()
@@ -58,6 +59,7 @@ function RutasAplicacion() {
       <Route path="/nuevo-ticket" element={<RutaProtegida><RutaUsuario><NuevoTicketPage /></RutaUsuario></RutaProtegida>} />
       <Route path="/mis-tickets" element={<RutaProtegida><RutaUsuario><MisTicketsUsuarioPage /></RutaUsuario></RutaProtegida>} />
       <Route path="/gestion-tickets" element={<RutaProtegida><RutaTI><GestionTicketsTIPage /></RutaTI></RutaProtegida>} />
+      <Route path="/base-conocimiento" element={<RutaProtegida><RutaTI><BaseConocimientoTIPage /></RutaTI></RutaProtegida>} />
       <Route path="*" element={<Navigate to={estado === 'autenticado' ? '/inicio' : '/login'} replace />} />
     </Routes>
   )

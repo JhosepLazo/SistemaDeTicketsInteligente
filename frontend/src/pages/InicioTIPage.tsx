@@ -3,8 +3,8 @@
  * Objetivo: Implementar el módulo Inicio para la visión del operador TI autenticado.
  * Responsabilidad: Presentar carga operativa, tickets que requieren intervención, recordatorios, tickets activos y actividad reciente sin duplicar funciones de Gestión de Tickets.
  * Dependencias: AutenticacionContext, inicioTIService, InicioPage.css e InicioTIPage.css.
- * Flujo: Ruta protegida /inicio -> selección por perfil -> InicioTIPage -> API /api/inicio/ti -> presentación, búsqueda, filtros y acceso a Gestión de Tickets.
- * Consideraciones: El Inicio conserva únicamente acciones de resumen; la atención detallada se delega a Gestión de Tickets y los módulos Asistente TI, Base de Conocimiento y Reportes permanecen pendientes de implementación.
+ * Flujo: Ruta protegida /inicio -> selección por perfil -> InicioTIPage -> API /api/inicio/ti -> presentación, búsqueda, filtros y accesos a Gestión de Tickets y Base de Conocimiento.
+ * Consideraciones: El Inicio conserva únicamente acciones de resumen; la atención detallada se delega a Gestión de Tickets, el conocimiento reusable a Base de Conocimiento y Asistente TI/Reportes permanecen pendientes de implementación.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -210,6 +210,7 @@ export default function InicioTIPage() {
   const aplicarFiltroOperativo = (filtro: FiltroOperativo) => { setFiltroOperativo(filtro); requestAnimationFrame(irATicketsActivos) }
   const limpiarFiltros = () => { setBusqueda(''); setFiltroAsignacion('TODOS'); setFiltroOperativo('TODOS') }
   const irAGestion = () => navigate('/gestion-tickets')
+  const irAConocimiento = () => navigate('/base-conocimiento')
 
   return (
     <div className="inicio-shell inicio-ti-page">
@@ -219,7 +220,7 @@ export default function InicioTIPage() {
           <button className="inicio-menu__item inicio-menu__item--activo" type="button" onClick={irArriba} aria-current="page"><Icono nombre="inicio" /> <span>Inicio</span></button>
           <button className="inicio-menu__item" type="button" disabled title="Se implementará en el módulo Asistente TI"><Icono nombre="asistente" /> <span>Asistente TI</span></button>
           <button className="inicio-menu__item" type="button" onClick={irAGestion}><Icono nombre="gestion" /> <span>Gestión de Tickets</span></button>
-          <button className="inicio-menu__item" type="button" disabled title="Se implementará en Base de Conocimiento"><Icono nombre="carpeta" /> <span>Base de Conocimiento</span></button>
+          <button className="inicio-menu__item" type="button" onClick={irAConocimiento}><Icono nombre="carpeta" /> <span>Base de Conocimiento</span></button>
           <button className="inicio-menu__item" type="button" disabled title="Se implementará en Reportes"><Icono nombre="actividad" /> <span>Reportes</span></button>
         </nav>
         <div className="inicio-sidebar__mensaje"><span>La tecnología también impulsa grandes historias.</span><strong>CALIMOD</strong></div>
@@ -239,7 +240,7 @@ export default function InicioTIPage() {
         <main className="inicio-contenido">
           <section className="inicio-hero inicio-ti-hero">
             <div className="inicio-hero__contenido"><h1>{obtenerSaludo()}, {nombre} <span aria-hidden="true">👋</span></h1><p className="inicio-hero__resumen">{datos ? <>Hay <strong>{datos.resumen.pendientes} tickets pendientes</strong>{datos.resumen.requierenAccion > 0 ? <> y <strong>{datos.resumen.requierenAccion} requieren atención operativa</strong>.</> : '.'}</> : 'Aquí encontrarás el estado operativo de la atención TI.'}</p><p className="inicio-hero__detalle">Tu trabajo mantiene la operación en marcha. Prioriza, revisa y continúa sin perder contexto.</p></div>
-            <div className="inicio-hero__acciones inicio-ti-hero__acciones"><button type="button" onClick={irAGestion}><Icono nombre="gestion" size={19} /> Gestionar tickets <Icono nombre="flecha" size={17} /></button><button type="button" className="inicio-hero__secundario" disabled title="Disponible cuando se implemente Asistente TI"><Icono nombre="asistente" size={19} /> Consultar al Asistente TI</button></div>
+            <div className="inicio-hero__acciones inicio-ti-hero__acciones"><button type="button" onClick={irAGestion}><Icono nombre="gestion" size={19} /> Gestionar tickets <Icono nombre="flecha" size={17} /></button><button type="button" className="inicio-hero__secundario" onClick={irAConocimiento}><Icono nombre="carpeta" size={19} /> Base de Conocimiento</button><button type="button" className="inicio-hero__secundario" disabled title="Disponible cuando se implemente Asistente TI"><Icono nombre="asistente" size={19} /> Consultar al Asistente TI</button></div>
             <div className="inicio-hero__firma"><span>Personas</span><span>que avanzan</span><strong>CALIMOD</strong></div>
           </section>
 
