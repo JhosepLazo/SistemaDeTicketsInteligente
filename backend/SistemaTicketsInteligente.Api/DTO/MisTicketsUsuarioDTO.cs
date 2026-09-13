@@ -7,6 +7,8 @@
  * Consideraciones: Los DTO no contienen reglas de negocio ni acceso a datos; la identidad del usuario nunca forma parte de las solicitudes enviadas por el frontend.
  */
 
+using Microsoft.AspNetCore.Http;
+
 namespace SistemaTicketsInteligente.Api.DTO;
 
 public sealed class MisTicketsUsuarioRespuesta
