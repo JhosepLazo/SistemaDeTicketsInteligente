@@ -3,8 +3,8 @@
  * Objetivo: Exponer los endpoints HTTP necesarios para iniciar, consultar y cerrar la sesión del usuario.
  * Responsabilidad: Recibir solicitudes, delegar la autenticación a BLL y administrar la identidad web mediante cookie segura y persistente durante su vigencia.
  * Dependencias: AutenticacionBLL, DTO de autenticación y autenticación de ASP.NET Core.
- * Flujo: Frontend -> AutenticacionController -> AutenticacionBLL -> AutenticacionDAO -> SQL Server.
- * Consideraciones: No contiene SQL ni valida hashes; la cookie permanece disponible al cerrar y volver a abrir el navegador hasta que expire o el usuario cierre sesión.
+ * Flujo: Frontend -> AutenticacionController -> AutenticacionBLL -> identidad corporativa/local -> SQL Server.
+ * Consideraciones: No contiene SQL ni valida hashes; informa de forma controlada cuando un usuario corporativo aún no posee área/perfil local o el origen de identidad no está disponible.
  */
 
 using System.Security.Claims;
@@ -44,6 +44,8 @@ public sealed class AutenticacionController : ControllerBase
                 ResultadoInicioSesion.CredencialesIncorrectas => Unauthorized(new { mensaje = "Usuario o contraseña incorrectos." }),
                 ResultadoInicioSesion.UsuarioInactivo => StatusCode(StatusCodes.Status403Forbidden, new { mensaje = "El usuario no se encuentra habilitado para ingresar al sistema." }),
                 ResultadoInicioSesion.PerfilInactivo => StatusCode(StatusCodes.Status403Forbidden, new { mensaje = "El perfil del usuario no se encuentra habilitado para ingresar al sistema." }),
+                ResultadoInicioSesion.UsuarioSinConfiguracionLocal => StatusCode(StatusCodes.Status403Forbidden, new { mensaje = "Tu identidad corporativa es válida, pero todavía no tiene área y perfil configurados en Gestión TI. Comunícate con TI." }),
+                ResultadoInicioSesion.IdentidadCorporativaNoDisponible => StatusCode(StatusCodes.Status503ServiceUnavailable, new { mensaje = "El servicio de identidad corporativa no se encuentra disponible. Intenta nuevamente en unos minutos." }),
                 _ => StatusCode(StatusCodes.Status500InternalServerError, new { mensaje = "Se produjo un error al procesar la solicitud." })
             };
         }
