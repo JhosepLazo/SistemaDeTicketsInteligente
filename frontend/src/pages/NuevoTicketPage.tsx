@@ -1,0 +1,369 @@
+/**
+ * Archivo: NuevoTicketPage.tsx
+ * Objetivo: Implementar el módulo Nuevo Ticket para el usuario autenticado siguiendo la estructura visual definida para Calimod.
+ * Responsabilidad: Cargar identidad y catálogos, validar el formulario, administrar borrador y evidencias, mostrar un resumen previo y registrar la incidencia.
+ * Dependencias: AutenticacionContext, nuevoTicketService, InicioPage.css y NuevoTicketPage.css.
+ * Flujo: Ruta protegida /nuevo-ticket -> carga de datos -> edición y validación -> POST /api/tickets/nuevo -> confirmación del ticket.
+ * Consideraciones: El usuario no clasifica prioridad, impacto, complejidad, categoría ni responsable TI; esos datos pertenecen al flujo posterior de diagnóstico y atención.
+ */
+
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAutenticacion } from '../features/autenticacion/context/AutenticacionContext'
+import {
+  crearNuevoTicket,
+  obtenerDatosNuevoTicket,
+  type NuevoTicketDatos,
+  type NuevoTicketFormulario,
+} from '../features/nuevoTicket/services/nuevoTicketService'
+import './InicioPage.css'
+import './NuevoTicketPage.css'
+
+type NombreIcono = 'inicio' | 'asistente' | 'nuevo' | 'tickets' | 'buscar' | 'campana' | 'archivo' | 'clip' | 'reloj' | 'usuario' | 'edificio' | 'modulo' | 'tipo' | 'info' | 'subir' | 'cerrar' | 'guardar' | 'enviar' | 'luz' | 'audifonos' | 'salir' | 'check'
+
+function Icono({ nombre, size = 20 }: { nombre: NombreIcono; size?: number }) {
+  const trazos: Record<NombreIcono, React.ReactNode> = {
+    inicio: <><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10.5V20h13v-9.5"/><path d="M9.5 20v-6h5v6"/></>,
+    asistente: <><path d="m12 3 1.2 3.1L16 7.5l-2.8 1.4L12 12l-1.2-3.1L8 7.5l2.8-1.4L12 3Z"/><path d="m5 13 .8 2.2L8 16l-2.2.8L5 19l-.8-2.2L2 16l2.2-.8L5 13Z"/></>,
+    nuevo: <><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></>,
+    tickets: <><path d="M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z"/><path d="M8 9h8M8 13h6M8 17h4"/></>,
+    buscar: <><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></>,
+    campana: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></>,
+    archivo: <><path d="M6 3h8l4 4v14H6V3Z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></>,
+    clip: <path d="m8 12.5 6.7-6.7a3 3 0 0 1 4.3 4.3l-8.3 8.3a5 5 0 0 1-7.1-7.1l8-8"/>,
+    reloj: <><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>,
+    usuario: <><circle cx="12" cy="8" r="3"/><path d="M5 20c.8-4 3.2-6 7-6s6.2 2 7 6"/></>,
+    edificio: <><path d="M4 21h16M6 21V7l6-3 6 3v14"/><path d="M9 10h.01M12 10h.01M15 10h.01M9 14h.01M12 14h.01M15 14h.01"/></>,
+    modulo: <><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 8h8M8 12h5M8 16h8"/></>,
+    tipo: <><circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8"/></>,
+    info: <><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></>,
+    subir: <><path d="M12 16V5M8 9l4-4 4 4"/><path d="M5 17v3h14v-3"/></>,
+    cerrar: <path d="M7 7l10 10M17 7 7 17"/>,
+    guardar: <><path d="M5 4h12l2 2v14H5V4Z"/><path d="M8 4v6h8V4M8 15h8"/></>,
+    enviar: <><path d="m3 11 18-8-7 18-3-7-8-3Z"/><path d="m11 14 4-4"/></>,
+    luz: <><path d="M9 18h6M10 21h4"/><path d="M8 14a6 6 0 1 1 8 0c-1 .8-1 1.4-1 2H9c0-.6 0-1.2-1-2Z"/></>,
+    audifonos: <><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><path d="M4 14h3v6H5a1 1 0 0 1-1-1v-5ZM20 14h-3v6h2a1 1 0 0 0 1-1v-5Z"/></>,
+    salir: <><path d="M10 5H5v14h5"/><path d="m14 8 4 4-4 4M18 12H9"/></>,
+    check: <><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></>,
+  }
+
+  return <svg className="inicio-icono" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{trazos[nombre]}</svg>
+}
+
+const formularioInicial: NuevoTicketFormulario = { linea: '', tipo: '', titulo: '', detalle: '', mensajeError: '', adjuntos: [] }
+const maximoAdjuntos = 5
+const maximoBytes = 10 * 1024 * 1024
+const extensionesPermitidas = ['.png', '.jpg', '.jpeg', '.webp', '.pdf', '.xls', '.xlsx']
+
+function primerNombre(nombre: string) {
+  return nombre.trim().split(/\s+/)[0] || nombre
+}
+
+function formatearTamano(bytes: number) {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+}
+
+function extraerDocumentos(texto: string) {
+  const coincidencias = texto.toUpperCase().match(/\b(?:OC|RQ|REQ|PE|PEDIDO)?[- ]?\d{5,14}\b/g) ?? []
+  return [...new Set(coincidencias.map(valor => valor.trim()))].slice(0, 3)
+}
+
+export default function NuevoTicketPage() {
+  const navigate = useNavigate()
+  const { usuario, cerrarSesion } = useAutenticacion()
+  const archivoRef = useRef<HTMLInputElement>(null)
+  const [datos, setDatos] = useState<NuevoTicketDatos | null>(null)
+  const [formulario, setFormulario] = useState<NuevoTicketFormulario>(formularioInicial)
+  const [cargando, setCargando] = useState(true)
+  const [enviando, setEnviando] = useState(false)
+  const [arrastrando, setArrastrando] = useState(false)
+  const [error, setError] = useState('')
+  const [mensaje, setMensaje] = useState('')
+  const [ticketCreado, setTicketCreado] = useState('')
+
+  const claveBorrador = usuario ? `nuevo-ticket-borrador:${usuario.usuario}` : ''
+
+  useEffect(() => {
+    async function cargar() {
+      try {
+        setDatos(await obtenerDatosNuevoTicket())
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'No fue posible cargar el formulario.')
+      } finally {
+        setCargando(false)
+      }
+    }
+
+    void cargar()
+  }, [])
+
+  useEffect(() => {
+    if (!claveBorrador) return
+    const guardado = localStorage.getItem(claveBorrador)
+    if (!guardado) return
+
+    try {
+      const borrador = JSON.parse(guardado) as Omit<NuevoTicketFormulario, 'adjuntos'>
+      setFormulario(actual => ({ ...actual, ...borrador, adjuntos: [] }))
+      setMensaje('Se recuperó tu último borrador. Los archivos deben adjuntarse nuevamente.')
+    } catch {
+      localStorage.removeItem(claveBorrador)
+    }
+  }, [claveBorrador])
+
+  const lineaSeleccionada = datos?.lineas.find(item => item.codigo === formulario.linea)?.descripcion ?? 'Sin seleccionar'
+  const tipoSeleccionado = datos?.tipos.find(item => item.codigo === formulario.tipo)?.descripcion ?? 'Sin seleccionar'
+  const documentos = useMemo(() => extraerDocumentos(`${formulario.titulo} ${formulario.detalle}`), [formulario.titulo, formulario.detalle])
+
+  if (!usuario) return null
+
+  function actualizar<K extends keyof NuevoTicketFormulario>(campo: K, valor: NuevoTicketFormulario[K]) {
+    setFormulario(actual => ({ ...actual, [campo]: valor }))
+    setError('')
+    setTicketCreado('')
+  }
+
+  function agregarArchivos(lista: FileList | File[]) {
+    const nuevos = Array.from(lista)
+    if (formulario.adjuntos.length + nuevos.length > maximoAdjuntos) {
+      setError(`Puedes adjuntar como máximo ${maximoAdjuntos} archivos.`)
+      return
+    }
+
+    for (const archivo of nuevos) {
+      const punto = archivo.name.lastIndexOf('.')
+      const extension = punto >= 0 ? archivo.name.slice(punto).toLowerCase() : ''
+      if (!extensionesPermitidas.includes(extension)) {
+        setError(`El archivo ${archivo.name} no tiene un formato permitido.`)
+        return
+      }
+      if (archivo.size > maximoBytes) {
+        setError(`El archivo ${archivo.name} supera el límite de 10 MB.`)
+        return
+      }
+    }
+
+    actualizar('adjuntos', [...formulario.adjuntos, ...nuevos])
+  }
+
+  function eliminarAdjunto(indice: number) {
+    actualizar('adjuntos', formulario.adjuntos.filter((_, posicion) => posicion !== indice))
+  }
+
+  function guardarBorrador() {
+    if (!claveBorrador) return
+    const { adjuntos: _, ...borrador } = formulario
+    localStorage.setItem(claveBorrador, JSON.stringify(borrador))
+    setMensaje('Borrador guardado en este equipo.')
+    setError('')
+  }
+
+  function validarFormulario() {
+    if (!formulario.titulo.trim()) return 'Ingresa el título del problema.'
+    if (!formulario.linea) return 'Selecciona el sistema o módulo afectado.'
+    if (!formulario.tipo) return 'Selecciona el tipo de ticket.'
+    if (formulario.detalle.trim().length < 20) return 'Describe con mayor detalle el proceso realizado y el problema encontrado.'
+    if (formulario.tipo === 'REQ' && formulario.adjuntos.length === 0) return 'Los requerimientos deben incluir al menos un archivo de sustento.'
+    return ''
+  }
+
+  async function enviarTicket(event: React.FormEvent) {
+    event.preventDefault()
+    const validacion = validarFormulario()
+    if (validacion) {
+      setError(validacion)
+      return
+    }
+
+    setEnviando(true)
+    setError('')
+    setMensaje('')
+
+    try {
+      const creado = await crearNuevoTicket({ ...formulario, titulo: formulario.titulo.trim(), detalle: formulario.detalle.trim(), mensajeError: formulario.mensajeError.trim() })
+      setTicketCreado(creado.incidenciaNumero)
+      setFormulario(formularioInicial)
+      if (claveBorrador) localStorage.removeItem(claveBorrador)
+      if (archivoRef.current) archivoRef.current.value = ''
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No fue posible registrar el ticket.')
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  async function manejarCierreSesion() {
+    await cerrarSesion()
+    navigate('/login', { replace: true })
+  }
+
+  const nombre = primerNombre(usuario.nombreCompleto)
+
+  return (
+    <div className="inicio-shell nuevo-ticket-shell">
+      <aside className="inicio-sidebar" aria-label="Navegación principal">
+        <div className="inicio-marca">
+          <span className="inicio-marca__nombre">CALIMOD</span>
+          <span className="inicio-marca__sistema">Sistema inteligente<br />de incidencias TI</span>
+        </div>
+
+        <nav className="inicio-menu">
+          <button className="inicio-menu__item" type="button" onClick={() => navigate('/inicio')}><Icono nombre="inicio" /> <span>Inicio</span></button>
+          <button className="inicio-menu__item" type="button" disabled title="Se implementará en el módulo Asistente TI"><Icono nombre="asistente" /> <span>Asistente TI</span></button>
+          <button className="inicio-menu__item inicio-menu__item--activo" type="button" aria-current="page"><Icono nombre="nuevo" /> <span>Nuevo Ticket</span></button>
+          <button className="inicio-menu__item" type="button" disabled title="Se implementará en el módulo Mis Tickets"><Icono nombre="tickets" /> <span>Mis Tickets</span></button>
+        </nav>
+
+        <div className="inicio-sidebar__mensaje"><span>La tecnología también impulsa grandes historias.</span><strong>CALIMOD</strong></div>
+        <div className="inicio-sidebar__pie"><span className="inicio-sidebar__ayuda-icono">?</span><span>¿Necesitas ayuda?</span><small>Disponible desde Asistente TI</small></div>
+      </aside>
+
+      <section className="inicio-principal">
+        <header className="inicio-topbar">
+          <label className="inicio-buscador nuevo-ticket-buscador" title="La búsqueda global se habilitará con Mis Tickets y la base de conocimiento">
+            <Icono nombre="buscar" size={19} />
+            <input placeholder="Buscar tickets, artículos o soluciones..." aria-label="Búsqueda global" disabled />
+            <span>Ctrl + K</span>
+          </label>
+
+          <div className="inicio-topbar__usuario">
+            <button className="inicio-notificacion" type="button" disabled title="Sin notificaciones disponibles en este módulo" style={{ border: 0, padding: 0, background: 'transparent' }}><Icono nombre="campana" size={21} /></button>
+            <div className="inicio-avatar" aria-hidden="true">{nombre.slice(0, 1).toUpperCase()}</div>
+            <div className="inicio-identidad"><strong>{nombre}</strong><span>Colaborador</span></div>
+            <button className="inicio-salir" type="button" onClick={manejarCierreSesion} title="Cerrar sesión" aria-label="Cerrar sesión"><Icono nombre="salir" size={18} /></button>
+          </div>
+        </header>
+
+        <main className="nuevo-ticket-contenido">
+          <section className="nuevo-ticket-hero">
+            <div>
+              <h1>Nuevo Ticket</h1>
+              <p>Describe tu incidencia con claridad y adjunta evidencia para acelerar la atención.</p>
+              <div className="nuevo-ticket-modos">
+                <button className="nuevo-ticket-modo nuevo-ticket-modo--activo" type="button"><Icono nombre="archivo" size={17} /> Formulario</button>
+                <button className="nuevo-ticket-modo" type="button" disabled title="Se habilitará al implementar Asistente TI"><Icono nombre="asistente" size={17} /> Asistente guiado</button>
+              </div>
+            </div>
+            <div className="nuevo-ticket-hero__datos">
+              <span><Icono nombre="reloj" size={17} /> Tiempo estimado: 2 min</span>
+              <span><Icono nombre="clip" size={17} /> Adjuntos: imagen, PDF, Excel</span>
+            </div>
+          </section>
+
+          {cargando && <section className="nuevo-ticket-cargando" role="status">Cargando formulario...</section>}
+
+          {!cargando && datos && (
+            <form className="nuevo-ticket-layout" onSubmit={enviarTicket}>
+              <section className="nuevo-ticket-formulario">
+                <header className="nuevo-ticket-seccion-titulo"><span><Icono nombre="archivo" /></span><div><h2>Registrar incidencia</h2><p>Completa la información necesaria para que podamos atender tu ticket correctamente.</p></div></header>
+
+                <label className="nuevo-ticket-campo nuevo-ticket-campo--completo">
+                  <span>Título del problema <b>*</b></span>
+                  <input value={formulario.titulo} maxLength={250} onChange={e => actualizar('titulo', e.target.value)} placeholder="Ej. No puedo generar la orden de compra 260091" />
+                </label>
+
+                <div className="nuevo-ticket-fila">
+                  <label className="nuevo-ticket-campo">
+                    <span>Área</span>
+                    <div className="nuevo-ticket-solo-lectura"><Icono nombre="edificio" size={17} /> {datos.areaDescripcion}</div>
+                  </label>
+                  <label className="nuevo-ticket-campo">
+                    <span>Sistema / Módulo <b>*</b></span>
+                    <select value={formulario.linea} onChange={e => actualizar('linea', e.target.value)}>
+                      <option value="">Selecciona una opción</option>
+                      {datos.lineas.map(item => <option key={item.codigo} value={item.codigo}>{item.descripcion}</option>)}
+                    </select>
+                  </label>
+                </div>
+
+                <label className="nuevo-ticket-campo nuevo-ticket-campo--mitad">
+                  <span>Tipo de ticket <b>*</b></span>
+                  <select value={formulario.tipo} onChange={e => actualizar('tipo', e.target.value)}>
+                    <option value="">Selecciona una opción</option>
+                    {datos.tipos.map(item => <option key={item.codigo} value={item.codigo}>{item.descripcion}</option>)}
+                  </select>
+                </label>
+
+                <label className="nuevo-ticket-campo nuevo-ticket-campo--completo">
+                  <span>Mensaje de error</span>
+                  <div className="nuevo-ticket-input-icono"><Icono nombre="info" size={17} /><input value={formulario.mensajeError} maxLength={1000} onChange={e => actualizar('mensajeError', e.target.value)} placeholder="Ingresa el mensaje exacto si aparece en pantalla" /></div>
+                </label>
+
+                <div className="nuevo-ticket-campo nuevo-ticket-campo--completo">
+                  <span>Descripción detallada <b>*</b></span>
+                  <div className="nuevo-ticket-ayuda"><Icono nombre="info" size={20} /><p><strong>Describe qué proceso estabas realizando y qué documentos están involucrados o presentan el error.</strong><br />Incluye el paso a paso, pantallas, datos relevantes y cualquier información que nos ayude a replicar el problema.</p></div>
+                  <textarea value={formulario.detalle} maxLength={1000} onChange={e => actualizar('detalle', e.target.value)} placeholder="Describe lo ocurrido con el mayor contexto posible..." />
+                  <small className="nuevo-ticket-contador">{formulario.detalle.length}/1000</small>
+                </div>
+
+                <div className="nuevo-ticket-adjuntos">
+                  <div className="nuevo-ticket-adjuntos__cabecera"><strong><Icono nombre="clip" size={18} /> Adjuntar evidencia</strong><span>Puedes adjuntar hasta 5 archivos (máx. 10 MB c/u)</span></div>
+                  <div
+                    className={`nuevo-ticket-dropzone ${arrastrando ? 'nuevo-ticket-dropzone--activo' : ''}`}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => archivoRef.current?.click()}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') archivoRef.current?.click() }}
+                    onDragOver={e => { e.preventDefault(); setArrastrando(true) }}
+                    onDragLeave={() => setArrastrando(false)}
+                    onDrop={e => { e.preventDefault(); setArrastrando(false); agregarArchivos(e.dataTransfer.files) }}
+                  >
+                    <Icono nombre="subir" size={28} />
+                    <strong>Arrastra archivos aquí o haz clic para adjuntar</strong>
+                    <span>Imagen, PDF, Excel (máx. 10 MB por archivo)</span>
+                    <input ref={archivoRef} type="file" multiple accept=".png,.jpg,.jpeg,.webp,.pdf,.xls,.xlsx" onChange={e => e.target.files && agregarArchivos(e.target.files)} hidden />
+                  </div>
+
+                  {formulario.adjuntos.length > 0 && <div className="nuevo-ticket-archivos">{formulario.adjuntos.map((archivo, indice) => (
+                    <div className="nuevo-ticket-archivo" key={`${archivo.name}-${indice}`}><span className="nuevo-ticket-archivo__icono"><Icono nombre="archivo" size={18} /></span><div><strong>{archivo.name}</strong><small>{formatearTamano(archivo.size)}</small></div><button type="button" onClick={() => eliminarAdjunto(indice)} title="Quitar archivo"><Icono nombre="cerrar" size={16} /></button></div>
+                  ))}</div>}
+                </div>
+
+                {error && <div className="nuevo-ticket-alerta nuevo-ticket-alerta--error" role="alert">{error}</div>}
+                {mensaje && <div className="nuevo-ticket-alerta" role="status">{mensaje}</div>}
+                {ticketCreado && <div className="nuevo-ticket-exito" role="status"><Icono nombre="check" size={22} /><div><strong>Ticket {ticketCreado} registrado correctamente.</strong><span>Ya se encuentra disponible para revisión de TI.</span></div></div>}
+
+                <footer className="nuevo-ticket-formulario__pie">
+                  <span className="nuevo-ticket-nota">Los cambios técnicos se gestionarán después del registro; aquí solo necesitamos el contexto real del problema.</span>
+                  <div><button className="nuevo-ticket-boton nuevo-ticket-boton--secundario" type="button" onClick={guardarBorrador}><Icono nombre="guardar" size={17} /> Guardar borrador</button><button className="nuevo-ticket-boton nuevo-ticket-boton--principal" type="submit" disabled={enviando}><Icono nombre="enviar" size={17} /> {enviando ? 'Enviando...' : 'Enviar incidencia'}</button></div>
+                </footer>
+              </section>
+
+              <aside className="nuevo-ticket-panel">
+                <section className="nuevo-ticket-resumen">
+                  <header className="nuevo-ticket-seccion-titulo"><span><Icono nombre="archivo" /></span><div><h2>Resumen del ticket</h2><p>Revisa la información que se enviará con tu ticket.</p></div></header>
+                  <dl>
+                    <div><dt><Icono nombre="usuario" size={18} /> Usuario solicitante</dt><dd>{nombre}</dd></div>
+                    <div><dt><Icono nombre="edificio" size={18} /> Área</dt><dd>{datos.areaDescripcion}</dd></div>
+                    <div><dt><Icono nombre="modulo" size={18} /> Módulo</dt><dd>{lineaSeleccionada}</dd></div>
+                    <div><dt><Icono nombre="tipo" size={18} /> Tipo de ticket</dt><dd>{tipoSeleccionado}</dd></div>
+                    <div><dt><Icono nombre="archivo" size={18} /> Documentos mencionados</dt><dd>{documentos.length > 0 ? documentos.join(', ') : 'Aún no identificados'}</dd></div>
+                    <div><dt><Icono nombre="clip" size={18} /> Evidencias adjuntas</dt><dd>{formulario.adjuntos.length} {formulario.adjuntos.length === 1 ? 'archivo' : 'archivos'}</dd></div>
+                    <div><dt><Icono nombre="reloj" size={18} /> Estado inicial</dt><dd><span className="nuevo-ticket-estado">Pendiente de revisión</span></dd></div>
+                  </dl>
+                </section>
+
+                <section className="nuevo-ticket-recomendaciones">
+                  <header><span><Icono nombre="luz" /></span><div><h2>Recomendaciones antes de enviar</h2><p>Sigue estas recomendaciones para una atención más rápida.</p></div></header>
+                  <ol>
+                    <li><b>1</b><div><strong>Incluye el número de documentos</strong><span>Orden de compra, solicitud, pedido, factura, etc.</span></div></li>
+                    <li><b>2</b><div><strong>Adjunta captura del error</strong><span>Nos ayuda a entender mejor el problema.</span></div></li>
+                    <li><b>3</b><div><strong>Describe qué proceso estabas realizando</strong><span>Indica los pasos previos al error.</span></div></li>
+                    <li><b>4</b><div><strong>Indica si el problema bloquea tu trabajo</strong><span>Esto nos ayuda a priorizar la atención.</span></div></li>
+                  </ol>
+                </section>
+
+                <section className="nuevo-ticket-asistente">
+                  <span><Icono nombre="audifonos" size={25} /></span>
+                  <div><strong>¿Prefieres ayuda paso a paso?</strong><p>Te guiaremos para crear tu ticket con la información correcta.</p></div>
+                  <button type="button" disabled title="Disponible cuando se implemente Asistente TI">Abrir Asistente TI</button>
+                </section>
+              </aside>
+            </form>
+          )}
+        </main>
+      </section>
+    </div>
+  )
+}
