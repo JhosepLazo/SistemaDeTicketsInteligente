@@ -4,7 +4,7 @@
  * Responsabilidad: Registrar dependencias, autenticación, autorización, protección de datos, CORS, rate limiting y manejo general de errores.
  * Dependencias: BLL, DAO, ASP.NET Core, Data Protection y appsettings.json.
  * Flujo: Inicio de aplicación -> configuración -> middleware -> Controllers.
- * Consideraciones: Las claves que protegen la cookie se guardan fuera del repositorio para conservar sesiones válidas entre reinicios del backend; no contiene reglas de negocio ni acceso SQL.
+ * Consideraciones: Las claves que protegen la cookie se guardan fuera del repositorio para conservar sesiones válidas entre reinicios; la identidad corporativa es opcional por ambiente y no se almacenan secretos en este archivo.
  */
 
 using System.Threading.RateLimiting;
@@ -29,6 +29,7 @@ builder.Services.AddDataProtection()
     .SetApplicationName("SistemaTicketsInteligente");
 
 builder.Services.AddSingleton(new ConexionSqlServer(cadenaConexion));
+builder.Services.AddScoped<IdentidadCorporativaDAO>();
 builder.Services.AddScoped<AutenticacionDAO>();
 builder.Services.AddScoped<AutenticacionBLL>();
 builder.Services.AddScoped<InicioUsuarioDAO>();
@@ -45,6 +46,12 @@ builder.Services.AddScoped<BaseConocimientoTIDAO>();
 builder.Services.AddScoped<BaseConocimientoTIBLL>();
 builder.Services.AddScoped<ReportesTIDAO>();
 builder.Services.AddScoped<ReportesTIBLL>();
+builder.Services.AddScoped<ConfiguracionTIDAO>();
+builder.Services.AddScoped<ConfiguracionTIBLL>();
+builder.Services.AddScoped<NotificacionesDAO>();
+builder.Services.AddScoped<NotificacionesBLL>();
+builder.Services.AddScoped<RecursosSoporteDAO>();
+builder.Services.AddScoped<RecursosSoporteBLL>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(opciones =>
