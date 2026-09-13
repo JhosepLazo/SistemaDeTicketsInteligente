@@ -1,14 +1,15 @@
 /**
  * Archivo: Program.cs
  * Objetivo: Configurar y ejecutar la API ASP.NET Core del Sistema de Tickets Inteligente.
- * Responsabilidad: Registrar dependencias, autenticación, autorización, CORS, rate limiting y manejo general de errores.
- * Dependencias: BLL, DAO, ASP.NET Core y appsettings.json.
+ * Responsabilidad: Registrar dependencias, autenticación, autorización, protección de datos, CORS, rate limiting y manejo general de errores.
+ * Dependencias: BLL, DAO, ASP.NET Core, Data Protection y appsettings.json.
  * Flujo: Inicio de aplicación -> configuración -> middleware -> Controllers.
- * Consideraciones: Mantiene únicamente configuración transversal; no contiene reglas de negocio ni acceso SQL.
+ * Consideraciones: Las claves que protegen la cookie se guardan fuera del repositorio para conservar sesiones válidas entre reinicios del backend; no contiene reglas de negocio ni acceso SQL.
  */
 
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
 using SistemaTicketsInteligente.Api.BLL;
 using SistemaTicketsInteligente.Api.DAO;
 
@@ -18,6 +19,14 @@ builder.Services.AddControllers();
 
 var cadenaConexion = builder.Configuration.GetConnectionString("CnnGestionTi")
     ?? throw new InvalidOperationException("No se configuró la conexión 'CnnGestionTi'.");
+
+// Mantiene las claves de cifrado de la cookie fuera del proyecto para que reiniciar la API no invalide una sesión vigente.
+var rutaClavesSesion = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SistemaTicketsInteligente", "DataProtectionKeys");
+Directory.CreateDirectory(rutaClavesSesion);
+
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(rutaClavesSesion))
+    .SetApplicationName("SistemaTicketsInteligente");
 
 builder.Services.AddSingleton(new ConexionSqlServer(cadenaConexion));
 builder.Services.AddScoped<AutenticacionDAO>();
