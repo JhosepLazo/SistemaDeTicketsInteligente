@@ -193,7 +193,7 @@ export default function GestionTicketsTIPage() {
         <button className="inicio-menu__item" type="button" onClick={() => navigate('/inicio')}><Icono nombre="inicio" /> <span>Inicio</span></button>
         <button className="inicio-menu__item" type="button" disabled title="Se implementará en el módulo Asistente TI"><Icono nombre="asistente" /> <span>Asistente TI</span></button>
         <button className="inicio-menu__item inicio-menu__item--activo" type="button" aria-current="page"><Icono nombre="gestion" /> <span>Gestión de Tickets</span></button>
-        <button className="inicio-menu__item" type="button" disabled title="Se implementará en Base de Conocimiento"><Icono nombre="conocimiento" /> <span>Base de Conocimiento</span></button>
+        <button className="inicio-menu__item" type="button" onClick={() => navigate('/base-conocimiento')}><Icono nombre="conocimiento" /> <span>Base de Conocimiento</span></button>
         <button className="inicio-menu__item" type="button" disabled title="Se implementará en Reportes"><Icono nombre="reporte" /> <span>Reportes</span></button>
       </nav>
       <div className="inicio-sidebar__mensaje"><span>La tecnología también impulsa grandes historias.</span><strong>CALIMOD</strong></div>
