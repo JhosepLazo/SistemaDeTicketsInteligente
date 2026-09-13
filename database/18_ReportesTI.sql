@@ -137,14 +137,20 @@ Begin
 	Order By Cantidad Desc, AreaDescripcion
 
 	Select
-		Prioridad = Case When Prioridad >= 4 Then 'Alta' When Prioridad = 3 Then 'Media' When Prioridad Between 1 and 2 Then 'Baja' Else 'Sin asignar' End,
+		p.PrioridadNombre as Prioridad,
 		Tickets = Count(1),
-		TiempoPromedioHoras = Cast(Avg(Case When FechaCierre Is Not Null Then DateDiff(minute, FechaRegistro, FechaCierre) / 60.0 End) as decimal(10,2)),
-		TiempoMasRapidoHoras = Cast(Min(Case When FechaCierre Is Not Null Then DateDiff(minute, FechaRegistro, FechaCierre) / 60.0 End) as decimal(10,2)),
-		TiempoMasLargoHoras = Cast(Max(Case When FechaCierre Is Not Null Then DateDiff(minute, FechaRegistro, FechaCierre) / 60.0 End) as decimal(10,2))
-	From #Tickets
-	Group By Case When Prioridad >= 4 Then 'Alta' When Prioridad = 3 Then 'Media' When Prioridad Between 1 and 2 Then 'Baja' Else 'Sin asignar' End
-	Order By Case Case When Prioridad >= 4 Then 'Alta' When Prioridad = 3 Then 'Media' When Prioridad Between 1 and 2 Then 'Baja' Else 'Sin asignar' End When 'Alta' Then 1 When 'Media' Then 2 When 'Baja' Then 3 Else 4 End
+		TiempoPromedioHoras = Cast(Avg(Case When p.FechaCierre Is Not Null Then DateDiff(minute, p.FechaRegistro, p.FechaCierre) / 60.0 End) as decimal(10,2)),
+		TiempoMasRapidoHoras = Cast(Min(Case When p.FechaCierre Is Not Null Then DateDiff(minute, p.FechaRegistro, p.FechaCierre) / 60.0 End) as decimal(10,2)),
+		TiempoMasLargoHoras = Cast(Max(Case When p.FechaCierre Is Not Null Then DateDiff(minute, p.FechaRegistro, p.FechaCierre) / 60.0 End) as decimal(10,2))
+	From (
+		Select
+			PrioridadNombre = Case When Prioridad >= 4 Then 'Alta' When Prioridad = 3 Then 'Media' When Prioridad Between 1 and 2 Then 'Baja' Else 'Sin asignar' End,
+			FechaRegistro,
+			FechaCierre
+		From #Tickets
+	) as p
+	Group By p.PrioridadNombre
+	Order By Case p.PrioridadNombre When 'Alta' Then 1 When 'Media' Then 2 When 'Baja' Then 3 Else 4 End
 
 	Select Top (8)
 		IncidenciaNumero, Titulo, AreaDescripcion, Estado, EstadoDescripcion, Prioridad, Responsable, FechaRegistro,
