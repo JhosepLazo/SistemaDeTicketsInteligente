@@ -1,3 +1,12 @@
+/**
+ * Archivo: global.css
+ * Objetivo: Definir los estilos base compartidos por toda la aplicación web.
+ * Responsabilidad: Normalizar la presentación general del documento antes de aplicar estilos específicos de cada página.
+ * Dependencias: main.tsx, que importa esta hoja de estilos.
+ * Flujo: main.tsx -> global.css -> estilos base del navegador.
+ * Consideraciones: Debe mantenerse limitado a reglas globales para evitar acoplar aquí el diseño particular de los módulos.
+ */
+
 * {
   box-sizing: border-box;
 }
