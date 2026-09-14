@@ -3,6 +3,7 @@
  * Objetivo: Mantener Configuración TI visualmente consistente con los demás módulos del operador TI.
  * Responsabilidad: Reutilizar shell, topbar y hero compartidos; estilizar únicamente navegación interna, paneles, formularios, tablas y estados propios del módulo.
  * Dependencias: InicioPage.css y clases renderizadas por ConfiguracionTIPage.tsx.
+ * Flujo: ConfiguracionTIPage.tsx -> ConfiguracionTIPage.css -> navegador.
  * Consideraciones: Los estilos permanecen encapsulados con el prefijo config-ti- y no modifican otros módulos.
  */
 
