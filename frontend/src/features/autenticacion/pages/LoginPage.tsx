@@ -1,3 +1,12 @@
+/**
+ * Archivo: LoginPage.tsx
+ * Objetivo: Implementar la pantalla de acceso al Sistema de Tickets Inteligente.
+ * Responsabilidad: Capturar credenciales, solicitar el inicio de sesión y presentar estados de carga, ayuda y errores al usuario.
+ * Dependencias: AutenticacionContext, React, LoginPage.css e identidad visual de CALIMOD.
+ * Flujo: Usuario -> LoginPage -> AutenticacionContext -> autenticacionService -> API /api/autenticacion.
+ * Consideraciones: No valida contraseñas localmente ni conserva credenciales; la autenticación efectiva pertenece al backend.
+ */
+
 import { useEffect, useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'

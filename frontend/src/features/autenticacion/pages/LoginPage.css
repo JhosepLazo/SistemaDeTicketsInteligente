@@ -5,6 +5,8 @@
    Dependencias:
      /images/logo-fondo-calimod.png
      /images/logo-calimod.png
+   Flujo: LoginPage.tsx -> LoginPage.css -> navegador.
+   Consideraciones: No contiene comportamiento de autenticación; sus reglas se limitan a la experiencia visual.
    ============================================================================ */
 
 :root {
