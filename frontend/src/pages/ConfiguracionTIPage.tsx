@@ -1,10 +1,10 @@
 /**
  * Archivo: ConfiguracionTIPage.tsx
- * Objetivo: Administrar la configuración funcional indispensable del sistema de incidencias TI.
- * Responsabilidad: Mantener catálogos operativos, matriz Ítem/Categoría, SLA y usuarios corporativos desde una sola vista restringida, conservando el mismo patrón visual de los módulos TI.
+ * Objetivo: Administrar los maestros funcionales indispensables del sistema de incidencias TI.
+ * Responsabilidad: Mantener catálogos operativos, matriz Ítem/Categoría, SLA y usuarios corporativos desde una vista común para el equipo TI.
  * Dependencias: AutenticacionContext, configuracionTIService, React Router, InicioPage.css y ConfiguracionTIPage.css.
  * Flujo: /configuracion-ti -> ConfiguracionTIPage -> configuracionTIService -> API /api/configuracion-ti.
- * Consideraciones: Solo SUP/ADM acceden al módulo. Los registros se activan/inactivan; no se eliminan y no se incluyen funciones de IA.
+ * Consideraciones: Los perfiles TI acceden al módulo. Los registros se activan/inactivan para conservar la integridad histórica.
  */
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
@@ -168,21 +168,21 @@ export default function ConfiguracionTIPage() {
         <button className="inicio-menu__item" type="button" onClick={() => navigate('/gestion-tickets')}><Icono nombre="gestion"/><span>Gestión de Tickets</span></button>
         <button className="inicio-menu__item" type="button" onClick={() => navigate('/base-conocimiento')}><Icono nombre="conocimiento"/><span>Base de Conocimiento</span></button>
         <button className="inicio-menu__item" type="button" onClick={() => navigate('/reportes')}><Icono nombre="reporte"/><span>Reportes</span></button>
-        <button className="inicio-menu__item inicio-menu__item--activo" type="button" aria-current="page"><Icono nombre="configuracion"/><span>Configuración TI</span></button>
+        <button className="inicio-menu__item inicio-menu__item--activo" type="button" aria-current="page"><Icono nombre="configuracion"/><span>Maestros TI</span></button>
       </nav>
       <div className="inicio-sidebar__mensaje"><span>La tecnología también impulsa grandes historias.</span><strong>CALIMOD</strong></div>
-      <div className="inicio-sidebar__pie"><span className="inicio-sidebar__ayuda-icono">!</span><span>Administración restringida</span><small>Disponible solo para SUP / ADM</small></div>
+      <div className="inicio-sidebar__pie"><span className="inicio-sidebar__ayuda-icono">i</span><span>Catálogos operativos</span><small>Disponible para todo el equipo TI</small></div>
     </aside>
 
     <section className="inicio-principal">
       <header className="inicio-topbar">
-        <div className="config-ti-contexto-top"><span><Icono nombre="configuracion" size={18}/></span><div><strong>Configuración TI</strong><small>Catálogos, reglas y administración funcional</small></div></div>
+        <div className="config-ti-contexto-top"><span><Icono nombre="configuracion" size={18}/></span><div><strong>Maestros TI</strong><small>Catálogos y reglas de clasificación</small></div></div>
         <div className="inicio-topbar__usuario"><NotificacionesCampana/><div className="inicio-avatar">{nombre.slice(0, 1).toUpperCase()}</div><div className="inicio-identidad"><strong>{nombre}</strong><span>{usuario.perfil}</span></div><button className="inicio-salir" type="button" onClick={() => void cerrarSesion().then(() => navigate('/login', { replace: true }))} title="Cerrar sesión"><Icono nombre="salir"/></button></div>
       </header>
 
       <main className="inicio-contenido config-ti-contenido">
         <section className="inicio-hero config-ti-hero">
-          <div className="inicio-hero__contenido"><h1>Configuración TI</h1><p className="inicio-hero__resumen">Administra los datos que sostienen la clasificación y operación del sistema.</p><p className="inicio-hero__detalle">Mantén catálogos, reglas de prioridad, SLA e identidad corporativa sin modificar directamente la base de datos.</p></div>
+            <div className="inicio-hero__contenido"><h1>Maestros TI</h1><p className="inicio-hero__resumen">Administra los datos que sostienen la clasificación de los tickets.</p><p className="inicio-hero__detalle">Selecciona un maestro, consulta sus registros y crea o modifica la información desde el mismo flujo.</p></div>
           <div className="inicio-hero__acciones config-ti-hero__acciones"><button type="button" onClick={() => void cargar()} disabled={cargando}><Icono nombre="actualizar"/> {cargando ? 'Actualizando...' : 'Actualizar datos'}</button></div>
           <div className="inicio-hero__firma"><span>Personas</span><span>que avanzan</span><strong>CALIMOD</strong></div>
         </section>
@@ -190,16 +190,18 @@ export default function ConfiguracionTIPage() {
         {error && <div className="config-ti-alerta config-ti-alerta--error" role="alert"><Icono nombre="alerta"/><span>{error}</span></div>}
         {mensaje && <div className="config-ti-alerta config-ti-alerta--ok" role="status"><Icono nombre="check"/><span>{mensaje}</span></div>}
 
-        <div className="config-ti-tabs" role="tablist" aria-label="Secciones de Configuración TI">
-          <button type="button" className={seccion === 'CATALOGOS' ? 'activo' : ''} onClick={() => setSeccion('CATALOGOS')}><Icono nombre="catalogos" size={16}/>Catálogos</button>
-          <button type="button" className={seccion === 'MATRIZ' ? 'activo' : ''} onClick={() => setSeccion('MATRIZ')}><Icono nombre="matriz" size={16}/>Matriz y SLA</button>
-          <button type="button" className={seccion === 'USUARIOS' ? 'activo' : ''} onClick={() => setSeccion('USUARIOS')}><Icono nombre="usuarios" size={16}/>Usuarios</button>
+        <div className="config-ti-tabs" role="tablist" aria-label="Secciones de Maestros TI">
+          <button type="button" className={seccion === 'CATALOGOS' ? 'activo' : ''} onClick={() => setSeccion('CATALOGOS')}><Icono nombre="catalogos" size={16}/>Maestros</button>
+          <button type="button" className={seccion === 'MATRIZ' ? 'activo' : ''} onClick={() => setSeccion('MATRIZ')}><Icono nombre="matriz" size={16}/>Categoría por ítem y SLA</button>
+          <button type="button" className={seccion === 'USUARIOS' ? 'activo' : ''} onClick={() => setSeccion('USUARIOS')}><Icono nombre="usuarios" size={16}/>Usuarios TI</button>
         </div>
 
         {cargando ? <section className="inicio-estado-carga"><span className="inicio-spinner"/> Cargando configuración TI...</section> : datos && <>
-          {seccion === 'CATALOGOS' && <section className="config-ti-dos-columnas">
+          {seccion === 'CATALOGOS' && <><nav className="config-ti-submodulos" aria-label="Maestros disponibles">
+            {([['AREA', 'Áreas'], ['LINEA', 'Líneas'], ['ITEM', 'Ítems'], ['TIPO', 'Tipos'], ['CATEGORIA', 'Categorías'], ['SUBTIPO', 'Subtipos']] as [Catalogo, string][]).map(([valor, etiqueta]) => <button key={valor} type="button" className={catalogo === valor ? 'activo' : ''} onClick={() => { setCatalogo(valor); setFormulario(formularioCatalogoVacio) }}>{etiqueta}<span>{valor === 'AREA' ? datos.areas.length : valor === 'LINEA' ? datos.lineas.length : valor === 'ITEM' ? datos.items.length : valor === 'TIPO' ? datos.tipos.length : valor === 'CATEGORIA' ? datos.categorias.length : datos.subTipos.length}</span></button>)}
+          </nav><section className="config-ti-dos-columnas">
             <article className="config-ti-panel">
-              <CabeceraPanel icono="catalogos" titulo="Maestros operativos" subtitulo="Áreas, líneas, ítems, tipos, categorías y subtipos en un solo mantenimiento." accion={<select className="config-ti-selector-catalogo" value={catalogo} onChange={e => { setCatalogo(e.target.value as Catalogo); setFormulario(formularioCatalogoVacio) }}><option value="AREA">Áreas</option><option value="LINEA">Líneas</option><option value="ITEM">Ítems</option><option value="TIPO">Tipos</option><option value="CATEGORIA">Categorías</option><option value="SUBTIPO">Subtipos</option></select>}/>
+              <CabeceraPanel icono="catalogos" titulo={`${nombreCatalogo(catalogo).charAt(0).toUpperCase()}${nombreCatalogo(catalogo).slice(1)}s`} subtitulo="Selecciona una fila para editarla o utiliza el formulario para registrar una nueva."/>
               <div className="config-ti-panel__cuerpo config-ti-panel__cuerpo--tabla"><div className="config-ti-tabla"><table><thead><tr><th>Código</th><th>Descripción</th><th>Relación</th><th>Estado</th></tr></thead><tbody>{filasCatalogo.map(x => <tr key={`${catalogo}-${x.codigo}-${x.relacion}`} onClick={() => editarCatalogo(x.original)}><td><strong>{x.codigo}</strong></td><td>{x.descripcion}</td><td>{x.relacion || '—'}</td><td><span className={`config-ti-estado config-ti-estado--${x.estado === 'A' ? 'activo' : 'inactivo'}`}>{x.estado === 'A' ? 'Activo' : 'Inactivo'}</span></td></tr>)}</tbody></table></div></div>
             </article>
 
@@ -217,7 +219,7 @@ export default function ConfiguracionTIPage() {
                 <div className="config-ti-form__acciones"><button type="button" onClick={() => setFormulario(formularioCatalogoVacio)}>Limpiar</button><button className="principal" disabled={procesando}>Guardar</button></div>
               </form></div>
             </article>
-          </section>}
+          </section></>}
 
           {seccion === 'MATRIZ' && <section className="config-ti-dos-columnas">
             <article className="config-ti-panel">

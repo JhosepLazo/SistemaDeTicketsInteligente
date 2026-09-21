@@ -1,4 +1,4 @@
-/*
+﻿/*
 	Archivo: 14_NuevoTicketUsuario.sql
 	Objetivo: Crear los Stored Procedures requeridos por el módulo Nuevo Ticket para usuarios autenticados.
 	Responsabilidad: Consultar los datos mínimos del formulario, registrar una incidencia nueva y asociar sus adjuntos sin exponer consultas SQL desde la aplicación.
@@ -7,7 +7,7 @@
 	Consideraciones: El usuario y área se obtienen desde la identidad autenticada; la clasificación técnica permanece fuera del formulario del usuario y el ticket inicia en estado NV.
 */
 
-Use [SistemaTicketsInteligente]
+Use [GestionSistemas]
 Go
 
 /* Ejemplo: Exec dbo.Usp_TI_Obtener_DatosNuevoTicket 'USR001' */

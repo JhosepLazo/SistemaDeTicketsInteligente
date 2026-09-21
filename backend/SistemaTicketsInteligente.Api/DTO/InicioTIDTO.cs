@@ -60,6 +60,8 @@ public sealed class InicioTITicketActivo
     public string UsuarioSolicitante { get; set; } = string.Empty;
     public string Titulo { get; set; } = string.Empty;
     public int? Prioridad { get; set; }
+    public string AreaTI { get; set; } = string.Empty;
+    public string GrupoSoporte { get; set; } = string.Empty;
     public string Estado { get; set; } = string.Empty;
     public string EstadoDescripcion { get; set; } = string.Empty;
     public string UsuarioTI { get; set; } = string.Empty;

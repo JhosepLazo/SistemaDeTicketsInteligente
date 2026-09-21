@@ -1,4 +1,4 @@
-/*
+﻿/*
 	Archivo: 10_Autenticacion.sql
 	Objetivo: Crear los procedimientos almacenados requeridos por el backend de autenticación.
 	Responsabilidad: Consultar los datos mínimos del usuario y registrar trazabilidad de los intentos de acceso.
@@ -7,7 +7,7 @@
 	Consideraciones: No recibe contraseñas en texto plano; la comparación del hash se realiza exclusivamente en el backend.
 */
 
-Use [SistemaTicketsInteligente]
+Use [GestionSistemas]
 Go
 
 -- Exec dbo.Usp_TI_Buscar_UsuarioAutenticacion 'USR001'
@@ -56,3 +56,4 @@ Begin
 End
 Go
 /* Ejecuta Procedure */
+

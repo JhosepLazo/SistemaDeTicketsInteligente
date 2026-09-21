@@ -1,4 +1,4 @@
-/*
+﻿/*
 	Archivo: 16_GestionTicketsTI.sql
 	Objetivo: Crear los Stored Procedures requeridos por el módulo Gestión de Tickets para operadores TI.
 	Responsabilidad: Consolidar bandeja, detalle técnico, clasificación, asignación, avances, solicitudes de información, resolución, No Procede, aprobaciones y descarga de evidencias.
@@ -7,7 +7,7 @@
 	Consideraciones: El operador se valida siempre desde la sesión/backend; ninguna operación ejecuta SQL libre ni cierra una incidencia sin validación del usuario cuando la solución fue enviada a confirmar.
 */
 
-Use [SistemaTicketsInteligente]
+Use [GestionSistemas]
 Go
 
 /* Ejemplo: Exec dbo.Usp_TI_Obtener_GestionTicketsTI 'TEC001', 'TIC' */

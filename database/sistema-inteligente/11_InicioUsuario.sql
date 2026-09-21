@@ -1,4 +1,4 @@
-/*
+﻿/*
 	Archivo: 11_InicioUsuario.sql
 	Objetivo: Crear la consulta consolidada que alimenta el módulo Inicio para usuarios autenticados.
 	Responsabilidad: Obtener resumen, tickets que requieren atención, tickets recientes, acciones pendientes de cierre y actividad reciente del usuario.
@@ -7,11 +7,11 @@
 	Consideraciones: Solo realiza lectura; todos los resultados se filtran por UsuarioSolicitante y no expone información interna de otros usuarios.
 */
 
-Use [SistemaTicketsInteligente]
+Use [GestionSistemas]
 Go
 
 -- Usp_TI_Obtener_InicioUsuario 'USR001'
-Create Procedure dbo.Usp_TI_Obtener_InicioUsuario
+Create Or Alter Procedure dbo.Usp_TI_Obtener_InicioUsuario
 /*================================================================================
 Objetivo            : Obtener toda la información necesaria para el Inicio del usuario en una sola llamada.
 Creado Por          : Jhosep S. Lazo
@@ -25,10 +25,10 @@ Begin
 	Set NoCount On
 
 	Select
-		TicketsActivos = IsNull(Sum(Case When Estado Not In ('RS', 'CA') Then 1 Else 0 End), 0),
-		EnAtencion = IsNull(Sum(Case When Estado In ('DG', 'PA', 'EJ', 'ES') Then 1 Else 0 End), 0),
-		RequierenAtencion = IsNull(Sum(Case When Estado In ('RC', 'PV') Then 1 Else 0 End), 0),
-		Resueltos30Dias = IsNull(Sum(Case When Estado = 'RS' and FechaCierre >= DateAdd(Day, -30, GetDate()) Then 1 Else 0 End), 0),
+		TicketsActivos = IsNull(Sum(Case When Estado Not In ('RS', 'CA', 'CF', 'NP') Then 1 Else 0 End), 0),
+		EnAtencion = IsNull(Sum(Case When Estado In ('DG', 'PA', 'EJ', 'ES', 'AS', 'AT', 'PC') Then 1 Else 0 End), 0),
+		RequierenAtencion = IsNull(Sum(Case When Estado In ('RC', 'PV', 'OB') Then 1 Else 0 End), 0),
+		Resueltos30Dias = IsNull(Sum(Case When Estado In ('RS', 'CF', 'NP') and FechaCierre >= DateAdd(Day, -30, GetDate()) Then 1 Else 0 End), 0),
 		PendientesCalificacion = IsNull(Sum(Case When Estado = 'RS' and Calificacion Is Null Then 1 Else 0 End), 0)
 	From dbo.TI_Incidencia
 	Where UsuarioSolicitante = @cUsuario
@@ -85,3 +85,4 @@ End
 Go
 
 /* Ejecuta Procedure */
+

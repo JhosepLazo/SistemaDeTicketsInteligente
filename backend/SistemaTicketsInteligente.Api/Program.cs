@@ -8,17 +8,44 @@
  */
 
 using System.Threading.RateLimiting;
+using System.IO.Compression;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.Data.SqlClient;
 using SistemaTicketsInteligente.Api.BLL;
 using SistemaTicketsInteligente.Api.DAO;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddResponseCompression(opciones =>
+{
+    opciones.EnableForHttps = true;
+    opciones.Providers.Add<BrotliCompressionProvider>();
+    opciones.Providers.Add<GzipCompressionProvider>();
+});
+builder.Services.Configure<BrotliCompressionProviderOptions>(opciones => opciones.Level = CompressionLevel.Fastest);
+builder.Services.Configure<GzipCompressionProviderOptions>(opciones => opciones.Level = CompressionLevel.Fastest);
 
-var cadenaConexion = builder.Configuration.GetConnectionString("CnnGestionTi")
-    ?? throw new InvalidOperationException("No se configuró la conexión 'CnnGestionTi'.");
+// La API usa los objetos TI_* integrados en GestionSistemas. Las conexiones con nombre
+// conservan las responsabilidades confirmadas de GestionSistemas, IntranetCalimod y Spring.
+var conexionesRequeridas = new[] { "CnnSistemaTickets", "CnnGestionTi", "CnnSeguridad", "CnnSpring" };
+foreach (var nombreConexion in conexionesRequeridas)
+{
+    var valor = builder.Configuration.GetConnectionString(nombreConexion);
+    if (string.IsNullOrWhiteSpace(valor))
+        throw new InvalidOperationException($"No se configuró la conexión '{nombreConexion}'.");
+
+    if (builder.Environment.IsEnvironment("Empresa") &&
+        (valor.Contains("SERVIDOR_EMPRESA", StringComparison.OrdinalIgnoreCase) ||
+         valor.Contains("USUARIO_EMPRESA", StringComparison.OrdinalIgnoreCase) ||
+         valor.Contains("CLAVE_EMPRESA", StringComparison.OrdinalIgnoreCase)))
+        throw new InvalidOperationException($"La conexión empresarial '{nombreConexion}' todavía contiene marcadores. Configúrala mediante variables de entorno antes de iniciar.");
+}
+
+var cadenaConexion = builder.Configuration.GetConnectionString("CnnSistemaTickets")!;
 
 // Mantiene las claves de cifrado de la cookie fuera del proyecto para que reiniciar la API no invalide una sesión vigente.
 var rutaClavesSesion = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SistemaTicketsInteligente", "DataProtectionKeys");
@@ -105,13 +132,25 @@ builder.Services.AddCors(opciones =>
 
 var app = builder.Build();
 
+app.UseResponseCompression();
+
 app.UseExceptionHandler(aplicacionError =>
 {
     aplicacionError.Run(async contexto =>
     {
-        contexto.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        var excepcion = contexto.Features.Get<IExceptionHandlerFeature>()?.Error;
+        var baseDatosNoDisponible = excepcion is SqlException;
+        contexto.Response.StatusCode = baseDatosNoDisponible
+            ? StatusCodes.Status503ServiceUnavailable
+            : StatusCodes.Status500InternalServerError;
         contexto.Response.ContentType = "application/json";
-        await contexto.Response.WriteAsJsonAsync(new { mensaje = "Se produjo un error al procesar la solicitud." });
+        await contexto.Response.WriteAsJsonAsync(new
+        {
+            mensaje = baseDatosNoDisponible
+                ? "La base de datos no se encuentra disponible. Intenta nuevamente en unos momentos."
+                : "Se produjo un error al procesar la solicitud.",
+            idSeguimiento = contexto.TraceIdentifier
+        });
     });
 });
 
@@ -122,6 +161,19 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-app.MapGet("/api/salud", () => Results.Ok(new { estado = "ok" }));
+app.MapGet("/api/salud", async (ConexionSqlServer conexion, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        await conexion.VerificarAsync(cancellationToken);
+        return Results.Ok(new { estado = "ok", baseDatos = "disponible" });
+    }
+    catch (SqlException)
+    {
+        return Results.Json(
+            new { estado = "degradado", baseDatos = "no disponible" },
+            statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+});
 
 app.Run();

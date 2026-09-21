@@ -1,4 +1,4 @@
-/*
+﻿/*
     Archivo: 20_AjustesOperativosSinIA.sql
     Objetivo: Completar los contratos operativos necesarios para consumir desde frontend las mejoras introducidas en 19_MejorasFuncionalesSinIA.sql.
     Responsabilidad: Mantener compatibilidad controlada del avance, exponer datos de mesa de ayuda/aprobaciones y generar notificaciones por cambios relevantes del ticket.
@@ -7,7 +7,7 @@
     Consideraciones: No implementa IA ni automatización de acciones; todas las notificaciones son internas al portal.
 */
 
-Use [SistemaTicketsInteligente]
+Use [GestionSistemas]
 Go
 
 Create Or Alter Procedure dbo.Usp_TI_Registrar_AvanceTicket
@@ -170,3 +170,4 @@ Begin
     Order By MinutosEfectivos Desc
 End
 Go
+

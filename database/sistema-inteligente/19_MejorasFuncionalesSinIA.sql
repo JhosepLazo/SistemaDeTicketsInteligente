@@ -1,13 +1,13 @@
-/*
+﻿/*
     Archivo: 19_MejorasFuncionalesSinIA.sql
     Objetivo: Incorporar las brechas operativas identificadas en el análisis funcional comparativo sin adelantar capacidades de IA.
     Responsabilidad: Añadir configuración mantenible, identidad corporativa sincronizable, esfuerzo/área causante, bloqueo real por aprobación, recursos de soporte, notificaciones, edición temprana y registro de tickets por mesa de ayuda.
-    Dependencias: Requiere la ejecución previa de 00_CrearBaseDatos.sql hasta 18_ReportesTI.sql.
+    Dependencias: Requiere la ejecución previa de 00_PrepararGestionSistemas.sql hasta 18_ReportesTI.sql.
     Orden: Ejecutar después de 18_ReportesTI.sql.
     Consideraciones: No implementa LLM, RAG, diagnóstico, embeddings ni ejecución automática de acciones. Las operaciones históricas permanecen trazables y los catálogos se inactivan en lugar de eliminarse.
 */
 
-Use [SistemaTicketsInteligente]
+Use [GestionSistemas]
 Go
 
 Set Xact_Abort On
@@ -32,19 +32,26 @@ If Col_Length('dbo.TI_Usuario', 'UltimaSincronizacion') Is Null
 Go
 
 If Col_Length('dbo.TI_Incidencia', 'UsuarioRegistro') Is Null
-Begin
     Alter Table dbo.TI_Incidencia Add UsuarioRegistro varchar(20) Null
+Go
+
+If Exists (Select 1 From sys.columns Where object_id = Object_Id('dbo.TI_Incidencia') and name = 'UsuarioRegistro' and is_nullable = 1)
+Begin
     Update dbo.TI_Incidencia Set UsuarioRegistro = UsuarioSolicitante Where UsuarioRegistro Is Null
     Alter Table dbo.TI_Incidencia Alter Column UsuarioRegistro varchar(20) Not Null
-    Alter Table dbo.TI_Incidencia Add Constraint FK_TI_Incidencia_UsuarioRegistro Foreign Key (UsuarioRegistro) References dbo.TI_Usuario (Usuario)
 End
 Go
 
+If Not Exists (Select 1 From sys.foreign_keys Where name = 'FK_TI_Incidencia_UsuarioRegistro')
+    Alter Table dbo.TI_Incidencia Add Constraint FK_TI_Incidencia_UsuarioRegistro Foreign Key (UsuarioRegistro) References dbo.TI_Usuario (Usuario)
+Go
+
 If Col_Length('dbo.TI_IncidenciaAvance', 'AreaCausante') Is Null
-Begin
     Alter Table dbo.TI_IncidenciaAvance Add AreaCausante char(3) Null
+Go
+
+If Not Exists (Select 1 From sys.foreign_keys Where name = 'FK_TI_IncidenciaAvance_AreaCausante')
     Alter Table dbo.TI_IncidenciaAvance Add Constraint FK_TI_IncidenciaAvance_AreaCausante Foreign Key (AreaCausante) References dbo.TI_Area (Area)
-End
 Go
 
 If Col_Length('dbo.TI_BaseConocimiento', 'VisibleUsuario') Is Null
@@ -255,7 +262,7 @@ Objetivo            : Registrar o completar el mapeo local de un usuario proveni
 Creado Por          : Jhosep S. Lazo
 Fecha Creación      : 13/09/2026
 SP Anterior         : Ninguno
-Comentario Cambios  : El origen corporativo provee identidad; área y perfil se asignan localmente por SUP/ADM.
+Comentario Cambios  : El origen corporativo provee identidad; área y perfil se asignan localmente por el equipo TI.
 ================================================================================*/
     @cUsuarioAdmin varchar(20),
     @cUsuario varchar(20),
@@ -272,7 +279,7 @@ As
 Begin
     Set NoCount On
 
-    If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuarioAdmin and Perfil In ('SUP', 'ADM') and Estado = 'A') Throw 50400, 'No cuenta con permisos para administrar usuarios.', 1
+    If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuarioAdmin and Perfil In ('TEC', 'SUP', 'ADM') and Estado = 'A') Throw 50400, 'No cuenta con permisos para administrar usuarios.', 1
     If Not Exists (Select 1 From dbo.TI_Area Where Area = @cArea and Estado = 'A') Throw 50401, 'El área seleccionada no es válida.', 1
     If Not Exists (Select 1 From dbo.TI_Perfil Where Perfil = @cPerfil and Estado = 'A') Throw 50402, 'El perfil seleccionado no es válido.', 1
 
@@ -312,7 +319,7 @@ As
 Begin
     Set NoCount On
 
-    If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuarioAdmin and Perfil In ('SUP', 'ADM') and Estado = 'A') Throw 50403, 'No cuenta con permisos para sincronizar cargos.', 1
+    If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuarioAdmin and Perfil In ('TEC', 'SUP', 'ADM') and Estado = 'A') Throw 50403, 'No cuenta con permisos para sincronizar cargos.', 1
 
     If Exists (Select 1 From dbo.TI_Cargo Where Cargo = @cCargo)
         Update dbo.TI_Cargo Set Descripcion = @cDescripcion, Estado = 'A', UltimoUsuario = @cUsuarioAdmin, UltimaFechaModif = SysDateTime() Where Cargo = @cCargo
@@ -325,7 +332,7 @@ Go
 
 Create Or Alter Procedure dbo.Usp_TI_Obtener_ConfiguracionTI
 /*================================================================================
-Objetivo            : Obtener en una sola llamada los catálogos y reglas administrables por SUP/ADM.
+Objetivo            : Obtener en una sola llamada los catálogos y reglas administrables por el equipo TI.
 Creado Por          : Jhosep S. Lazo
 Fecha Creación      : 13/09/2026
 SP Anterior         : Ninguno
@@ -336,7 +343,7 @@ As
 Begin
     Set NoCount On
 
-    If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Perfil In ('SUP', 'ADM') and Estado = 'A') Throw 50404, 'No cuenta con permisos para acceder a Configuración TI.', 1
+    If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Perfil In ('TEC', 'SUP', 'ADM') and Estado = 'A') Throw 50404, 'No cuenta con permisos para acceder a Maestros TI.', 1
 
     Select Area, Descripcion, Estado, Telefono From dbo.TI_Area Order By Descripcion
     Select Linea, Area, Descripcion, Estado From dbo.TI_Linea Order By Area, Descripcion
@@ -357,7 +364,7 @@ Create Or Alter Procedure dbo.Usp_TI_Guardar_Area
 As
 Begin
     Set NoCount On
-    If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Perfil In ('SUP','ADM') and Estado = 'A') Throw 50405, 'No cuenta con permisos para administrar áreas.', 1
+    If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Perfil In ('TEC','SUP','ADM') and Estado = 'A') Throw 50405, 'No cuenta con permisos para administrar áreas.', 1
     If Exists (Select 1 From dbo.TI_Area Where Area = @cArea)
         Update dbo.TI_Area Set Descripcion = @cDescripcion, Telefono = NullIf(@cTelefono, ''), Estado = @cEstado, UltimoUsuario = @cUsuario, UltimaFechaModif = SysDateTime() Where Area = @cArea
     Else
@@ -370,7 +377,7 @@ Create Or Alter Procedure dbo.Usp_TI_Guardar_Linea
 As
 Begin
     Set NoCount On
-    If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Perfil In ('SUP','ADM') and Estado = 'A') Throw 50406, 'No cuenta con permisos para administrar líneas.', 1
+    If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Perfil In ('TEC','SUP','ADM') and Estado = 'A') Throw 50406, 'No cuenta con permisos para administrar líneas.', 1
     If Not Exists (Select 1 From dbo.TI_Area Where Area = @cArea) Throw 50407, 'El área indicada no existe.', 1
     If Exists (Select 1 From dbo.TI_Linea Where Linea = @cLinea)
         Update dbo.TI_Linea Set Area = @cArea, Descripcion = @cDescripcion, Estado = @cEstado, UltimoUsuario = @cUsuario, UltimaFechaModif = SysDateTime() Where Linea = @cLinea
@@ -384,7 +391,7 @@ Create Or Alter Procedure dbo.Usp_TI_Guardar_Item
 As
 Begin
     Set NoCount On
-    If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Perfil In ('SUP','ADM') and Estado = 'A') Throw 50408, 'No cuenta con permisos para administrar ítems.', 1
+    If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Perfil In ('TEC','SUP','ADM') and Estado = 'A') Throw 50408, 'No cuenta con permisos para administrar ítems.', 1
     If Not Exists (Select 1 From dbo.TI_Linea Where Linea = @cLinea) Throw 50409, 'La línea indicada no existe.', 1
     If Exists (Select 1 From dbo.TI_Item Where Item = @cItem)
         Update dbo.TI_Item Set Linea = @cLinea, Descripcion = @cDescripcion, Estado = @cEstado, UltimoUsuario = @cUsuario, UltimaFechaModif = SysDateTime() Where Item = @cItem
@@ -398,7 +405,7 @@ Create Or Alter Procedure dbo.Usp_TI_Guardar_Tipo
 As
 Begin
     Set NoCount On
-    If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Perfil In ('SUP','ADM') and Estado = 'A') Throw 50410, 'No cuenta con permisos para administrar tipos.', 1
+    If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Perfil In ('TEC','SUP','ADM') and Estado = 'A') Throw 50410, 'No cuenta con permisos para administrar tipos.', 1
     If Exists (Select 1 From dbo.TI_Tipo Where Tipo = @cTipo)
         Update dbo.TI_Tipo Set Descripcion = @cDescripcion, Abreviatura = NullIf(@cAbreviatura, ''), Estado = @cEstado, UltimoUsuario = @cUsuario, UltimaFechaModif = SysDateTime() Where Tipo = @cTipo
     Else
@@ -411,7 +418,7 @@ Create Or Alter Procedure dbo.Usp_TI_Guardar_Categoria
 As
 Begin
     Set NoCount On
-    If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Perfil In ('SUP','ADM') and Estado = 'A') Throw 50411, 'No cuenta con permisos para administrar categorías.', 1
+    If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Perfil In ('TEC','SUP','ADM') and Estado = 'A') Throw 50411, 'No cuenta con permisos para administrar categorías.', 1
     If Exists (Select 1 From dbo.TI_Categoria Where Categoria = @cCategoria)
         Update dbo.TI_Categoria Set Descripcion = @cDescripcion, Abreviatura = NullIf(@cAbreviatura, ''), Estado = @cEstado, UltimoUsuario = @cUsuario, UltimaFechaModif = SysDateTime() Where Categoria = @cCategoria
     Else
@@ -424,7 +431,7 @@ Create Or Alter Procedure dbo.Usp_TI_Guardar_SubTipo
 As
 Begin
     Set NoCount On
-    If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Perfil In ('SUP','ADM') and Estado = 'A') Throw 50412, 'No cuenta con permisos para administrar subtipos.', 1
+    If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Perfil In ('TEC','SUP','ADM') and Estado = 'A') Throw 50412, 'No cuenta con permisos para administrar subtipos.', 1
     If Not Exists (Select 1 From dbo.TI_Tipo Where Tipo = @cTipo) or Not Exists (Select 1 From dbo.TI_Categoria Where Categoria = @cCategoria) Throw 50413, 'La combinación tipo/categoría no es válida.', 1
     If Exists (Select 1 From dbo.TI_SubTipo Where Tipo = @cTipo and SubTipo = @cSubTipo and Categoria = @cCategoria)
         Update dbo.TI_SubTipo Set Descripcion = @cDescripcion, Abreviatura = NullIf(@cAbreviatura, ''), Estado = @cEstado, UltimoUsuario = @cUsuario, UltimaFechaModif = SysDateTime() Where Tipo = @cTipo and SubTipo = @cSubTipo and Categoria = @cCategoria
@@ -438,7 +445,7 @@ Create Or Alter Procedure dbo.Usp_TI_Guardar_MatrizClasificacion
 As
 Begin
     Set NoCount On
-    If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Perfil In ('SUP','ADM') and Estado = 'A') Throw 50414, 'No cuenta con permisos para administrar la matriz.', 1
+    If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Perfil In ('TEC','SUP','ADM') and Estado = 'A') Throw 50414, 'No cuenta con permisos para administrar la matriz.', 1
     If @nPrioridad Not Between 1 and 5 or @nImpacto Not Between 1 and 5 or @nComplejidad Not Between 1 and 5 Throw 50415, 'Prioridad, impacto y complejidad deben estar entre 1 y 5.', 1
     If Exists (Select 1 From dbo.TI_ItemCategoria Where Item = @cItem and Categoria = @cCategoria)
         Update dbo.TI_ItemCategoria Set Prioridad = @nPrioridad, Impacto = @nImpacto, Complejidad = @nComplejidad, Estado = @cEstado, UltimoUsuario = @cUsuario, UltimaFechaModif = SysDateTime() Where Item = @cItem and Categoria = @cCategoria
@@ -452,7 +459,7 @@ Create Or Alter Procedure dbo.Usp_TI_Guardar_ParametroSLA
 As
 Begin
     Set NoCount On
-    If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Perfil In ('SUP','ADM') and Estado = 'A') Throw 50416, 'No cuenta con permisos para administrar SLA.', 1
+    If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Perfil In ('TEC','SUP','ADM') and Estado = 'A') Throw 50416, 'No cuenta con permisos para administrar SLA.', 1
     If @nPrioridad Not Between 1 and 5 or @nSlaObjetivoMinutos <= 0 Throw 50417, 'La prioridad o el tiempo objetivo no son válidos.', 1
     If Exists (Select 1 From dbo.TI_ParametroSLA Where Prioridad = @nPrioridad)
         Update dbo.TI_ParametroSLA Set SlaObjetivoMinutos = @nSlaObjetivoMinutos, Estado = @cEstado, UltimoUsuario = @cUsuario, UltimaFechaModif = SysDateTime() Where Prioridad = @nPrioridad
@@ -467,7 +474,7 @@ Create Or Alter Procedure dbo.Usp_TI_Guardar_FormatoSoporte
 As
 Begin
     Set NoCount On
-    If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Perfil In ('SUP','ADM') and Estado = 'A') Throw 50418, 'No cuenta con permisos para administrar formatos.', 1
+    If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Perfil In ('TEC','SUP','ADM') and Estado = 'A') Throw 50418, 'No cuenta con permisos para administrar formatos.', 1
     If @cTipoTicket Is Not Null and Not Exists (Select 1 From dbo.TI_Tipo Where Tipo = @cTipoTicket) Throw 50419, 'El tipo de ticket indicado no existe.', 1
     If Exists (Select 1 From dbo.TI_FormatoSoporte Where FormatoCodigo = @cFormatoCodigo)
         Update dbo.TI_FormatoSoporte Set Titulo = @cTitulo, Descripcion = NullIf(@cDescripcion, ''), NombreOriginal = @cNombreOriginal, RutaArchivo = @cRutaArchivo, TipoMime = @cTipoMime, TipoTicket = @cTipoTicket, Estado = @cEstado, UltimoUsuario = @cUsuario, UltimaFechaModif = SysDateTime() Where FormatoCodigo = @cFormatoCodigo
@@ -481,7 +488,7 @@ Create Or Alter Procedure dbo.Usp_TI_Actualizar_VisibilidadConocimiento
 As
 Begin
     Set NoCount On
-    If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Perfil In ('SUP','ADM') and Estado = 'A') Throw 50420, 'No cuenta con permisos para publicar conocimiento.', 1
+    If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Perfil In ('TEC','SUP','ADM') and Estado = 'A') Throw 50420, 'No cuenta con permisos para publicar conocimiento.', 1
     Update dbo.TI_BaseConocimiento Set VisibleUsuario = @lVisibleUsuario Where ConocimientoCodigo = @cConocimientoCodigo
 End
 Go
@@ -632,7 +639,7 @@ Begin
         Insert dbo.TI_Notificacion (Usuario, IncidenciaNumero, Tipo, Titulo, Mensaje, Ruta, Fecha)
         Select u.Usuario, @cIncidenciaNumero, 'APROBACION', N'Aprobación pendiente', Concat(N'Se requiere revisar la aprobación del ticket ', @cIncidenciaNumero, N'.'), '/gestion-tickets', @dFecha
         From dbo.TI_Usuario as u
-        Where u.Estado = 'A' and u.Perfil In ('SUP','ADM') and u.Usuario <> @cUsuario
+        Where u.Estado = 'A' and u.Perfil In ('TEC','SUP','ADM') and u.Usuario <> @cUsuario
 
         Insert dbo.TI_Auditoria (IncidenciaNumero, Usuario, TipoActor, Entidad, Registro, Evento, Resultado, DetalleJson, IdCorrelacion, Fecha)
         Values (@cIncidenciaNumero, @cUsuario, 'T', 'TI_SolicitudAprobacion', Concat(@cIncidenciaNumero, '-', @nSecuencia), 'SOLICITAR_APROBACION', 'PENDIENTE', Concat('{"accion":"', @cAccionCodigo, '"}'), @cIdCorrelacion, @dFecha)
@@ -664,7 +671,7 @@ Begin
         Begin Transaction
         Declare @nEstado int, @cSolicitante varchar(20), @cMensajeNotificacion nvarchar(500), @dFecha datetime2(0) = SysDateTime()
 
-        If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Estado = 'A' and Perfil In ('SUP','ADM')) Throw 50230, 'Solo un Supervisor o Administrador puede responder esta aprobación.', 1
+        If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Estado = 'A' and Perfil In ('TEC','SUP','ADM')) Throw 50230, 'Solo un operador TI activo puede responder esta aprobación.', 1
         Select @cSolicitante = UsuarioSolicitante From dbo.TI_SolicitudAprobacion Where IncidenciaNumero = @cIncidenciaNumero and Secuencia = @nSecuencia and Estado = 'P'
         If @cSolicitante Is Null Throw 50231, 'La solicitud de aprobación ya no se encuentra pendiente.', 1
         If @lAprobar = 0 and NullIf(LTrim(RTrim(@cComentario)), '') Is Null Throw 50232, 'Indica el motivo del rechazo.', 1
@@ -874,3 +881,5 @@ End
 Go
 
 /* Ejecuta Procedure */
+
+

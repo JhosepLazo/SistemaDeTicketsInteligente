@@ -45,6 +45,8 @@ export interface InicioTITicketActivo {
   usuarioSolicitante: string
   titulo: string
   prioridad: number | null
+  areaTI: string
+  grupoSoporte: 'SOFTWARE' | 'HARDWARE' | 'OTRO'
   estado: string
   estadoDescripcion: string
   usuarioTI: string

@@ -1,4 +1,4 @@
-/*
+﻿/*
 	Archivo: 18_ReportesTI.sql
 	Objetivo: Crear los Stored Procedures requeridos por el módulo Reportes para operadores TI.
 	Responsabilidad: Consolidar indicadores, evolución, distribución, tiempos y detalle exportable de incidencias usando filtros operativos homogéneos.
@@ -7,7 +7,7 @@
 	Consideraciones: El módulo trabaja únicamente con datos reales del sistema; no genera métricas ficticias y limita el rango consultable a un máximo de 366 días desde backend.
 */
 
-Use [SistemaTicketsInteligente]
+Use [GestionSistemas]
 Go
 
 /* Ejemplo: Exec dbo.Usp_TI_Obtener_ReportesTI '2026-09-01', '2026-09-30', Null, Null, Null, Null, Null */

@@ -1,4 +1,4 @@
-/*
+﻿/*
 	Archivo: 15_MisTicketsUsuario.sql
 	Objetivo: Crear los Stored Procedures requeridos por el módulo Mis Tickets para usuarios autenticados.
 	Responsabilidad: Consultar resumen/listado/detalle y registrar únicamente las acciones que corresponden al usuario: responder observaciones, validar solución, reabrir, calificar y descargar adjuntos propios.
@@ -7,7 +7,7 @@
 	Consideraciones: Todas las operaciones validan UsuarioSolicitante; no permiten consultar ni modificar tickets de otro usuario y mantienen historial/auditoría de las acciones realizadas.
 */
 
-Use [SistemaTicketsInteligente]
+Use [GestionSistemas]
 Go
 
 /* Ejemplo: Exec dbo.Usp_TI_Obtener_MisTicketsUsuario 'USR001' */
@@ -438,3 +438,4 @@ End
 Go
 
 /* Ejecuta Procedure */
+

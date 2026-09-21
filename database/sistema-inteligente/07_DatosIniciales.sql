@@ -1,4 +1,4 @@
-/*
+﻿/*
 	Archivo: 07_DatosIniciales.sql
 	Objetivo: Insertar los valores mínimos de configuración requeridos para iniciar la operación del nuevo sistema.
 	Responsabilidad: Registrar únicamente catálogos iniciales propios del sistema que hayan sido previamente definidos y aprobados.
@@ -7,7 +7,7 @@
 	Consideraciones: No migra información histórica ni inventa códigos corporativos desconocidos; cualquier valor pendiente debe permanecer sin ejecutar hasta ser confirmado.
 */
 
-Use [SistemaTicketsInteligente]
+Use [GestionSistemas]
 Go
 
 Set Xact_Abort on

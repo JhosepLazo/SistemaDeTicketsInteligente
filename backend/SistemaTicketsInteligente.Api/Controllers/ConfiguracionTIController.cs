@@ -1,10 +1,10 @@
 /*
  * Archivo: ConfiguracionTIController.cs
  * Objetivo: Exponer la administración funcional mínima requerida por el sistema.
- * Responsabilidad: Permitir a SUP/ADM mantener catálogos, matriz, SLA, usuarios corporativos, formatos y publicación de conocimiento sin acceder directamente a la base de datos.
+ * Responsabilidad: Permitir al equipo TI mantener catálogos, matriz, SLA, usuarios corporativos, formatos y publicación de conocimiento sin acceder directamente a la base de datos.
  * Dependencias: ConfiguracionTIBLL, ConfiguracionTIDTO, autenticación por cookie y claims de ASP.NET Core.
  * Flujo: Frontend -> ConfiguracionTIController -> ConfiguracionTIBLL -> DAO -> SQL Server / Spring.
- * Consideraciones: El módulo está restringido a SUP/ADM; no implementa funciones de IA ni permite eliminar registros históricos.
+ * Consideraciones: El módulo está restringido a perfiles TI; no implementa funciones de IA ni permite eliminar registros históricos.
  */
 
 using System.Security.Claims;
@@ -16,7 +16,7 @@ using SistemaTicketsInteligente.Api.DTO;
 namespace SistemaTicketsInteligente.Api.Controllers;
 
 [ApiController]
-[Authorize(Roles = "SUP,ADM")]
+[Authorize(Roles = "TEC,SUP,ADM")]
 [Route("api/configuracion-ti")]
 public sealed class ConfiguracionTIController : ControllerBase
 {

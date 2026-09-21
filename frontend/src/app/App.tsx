@@ -40,11 +40,6 @@ function RutaTI({ children }: { children: ReactNode }) {
   return usuario && ['TEC', 'SUP', 'ADM'].includes(usuario.perfil) ? children : <Navigate to="/inicio" replace />
 }
 
-function RutaConfiguracionTI({ children }: { children: ReactNode }) {
-  const { usuario } = useAutenticacion()
-  return usuario && ['SUP', 'ADM'].includes(usuario.perfil) ? children : <Navigate to="/inicio" replace />
-}
-
 function InicioSegunPerfil() {
   const { usuario } = useAutenticacion()
   return usuario && ['TEC', 'SUP', 'ADM'].includes(usuario.perfil) ? <InicioTIPage /> : <InicioPage />
@@ -63,7 +58,7 @@ function RutasAplicacion() {
     <Route path="/gestion-tickets" element={<RutaProtegida><RutaTI><GestionTicketsTIPage /></RutaTI></RutaProtegida>} />
     <Route path="/base-conocimiento" element={<RutaProtegida><RutaTI><BaseConocimientoTIPage /></RutaTI></RutaProtegida>} />
     <Route path="/reportes" element={<RutaProtegida><RutaTI><ReportesTIPage /></RutaTI></RutaProtegida>} />
-    <Route path="/configuracion-ti" element={<RutaProtegida><RutaConfiguracionTI><ConfiguracionTIPage /></RutaConfiguracionTI></RutaProtegida>} />
+    <Route path="/configuracion-ti" element={<RutaProtegida><RutaTI><ConfiguracionTIPage /></RutaTI></RutaProtegida>} />
     <Route path="*" element={<Navigate to={estado === 'autenticado' ? '/inicio' : '/login'} replace />} />
   </Routes>
 }

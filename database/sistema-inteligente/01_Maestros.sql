@@ -1,13 +1,13 @@
-/*
+﻿/*
     Archivo: 01_Maestros.sql
     Objetivo: Crear las entidades maestras que soportan la clasificación, organización, usuarios y relaciones base del Sistema de Tickets Inteligente.
     Responsabilidad: Definir maestros, claves primarias, claves únicas y relaciones referenciales necesarias para las entidades operativas posteriores.
-    Dependencias: Requiere la base SistemaTicketsInteligente creada previamente.
-    Orden: Ejecutar después de 00_CrearBaseDatos.sql y antes de cualquier tabla transaccional.
+    Dependencias: Requiere la base GestionSistemas creada previamente.
+    Orden: Ejecutar después de 00_PrepararGestionSistemas.sql y antes de cualquier tabla transaccional.
     Consideraciones: Las Foreign Keys se definen dentro del Create Table cuando la entidad padre ya existe, manteniendo cada tabla autocontenida y evitando Alter Table innecesarios.
 */
 
-Use [SistemaTicketsInteligente]
+Use [GestionSistemas]
 Go
 
 Set Xact_Abort on
@@ -203,3 +203,4 @@ Begin Catch
 	;Throw
 End Catch
 Go
+

@@ -20,6 +20,55 @@ SistemaTicketsInteligente/
 
 La solución mantiene la separación Controller -> BLL -> DAO -> Stored Procedures sin dividir cada responsabilidad en un proyecto independiente.
 
+## Bases de datos
+
+La aplicación distingue la base propia del sistema nuevo de las fuentes corporativas confirmadas en el legado:
+
+| Conexión | Catálogo | Uso |
+|---|---|---|
+| `CnnSistemaTickets` | `GestionSistemas` | Operación del proyecto nuevo y sus objetos `TI_*` / `Usp_TI_*` |
+| `CnnGestionTi` | `GestionSistemas` | Fuente histórica del sistema de incidencias legado |
+| `CnnSeguridad` | `IntranetCalimod` | Perfiles y menús del sistema legado |
+| `CnnSpring` | `Spring` | Identidad y cargos corporativos |
+
+En desarrollo las cuatro conexiones utilizan la instancia SQL Server local. En un ambiente corporativo, las credenciales no deben guardarse en el repositorio y deben suministrarse por configuración segura. Por ejemplo, en PowerShell:
+
+```powershell
+$env:ConnectionStrings__CnnGestionTi = "Server=SERVIDOR;Database=GestionSistemas;User ID=USUARIO;Password=CLAVE;Encrypt=True;TrustServerCertificate=True;"
+$env:ConnectionStrings__CnnSeguridad = "Server=SERVIDOR;Database=IntranetCalimod;User ID=USUARIO;Password=CLAVE;Encrypt=True;TrustServerCertificate=True;"
+$env:ConnectionStrings__CnnSpring = "Server=SERVIDOR;Database=Spring;User ID=USUARIO;Password=CLAVE;Encrypt=True;TrustServerCertificate=True;"
+$env:IdentidadCorporativa__Habilitada = "true"
+```
+
+Los bloques `INSERT` de los informes empresariales son muestras parciales y redactadas. No sustituyen una migración desde las bases completas y no deben cargarse como si fueran el conjunto real.
+
+Los scripts están organizados en `database/legado` para las tres bases reconstruidas desde los informes y `database/sistema-inteligente` para los objetos `TI_*` que extienden `GestionSistemas` y permiten ejecutar esta aplicación.
+
+### Perfiles Local y Empresa
+
+Las dos configuraciones se conservan por separado. `appsettings.Local.json` usa las bases reconstruidas en SQL Server local y `appsettings.Empresa.json` contiene los marcadores para el servidor corporativo. JSON no admite comentarios; el perfil activo se elige sin borrar conexiones mediante `ASPNETCORE_ENVIRONMENT`.
+
+Ejecucion local:
+
+```powershell
+$env:ASPNETCORE_ENVIRONMENT = "Local"
+dotnet run --project backend/SistemaTicketsInteligente.Api
+```
+
+Ejecucion en la empresa:
+
+```powershell
+$env:ASPNETCORE_ENVIRONMENT = "Empresa"
+$env:ConnectionStrings__CnnSistemaTickets = "Server=SERVIDOR;Database=GestionSistemas;User ID=USUARIO;Password=CLAVE;Encrypt=True;TrustServerCertificate=True;"
+$env:ConnectionStrings__CnnGestionTi = "Server=SERVIDOR;Database=GestionSistemas;User ID=USUARIO;Password=CLAVE;Encrypt=True;TrustServerCertificate=True;"
+$env:ConnectionStrings__CnnSeguridad = "Server=SERVIDOR;Database=IntranetCalimod;User ID=USUARIO;Password=CLAVE;Encrypt=True;TrustServerCertificate=True;"
+$env:ConnectionStrings__CnnSpring = "Server=SERVIDOR;Database=Spring;User ID=USUARIO;Password=CLAVE;Encrypt=True;TrustServerCertificate=True;"
+$env:IdentidadCorporativa__Habilitada = "true"
+dotnet run --project backend/SistemaTicketsInteligente.Api
+```
+
+Las variables de entorno tienen prioridad sobre los archivos. Las credenciales reales no deben reemplazar los marcadores dentro de un archivo versionado.
+
 ## Backend
 
 ```powershell
@@ -29,6 +78,10 @@ dotnet run --project backend/SistemaTicketsInteligente.Api
 ```
 
 Comprobación básica: `GET /api/salud`.
+
+El endpoint `GET /api/salud` abre una conexion real a SQL Server: responde `200` con `baseDatos: disponible` o `503` cuando la base no responde.
+
+El perfil `Empresa` valida las cuatro conexiones al arrancar y se detiene con un mensaje claro mientras encuentre los marcadores `SERVIDOR_EMPRESA`, `USUARIO_EMPRESA` o `CLAVE_EMPRESA`. Las conexiones SQL aplican reintentos breves ante fallos transitorios.
 
 ## Frontend
 

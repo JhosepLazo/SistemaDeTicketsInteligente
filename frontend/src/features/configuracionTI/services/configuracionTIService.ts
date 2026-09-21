@@ -1,6 +1,6 @@
 /**
  * Archivo: configuracionTIService.ts
- * Objetivo: Comunicar Configuración TI con sus endpoints restringidos del backend.
+ * Objetivo: Comunicar Maestros TI con sus endpoints restringidos al equipo TI.
  * Responsabilidad: Exponer contratos y operaciones simples para catálogos, matriz, SLA, identidad corporativa, formatos y publicación de conocimiento.
  * Dependencias: Fetch API y sesión autenticada mediante cookie HttpOnly.
  * Flujo: ConfiguracionTIPage -> configuracionTIService -> API /api/configuracion-ti.
@@ -24,7 +24,7 @@ async function solicitar<T>(url:string, opciones?:RequestInit):Promise<T>{
   let respuesta:Response
   try{respuesta=await fetch(url,{credentials:'include',...opciones})}catch{throw new Error('No fue posible comunicarse con el sistema.')}
   if(respuesta.status===401)throw new Error('Tu sesión ya no se encuentra disponible.')
-  if(respuesta.status===403)throw new Error('Solo Supervisor o Administrador puede acceder a Configuración TI.')
+  if(respuesta.status===403)throw new Error('Tu perfil no tiene acceso a Maestros TI.')
   if(!respuesta.ok){const datos=await respuesta.json().catch(()=>null) as {mensaje?:string}|null;throw new Error(datos?.mensaje||'No fue posible guardar la configuración.')}
   if(respuesta.status===204)return undefined as T
   return respuesta.json() as Promise<T>

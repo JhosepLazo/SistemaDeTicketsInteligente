@@ -3,8 +3,8 @@
  * Objetivo: Implementar el módulo Inicio para la visión del operador TI autenticado.
  * Responsabilidad: Presentar carga operativa, tickets que requieren intervención, recordatorios, tickets activos y actividad reciente sin duplicar funciones de los módulos especializados.
  * Dependencias: AutenticacionContext, inicioTIService, NotificacionesCampana, InicioPage.css e InicioTIPage.css.
- * Flujo: Ruta protegida /inicio -> selección por perfil -> InicioTIPage -> API /api/inicio/ti -> presentación, búsqueda, filtros y accesos a Gestión de Tickets, Base de Conocimiento, Reportes y Configuración TI para SUP/ADM.
- * Consideraciones: El Inicio conserva únicamente acciones de resumen; la atención detallada se delega a Gestión de Tickets, el conocimiento reusable a Base de Conocimiento y el análisis histórico a Reportes. Configuración TI solo se muestra a SUP/ADM. Asistente TI permanece pendiente de implementación.
+ * Flujo: Ruta protegida /inicio -> selección por perfil -> InicioTIPage -> API /api/inicio/ti -> presentación, búsqueda, filtros y accesos a los módulos TI.
+ * Consideraciones: El Inicio conserva únicamente acciones de resumen; la atención detallada se delega a Gestión de Tickets y los maestros se mantienen en su módulo dedicado.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -24,9 +24,10 @@ import './InicioTIPage.css'
 type NombreIcono = 'inicio' | 'asistente' | 'gestion' | 'buscar' | 'campana' | 'carpeta' | 'engranaje' | 'alerta' | 'fuego' | 'check' | 'actividad' | 'salir' | 'flecha' | 'reloj' | 'aprobacion' | 'reabrir'
 type FiltroAsignacion = 'TODOS' | 'MIOS'
 type FiltroOperativo = 'TODOS' | 'PENDIENTES' | 'ATENCION' | 'PRIORIDAD_ALTA' | 'APROBACION' | 'REABIERTOS'
+type FiltroSoporte = 'TODOS' | 'SOFTWARE' | 'HARDWARE'
 
-const estadosPendientes = new Set(['NV', 'RC', 'PA', 'RA'])
-const estadosAtencion = new Set(['DG', 'EJ', 'ES', 'PV'])
+const estadosPendientes = new Set(['NV', 'RC', 'PA', 'RA', 'PE'])
+const estadosAtencion = new Set(['DG', 'EJ', 'ES', 'PV', 'AS', 'AT', 'PC', 'OB'])
 
 function Icono({ nombre, size = 20 }: { nombre: NombreIcono; size?: number }) {
   const trazos: Record<NombreIcono, React.ReactNode> = {
@@ -158,6 +159,8 @@ export default function InicioTIPage() {
   const [busqueda, setBusqueda] = useState('')
   const [filtroAsignacion, setFiltroAsignacion] = useState<FiltroAsignacion>('TODOS')
   const [filtroOperativo, setFiltroOperativo] = useState<FiltroOperativo>('TODOS')
+  const [filtroSoporte, setFiltroSoporte] = useState<FiltroSoporte>('TODOS')
+  const [paginaTickets, setPaginaTickets] = useState(1)
   const buscadorRef = useRef<HTMLInputElement>(null)
   const pendientesRef = useRef<HTMLElement>(null)
   const tablaRef = useRef<HTMLElement>(null)
@@ -188,18 +191,28 @@ export default function InicioTIPage() {
     const texto = busqueda.trim().toLowerCase()
     return datos.ticketsActivos.filter(ticket => {
       if (filtroAsignacion === 'MIOS' && ticket.usuarioTI !== usuario.usuario) return false
+      if (filtroSoporte !== 'TODOS' && ticket.grupoSoporte !== filtroSoporte) return false
       if (!cumpleFiltroOperativo(ticket, filtroOperativo)) return false
       return !texto || `${ticket.incidenciaNumero} ${ticket.usuarioSolicitante} ${ticket.titulo} ${ticket.estadoDescripcion} ${ticket.responsable}`.toLowerCase().includes(texto)
     })
-  }, [busqueda, datos, filtroAsignacion, filtroOperativo, usuario])
+  }, [busqueda, datos, filtroAsignacion, filtroOperativo, filtroSoporte, usuario])
+
+  const conteoSoftware = datos?.ticketsActivos.filter(ticket => ticket.grupoSoporte === 'SOFTWARE').length ?? 0
+  const conteoHardware = datos?.ticketsActivos.filter(ticket => ticket.grupoSoporte === 'HARDWARE').length ?? 0
+
+  const ticketsPorPagina = 10
+  const totalPaginas = Math.max(1, Math.ceil(ticketsFiltrados.length / ticketsPorPagina))
+  const paginaActual = Math.min(paginaTickets, totalPaginas)
+  const ticketsPagina = ticketsFiltrados.slice((paginaActual - 1) * ticketsPorPagina, paginaActual * ticketsPorPagina)
+
+  useEffect(() => { setPaginaTickets(1) }, [busqueda, filtroAsignacion, filtroOperativo, filtroSoporte])
 
   if (!usuario) return null
 
   async function manejarCierreSesion() { await cerrarSesion(); navigate('/login', { replace: true }) }
 
   const nombre = obtenerPrimerNombre(usuario.nombreCompleto)
-  const puedeConfigurar = ['SUP', 'ADM'].includes(usuario.perfil)
-  const hayFiltros = busqueda.trim().length > 0 || filtroAsignacion !== 'TODOS' || filtroOperativo !== 'TODOS'
+  const hayFiltros = busqueda.trim().length > 0 || filtroAsignacion !== 'TODOS' || filtroOperativo !== 'TODOS' || filtroSoporte !== 'TODOS'
   const irArriba = () => window.scrollTo({ top: 0, behavior: 'smooth' })
   const irAElemento = (elemento: HTMLElement | null) => {
     if (!elemento) return
@@ -209,7 +222,7 @@ export default function InicioTIPage() {
   const irAPendientes = () => irAElemento(pendientesRef.current)
   const irATicketsActivos = () => irAElemento(tablaRef.current)
   const aplicarFiltroOperativo = (filtro: FiltroOperativo) => { setFiltroOperativo(filtro); requestAnimationFrame(irATicketsActivos) }
-  const limpiarFiltros = () => { setBusqueda(''); setFiltroAsignacion('TODOS'); setFiltroOperativo('TODOS') }
+  const limpiarFiltros = () => { setBusqueda(''); setFiltroAsignacion('TODOS'); setFiltroOperativo('TODOS'); setFiltroSoporte('TODOS') }
   const irAGestion = () => navigate('/gestion-tickets')
   const irAConocimiento = () => navigate('/base-conocimiento')
   const irAReportes = () => navigate('/reportes')
@@ -225,7 +238,7 @@ export default function InicioTIPage() {
           <button className="inicio-menu__item" type="button" onClick={irAGestion}><Icono nombre="gestion" /> <span>Gestión de Tickets</span></button>
           <button className="inicio-menu__item" type="button" onClick={irAConocimiento}><Icono nombre="carpeta" /> <span>Base de Conocimiento</span></button>
           <button className="inicio-menu__item" type="button" onClick={irAReportes}><Icono nombre="actividad" /> <span>Reportes</span></button>
-          {puedeConfigurar && <button className="inicio-menu__item" type="button" onClick={irAConfiguracion}><Icono nombre="engranaje" /> <span>Configuración TI</span></button>}
+          <button className="inicio-menu__item" type="button" onClick={irAConfiguracion}><Icono nombre="engranaje" /> <span>Maestros TI</span></button>
         </nav>
         <div className="inicio-sidebar__mensaje"><span>La tecnología también impulsa grandes historias.</span><strong>CALIMOD</strong></div>
         <div className="inicio-sidebar__pie"><span className="inicio-sidebar__ayuda-icono">?</span><span>¿Necesitas ayuda?</span><small>Disponible desde Asistente TI</small></div>
@@ -274,8 +287,10 @@ export default function InicioTIPage() {
             <section className="inicio-ti-grid-inferior" ref={tablaRef}>
               <article className="inicio-panel inicio-ti-panel-tabla">
                 <div className="inicio-panel__cabecera inicio-ti-panel__cabecera-tabla"><div><span className="inicio-panel__titulo-icono"><Icono nombre="gestion" size={18} /></span><div><h2>Tickets activos</h2><p>Visualiza y prioriza la carga operativa actual.</p></div></div><div className="inicio-ti-tabs" role="group"><button type="button" className={filtroAsignacion === 'TODOS' ? 'inicio-ti-tab inicio-ti-tab--activo' : 'inicio-ti-tab'} onClick={() => setFiltroAsignacion('TODOS')}>Todos ({datos.resumen.ticketsActivos})</button><button type="button" className={filtroAsignacion === 'MIOS' ? 'inicio-ti-tab inicio-ti-tab--activo' : 'inicio-ti-tab'} onClick={() => setFiltroAsignacion('MIOS')}>Mis asignados ({datos.resumen.misAsignados})</button></div></div>
-                {hayFiltros && <div className="inicio-ti-filtros-resumen" aria-live="polite"><span><strong>{ticketsFiltrados.length}</strong> tickets visibles</span>{filtroOperativo !== 'TODOS' && <span className="inicio-ti-filtro-chip">Vista: {textoFiltroOperativo(filtroOperativo)}</span>}{filtroAsignacion === 'MIOS' && <span className="inicio-ti-filtro-chip">Solo mis asignados</span>}{busqueda.trim() && <span className="inicio-ti-filtro-chip">Búsqueda: “{busqueda.trim()}”</span>}<button type="button" onClick={limpiarFiltros}>Limpiar filtros</button></div>}
-                <div className="inicio-tabla-wrap"><table className="inicio-tabla inicio-ti-tabla"><thead><tr><th>Ticket</th><th>Usuario</th><th>Título</th><th>Prioridad</th><th>Estado</th><th>Responsable</th><th>Última actualización</th></tr></thead><tbody>{ticketsFiltrados.length === 0 ? <tr><td colSpan={7} className="inicio-tabla__vacio">No encontramos tickets con los filtros actuales.</td></tr> : ticketsFiltrados.map((ticket: InicioTITicketActivo) => <tr key={ticket.incidenciaNumero} onDoubleClick={irAGestion} title="Doble clic para abrir Gestión de Tickets"><td><strong>{ticket.incidenciaNumero}</strong></td><td>{ticket.usuarioSolicitante}</td><td>{ticket.titulo}</td><td><span className={clasePrioridad(ticket.prioridad)}>{textoPrioridad(ticket.prioridad)}</span></td><td><span className={claseEstado(ticket.estado)}>{ticket.estadoDescripcion}</span></td><td>{ticket.responsable}</td><td>{tiempoRelativo(ticket.ultimaFechaModif)}</td></tr>)}</tbody></table></div>
+                <div className="inicio-ti-selector-soporte"><div><strong>Tipo de soporte</strong><span>Organiza la bandeja sin ocultar tickets.</span></div><div className="inicio-ti-segmentos" role="group" aria-label="Filtrar tickets por tipo de soporte"><button type="button" className={filtroSoporte === 'TODOS' ? 'activo' : ''} onClick={() => setFiltroSoporte('TODOS')}>Todos <span>{datos.ticketsActivos.length}</span></button><button type="button" className={filtroSoporte === 'SOFTWARE' ? 'activo' : ''} onClick={() => setFiltroSoporte('SOFTWARE')}>Software <span>{conteoSoftware}</span></button><button type="button" className={filtroSoporte === 'HARDWARE' ? 'activo' : ''} onClick={() => setFiltroSoporte('HARDWARE')}>Hardware <span>{conteoHardware}</span></button></div></div>
+                {hayFiltros && <div className="inicio-ti-filtros-resumen" aria-live="polite"><span><strong>{ticketsFiltrados.length}</strong> tickets visibles</span>{filtroSoporte !== 'TODOS' && <span className="inicio-ti-filtro-chip">Soporte: {filtroSoporte === 'SOFTWARE' ? 'Software' : 'Hardware'}</span>}{filtroOperativo !== 'TODOS' && <span className="inicio-ti-filtro-chip">Vista: {textoFiltroOperativo(filtroOperativo)}</span>}{filtroAsignacion === 'MIOS' && <span className="inicio-ti-filtro-chip">Solo mis asignados</span>}{busqueda.trim() && <span className="inicio-ti-filtro-chip">Búsqueda: “{busqueda.trim()}”</span>}<button type="button" onClick={limpiarFiltros}>Limpiar filtros</button></div>}
+                <div className="inicio-tabla-wrap"><table className="inicio-tabla inicio-ti-tabla"><thead><tr><th>Ticket</th><th>Usuario</th><th>Título</th><th>Prioridad</th><th>Estado</th><th>Responsable</th><th>Última actualización</th></tr></thead><tbody>{ticketsFiltrados.length === 0 ? <tr><td colSpan={7} className="inicio-tabla__vacio">No encontramos tickets con los filtros actuales.</td></tr> : ticketsPagina.map((ticket: InicioTITicketActivo) => <tr key={ticket.incidenciaNumero} onDoubleClick={irAGestion} title="Doble clic para abrir Gestión de Tickets"><td><strong>{ticket.incidenciaNumero}</strong></td><td>{ticket.usuarioSolicitante}</td><td><div className="inicio-ti-titulo-ticket"><span className={`inicio-ti-soporte inicio-ti-soporte--${ticket.grupoSoporte.toLowerCase()}`}>{ticket.grupoSoporte === 'SOFTWARE' ? 'Software' : ticket.grupoSoporte === 'HARDWARE' ? 'Hardware' : 'Otro'}</span><span>{ticket.titulo}</span></div></td><td><span className={clasePrioridad(ticket.prioridad)}>{textoPrioridad(ticket.prioridad)}</span></td><td><span className={claseEstado(ticket.estado)}>{ticket.estadoDescripcion}</span></td><td>{ticket.responsable}</td><td>{tiempoRelativo(ticket.ultimaFechaModif)}</td></tr>)}</tbody></table></div>
+                {ticketsFiltrados.length > 0 && <nav className="inicio-ti-paginacion" aria-label="Paginación de tickets activos"><span>Mostrando {(paginaActual - 1) * ticketsPorPagina + 1}-{Math.min(paginaActual * ticketsPorPagina, ticketsFiltrados.length)} de {ticketsFiltrados.length}</span><div><button type="button" onClick={() => setPaginaTickets(valor => Math.max(1, valor - 1))} disabled={paginaActual === 1}>Anterior</button>{Array.from({ length: totalPaginas }, (_, indice) => indice + 1).map(pagina => <button type="button" key={pagina} className={pagina === paginaActual ? 'activo' : ''} aria-current={pagina === paginaActual ? 'page' : undefined} aria-label={`Página ${pagina}`} onClick={() => setPaginaTickets(pagina)}>{pagina}</button>)}<button type="button" onClick={() => setPaginaTickets(valor => Math.min(totalPaginas, valor + 1))} disabled={paginaActual === totalPaginas}>Siguiente</button></div></nav>}
               </article>
 
               <article className="inicio-panel inicio-ti-panel-actividad"><div className="inicio-panel__cabecera"><div><span className="inicio-panel__titulo-icono"><Icono nombre="actividad" size={18} /></span><div><h2>Actividad reciente</h2><p>Eventos relevantes de la operación.</p></div></div></div><div className="inicio-actividad-lista inicio-ti-actividad-lista">{datos.actividadReciente.length === 0 ? <div className="inicio-vacio"><span>No hay actividad reciente.</span></div> : datos.actividadReciente.map((actividad: InicioTIActividad, indice) => <div className="inicio-actividad inicio-ti-actividad" key={`${actividad.incidenciaNumero}-${actividad.fechaCambio}-${indice}`}><span className={`inicio-actividad__punto inicio-ti-actividad__punto--${actividad.estado.toLowerCase()}`} /><div><strong>{textoActividad(actividad)}</strong><span>{actividad.incidenciaNumero} · {actividad.estadoDescripcion}</span><small>{tiempoRelativo(actividad.fechaCambio)}</small></div></div>)}</div><div className="inicio-ti-frase"><span>“</span><p>Cada ticket resuelto<br />es un equipo que avanza.</p><strong>CALIMOD</strong></div></article>

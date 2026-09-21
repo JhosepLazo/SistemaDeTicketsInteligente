@@ -21,7 +21,10 @@ public sealed class IdentidadCorporativaDAO
     public IdentidadCorporativaDAO(IConfiguration configuration)
     {
         habilitada = configuration.GetValue<bool>("IdentidadCorporativa:Habilitada");
-        cadenaConexion = configuration.GetConnectionString("CnnSpring");
+        var cadenaConfigurada = configuration.GetConnectionString("CnnSpring");
+        cadenaConexion = string.IsNullOrWhiteSpace(cadenaConfigurada)
+            ? null
+            : ConexionSqlServer.PrepararCadena(cadenaConfigurada);
     }
 
     public bool Disponible => habilitada && !string.IsNullOrWhiteSpace(cadenaConexion);

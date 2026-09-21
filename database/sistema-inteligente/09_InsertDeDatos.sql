@@ -1,13 +1,13 @@
-/*
+﻿/*
 	Archivo: 09_InsertDeDatos.sql
 	Objetivo: Cargar un conjunto controlado de datos representativos para validar los principales flujos funcionales del Sistema de Tickets Inteligente.
 	Responsabilidad: Registrar datos de desarrollo para maestros, incidencias, conocimiento, diagnósticos, acciones, aprobaciones, ejecuciones y auditoría sin utilizar información productiva real.
-	Dependencias: Requiere la ejecución previa de 00_CrearBaseDatos.sql hasta 07_DatosIniciales.sql. TI_Perfil se obtiene de 07_DatosIniciales.sql y no se duplica en este archivo.
+	Dependencias: Requiere la ejecución previa de 00_PrepararGestionSistemas.sql hasta 07_DatosIniciales.sql. TI_Perfil se obtiene de 07_DatosIniciales.sql y no se duplica en este archivo.
 	Orden: Ejecutar después de crear y validar la estructura de la base de datos.
 	Consideraciones: Contiene únicamente datos sintéticos de desarrollo; no debe ejecutarse en producción. Las credenciales, documentos y referencias incluidas no representan información operativa real.
 */
 
-Use [SistemaTicketsInteligente]
+Use [GestionSistemas]
 Go
 
 Set Xact_Abort on
@@ -341,3 +341,4 @@ Begin Catch
 	;Throw
 End Catch
 Go
+

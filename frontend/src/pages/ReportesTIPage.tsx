@@ -150,7 +150,7 @@ export default function ReportesTIPage() {
         <button className="inicio-menu__item" type="button" onClick={() => navigate('/gestion-tickets')}><Icono nombre="gestion"/> <span>Gestión de Tickets</span></button>
         <button className="inicio-menu__item" type="button" onClick={() => navigate('/base-conocimiento')}><Icono nombre="conocimiento"/> <span>Base de Conocimiento</span></button>
         <button className="inicio-menu__item inicio-menu__item--activo" type="button" aria-current="page"><Icono nombre="reporte"/> <span>Reportes</span></button>
-        {['SUP', 'ADM'].includes(usuario.perfil) && <button className="inicio-menu__item" type="button" onClick={() => navigate('/configuracion-ti')}><span aria-hidden="true">⚙</span><span>Configuración TI</span></button>}
+        <button className="inicio-menu__item" type="button" onClick={() => navigate('/configuracion-ti')}><span aria-hidden="true">⚙</span><span>Maestros TI</span></button>
       </nav>
       <div className="inicio-sidebar__mensaje"><span>La tecnología también impulsa grandes historias.</span><strong>CALIMOD</strong></div>
       <div className="inicio-sidebar__pie"><span className="inicio-sidebar__ayuda-icono">?</span><span>¿Necesitas ayuda?</span><small>Disponible desde Asistente TI</small></div>

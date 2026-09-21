@@ -1,4 +1,4 @@
-/*
+﻿/*
 	Archivo: 04_AccionesControl.sql
 	Objetivo: Crear las estructuras necesarias para registrar acciones autorizadas, solicitudes de aprobación y ejecuciones controladas asociadas a una incidencia.
 	Responsabilidad: Separar el catálogo de acciones permitidas, la autorización humana y el resultado real de cada ejecución.
@@ -7,7 +7,7 @@
 	Consideraciones: No almacena SQL arbitrario; las acciones se identifican mediante códigos controlados y posteriormente serán ejecutadas por servicios autorizados del backend.
 */
 
-Use [SistemaTicketsInteligente]
+Use [GestionSistemas]
 Go
 
 Set Xact_Abort on

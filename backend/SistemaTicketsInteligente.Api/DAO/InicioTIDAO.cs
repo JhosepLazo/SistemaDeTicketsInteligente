@@ -90,6 +90,8 @@ public sealed class InicioTIDAO
                 UsuarioSolicitante = LeerCadena(lector, "UsuarioSolicitante"),
                 Titulo = LeerCadena(lector, "Titulo"),
                 Prioridad = LeerEnteroNullable(lector, "Prioridad"),
+                AreaTI = LeerCadena(lector, "AreaTI"),
+                GrupoSoporte = LeerCadena(lector, "GrupoSoporte"),
                 Estado = LeerCadena(lector, "Estado"),
                 EstadoDescripcion = LeerCadena(lector, "EstadoDescripcion"),
                 UsuarioTI = LeerCadena(lector, "UsuarioTI"),

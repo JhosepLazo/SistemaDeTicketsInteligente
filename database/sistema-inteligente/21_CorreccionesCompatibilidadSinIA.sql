@@ -1,4 +1,4 @@
-/*
+﻿/*
     Archivo: 21_CorreccionesCompatibilidadSinIA.sql
     Objetivo: Aplicar correcciones de compatibilidad detectadas durante la revisión técnica de las mejoras funcionales sin IA.
     Responsabilidad: Evitar que una sincronización de identidad falle cuando Spring devuelve un cargo que aún no existe en el maestro local.
@@ -7,7 +7,7 @@
     Consideraciones: No modifica credenciales ni reglas de autorización; conserva el cargo local hasta que el catálogo corporativo sea sincronizado.
 */
 
-Use [SistemaTicketsInteligente]
+Use [GestionSistemas]
 Go
 
 Create Or Alter Procedure dbo.Usp_TI_Sincronizar_UsuarioCorporativo
@@ -45,3 +45,4 @@ End
 Go
 
 /* Ejecuta Procedure */
+

@@ -1,13 +1,13 @@
-/*
+﻿/*
 	Archivo: 08_Validacion.sql
-	Objetivo: Verificar que la estructura física y relacional de SistemaTicketsInteligente coincida con el modelo aprobado antes de utilizarla desde la aplicación.
+	Objetivo: Verificar que la estructura física y relacional de GestionSistemas coincida con el modelo aprobado antes de utilizarla desde la aplicación.
 	Responsabilidad: Validar tablas, Primary Keys, Foreign Keys, Unique, Check, índices, tipos compatibles, collation, restricciones confiables y uso autorizado de Identity.
-	Dependencias: Requiere la ejecución previa de 00_CrearBaseDatos.sql hasta 07_DatosIniciales.sql cuando correspondan datos iniciales.
+	Dependencias: Requiere la ejecución previa de 00_PrepararGestionSistemas.sql hasta 07_DatosIniciales.sql cuando correspondan datos iniciales.
 	Orden: Ejecutar al finalizar la instalación y después de cualquier modificación estructural significativa.
 	Consideraciones: Ejecuta inserciones controladas dentro de una transacción y finaliza con Rollback, permitiendo validar los principales Join y relaciones sin dejar registros de prueba.
 */
 
-Use [SistemaTicketsInteligente]
+Use [GestionSistemas]
 Go
 
 Set NoCount on
@@ -290,7 +290,7 @@ If
 		on tabla.object_id = columna.object_id
 	Where columna.is_identity = 1
 		and tabla.[name] Like N'TI[_]%'
-) <> 1
+) <> 2
 or Not Exists
 (
 	Select 1
@@ -299,6 +299,16 @@ or Not Exists
 		on tabla.object_id = columna.object_id
 	Where tabla.[name] = N'TI_Auditoria'
 		and columna.[name] = N'AuditoriaNumero'
+		and columna.is_identity = 1
+)
+or Not Exists
+(
+	Select 1
+	From sys.columns as columna
+	Inner Join sys.tables as tabla
+		on tabla.object_id = columna.object_id
+	Where tabla.[name] = N'TI_Notificacion'
+		and columna.[name] = N'NotificacionNumero'
 		and columna.is_identity = 1
 )
 Begin
@@ -362,13 +372,13 @@ Begin Try
 	Values ('ITEM_VALIDACION', 'PRUEBA', 1, 1, 1, 'T')
 
 	Insert Into dbo.TI_Incidencia (
-		IncidenciaNumero, FechaRegistro, UsuarioSolicitante, AreaSolicitante, AreaTI, UsuarioTI, UsuarioAsigno, Linea,
+		IncidenciaNumero, FechaRegistro, UsuarioSolicitante, UsuarioRegistro, AreaSolicitante, AreaTI, UsuarioTI, UsuarioAsigno, Linea,
 		Item, Tipo, SubTipo, Categoria, Estado, AreaCausante, Titulo, Detalle, SlaObjetivoMinutos, Prioridad, Impacto,
 		Complejidad, CanalRegistro, UltimoUsuario, UltimaFechaModif
 	)
 	Values
 	(
-		'TST-00000001', '2099-01-01T00:00:00', 'VALIDACION_SQL', 'ZZZ', 'ZZZ', 'VALIDACION_SQL', 'VALIDACION_SQL', 'ZZZ',
+		'TST-00000001', '2099-01-01T00:00:00', 'VALIDACION_SQL', 'VALIDACION_SQL', 'ZZZ', 'ZZZ', 'VALIDACION_SQL', 'VALIDACION_SQL', 'ZZZ',
 		'ITEM_VALIDACION', 'TST', 'TST', 'PRUEBA', 'TS', 'ZZZ', N'Incidencia de validación', N'Detalle de validación',
 		60, 1, 1, 1, 'PRUEBA', 'VALIDACION_SQL', '2099-01-01T00:00:00'
 	)
@@ -434,3 +444,5 @@ Begin Catch
 	;Throw
 End Catch
 Go
+
+

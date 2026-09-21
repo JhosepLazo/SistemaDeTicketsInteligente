@@ -1,6 +1,6 @@
 /*
  * Archivo: ConfiguracionTIPage.css
- * Objetivo: Mantener Configuración TI visualmente consistente con los demás módulos del operador TI.
+ * Objetivo: Mantener Maestros TI visualmente consistente con los demás módulos del operador TI.
  * Responsabilidad: Reutilizar shell, topbar y hero compartidos; estilizar únicamente navegación interna, paneles, formularios, tablas y estados propios del módulo.
  * Dependencias: InicioPage.css y clases renderizadas por ConfiguracionTIPage.tsx.
  * Flujo: ConfiguracionTIPage.tsx -> ConfiguracionTIPage.css -> navegador.
@@ -146,6 +146,59 @@
   background: linear-gradient(135deg, #08766e, #075a58);
   color: #fff;
   box-shadow: 0 5px 13px rgba(3, 102, 95, .17);
+}
+
+.config-ti-submodulos {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(112px, 1fr));
+  gap: 7px;
+  overflow-x: auto;
+  padding: 4px 1px;
+}
+
+.config-ti-submodulos button {
+  min-height: 48px;
+  padding: 7px 11px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid #dce7e9;
+  border-radius: 8px;
+  background: #fff;
+  color: #47616a;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: border-color .16s ease, background .16s ease, color .16s ease;
+}
+
+.config-ti-submodulos button:hover {
+  border-color: rgba(0, 118, 110, .38);
+  background: #f5fbfa;
+}
+
+.config-ti-submodulos button.activo {
+  border-color: #08776e;
+  background: #e7f8f5;
+  color: #075f59;
+}
+
+.config-ti-submodulos button span {
+  min-width: 23px;
+  height: 23px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #edf3f4;
+  color: #647a82;
+  font-size: 9px;
+}
+
+.config-ti-submodulos button.activo span {
+  background: #08776e;
+  color: #fff;
 }
 
 .config-ti-dos-columnas {
@@ -488,6 +541,10 @@
   .config-ti-hero .inicio-hero__firma {
     display: none;
   }
+
+  .config-ti-submodulos {
+    grid-template-columns: repeat(3, minmax(120px, 1fr));
+  }
 }
 
 @media (max-width: 700px) {
@@ -511,6 +568,10 @@
   .config-ti-tabs button {
     width: 100%;
     border-radius: 10px;
+  }
+
+  .config-ti-submodulos {
+    grid-template-columns: repeat(2, minmax(118px, 1fr));
   }
 
   .config-ti-hero {

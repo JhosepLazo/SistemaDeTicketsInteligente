@@ -1,4 +1,4 @@
-/*
+﻿/*
 	Archivo: 13_CredencialesDesarrollo.sql
 	Objetivo: Reemplazar únicamente los marcadores de contraseña de los usuarios sintéticos por hashes válidos para pruebas locales.
 	Responsabilidad: Permitir que USR001, TEC001, SUP001 y ADM001 puedan autenticarse en desarrollo sin generar manualmente un hash después de cada recreación de la base.
@@ -7,7 +7,7 @@
 	Consideraciones: Script exclusivo de desarrollo. La contraseña temporal de los usuarios sintéticos es 123456. Solo reemplaza HASH_DEMO_NO_VALIDO y nunca sobrescribe una contraseña que ya haya sido configurada.
 */
 
-Use [SistemaTicketsInteligente]
+Use [GestionSistemas]
 Go
 
 Begin Try
@@ -39,3 +39,4 @@ Go
 
 /* Ejecuta Script */
 -- Select Usuario, NombreCompleto, Perfil, Estado From dbo.TI_Usuario Where Usuario In ('USR001', 'TEC001', 'SUP001', 'ADM001')
+

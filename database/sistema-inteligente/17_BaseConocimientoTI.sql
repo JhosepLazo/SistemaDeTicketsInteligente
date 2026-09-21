@@ -1,4 +1,4 @@
-/*
+﻿/*
 	Archivo: 17_BaseConocimientoTI.sql
 	Objetivo: Crear los Stored Procedures requeridos por el módulo Base de Conocimiento para operadores TI.
 	Responsabilidad: Consultar, crear, actualizar, enviar a validación, publicar, revalidar e inactivar artículos de conocimiento manteniendo clasificación, trazabilidad y vínculo opcional con tickets resueltos.
@@ -7,7 +7,7 @@
 	Consideraciones: Los artículos publicados usan Estado A; B representa borrador, P pendiente de validación e I inactivo. Editar un artículo activo lo devuelve a P para evitar publicar contenido modificado sin validación.
 */
 
-Use [SistemaTicketsInteligente]
+Use [GestionSistemas]
 Go
 
 /* Ejemplo: Exec dbo.Usp_TI_Obtener_BaseConocimientoTI */
@@ -218,7 +218,7 @@ Begin
 	Begin Try
 		Begin Transaction
 
-		Select @nNumero = IsNull(Max(TryConvert(int, Replace(ConocimientoCodigo, 'KB-', ''))), 0) + 1
+		Select @nNumero = IsNull(Max(Try_Convert(int, Replace(ConocimientoCodigo, 'KB-', ''))), 0) + 1
 		From dbo.TI_BaseConocimiento With (UpdLock, HoldLock)
 		Where ConocimientoCodigo Like 'KB-%'
 

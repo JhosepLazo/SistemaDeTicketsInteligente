@@ -1,4 +1,4 @@
-/*
+﻿/*
 	Archivo: 22_CierreMejorasFuncionalesSinIA.sql
 	Objetivo: Cerrar las brechas operativas detectadas al validar las mejoras funcionales sin IA.
 	Responsabilidad: Notificar avances visibles y respuestas del usuario, y exponer esfuerzo efectivo con los mismos filtros de Reportes TI.
@@ -7,7 +7,7 @@
 	Consideraciones: No agrega modulos ni automatizaciones inteligentes. Conserva los flujos y tablas existentes.
 */
 
-Use [SistemaTicketsInteligente]
+Use [GestionSistemas]
 Go
 
 If Not Exists (Select 1 From sys.indexes Where object_id = Object_Id('dbo.TI_IncidenciaAvance') and name = 'IX_TI_IncidenciaAvance_FechaUsuario')
@@ -198,3 +198,4 @@ End
 Go
 
 /* Ejecuta Procedure */
+

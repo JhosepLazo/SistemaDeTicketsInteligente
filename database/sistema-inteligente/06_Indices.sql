@@ -1,4 +1,4 @@
-/*
+﻿/*
 	Archivo: 06_Indices.sql
 	Objetivo: Crear los índices secundarios requeridos para optimizar las consultas principales del Sistema de Tickets Inteligente.
 	Responsabilidad: Mejorar el rendimiento de búsquedas por solicitante, cola TI, técnico asignado, clasificación, documentos relacionados, aprobaciones y auditoría.
@@ -7,7 +7,7 @@
 	Consideraciones: No crea índices especulativos ni duplica aquellos ya generados por Primary Key o Unique; los índices futuros deben justificarse mediante consultas reales.
 */
 
-Use [SistemaTicketsInteligente]
+Use [GestionSistemas]
 Go
 
 Set Xact_Abort on

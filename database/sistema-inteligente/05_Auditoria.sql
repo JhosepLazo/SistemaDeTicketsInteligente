@@ -1,4 +1,4 @@
-/*
+﻿/*
 	Archivo: 05_Auditoria.sql
 	Objetivo: Crear la estructura de auditoría transversal para registrar eventos relevantes generados por usuarios, técnicos, inteligencia artificial o procesos del sistema.
 	Responsabilidad: Mantener trazabilidad técnica sobre entidad afectada, registro, evento, resultado, actor, fecha y correlación de la operación.
@@ -7,7 +7,7 @@
 	Consideraciones: La auditoría complementa los historiales funcionales y no los reemplaza; no utiliza eliminación en cascada para preservar trazabilidad histórica.
 */
 
-Use [SistemaTicketsInteligente]
+Use [GestionSistemas]
 Go
 
 Set Xact_Abort on

@@ -1,4 +1,4 @@
-/*
+﻿/*
 	Archivo: 03_Inteligencia.sql
 	Objetivo: Crear las estructuras destinadas al conocimiento reutilizable, diagnóstico inteligente y evidencia utilizada para sustentar cada diagnóstico.
 	Responsabilidad: Definir la base de conocimiento, los diagnósticos asociados a incidencias y las fuentes o evidencias que respaldan sus resultados.
@@ -7,7 +7,7 @@
 	Consideraciones: Este archivo almacena conocimiento y resultados de IA, pero no implementa embeddings, modelos, prompts ni ejecución directa sobre bases de datos.
 */
 
-Use [SistemaTicketsInteligente]
+Use [GestionSistemas]
 Go
 
 Set Xact_Abort on

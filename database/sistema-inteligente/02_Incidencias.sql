@@ -1,4 +1,4 @@
-/*
+﻿/*
 	Archivo: 02_Incidencias.sql
 	Objetivo: Crear el modelo transaccional principal para el registro, seguimiento y gestión del ciclo de vida de las incidencias.
 	Responsabilidad: Definir la cabecera TI_Incidencia y sus entidades relacionadas para avances, historial de estados, mensajes, adjuntos y documentos empresariales asociados.
@@ -7,7 +7,7 @@
 	Consideraciones: Las entidades hijas se relacionan directamente mediante IncidenciaNumero; las claves compuestas protegen combinaciones de clasificación y evitan relaciones inconsistentes.
 */
 
-Use [SistemaTicketsInteligente]
+Use [GestionSistemas]
 Go
 
 Set Xact_Abort on
