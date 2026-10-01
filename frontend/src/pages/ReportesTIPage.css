@@ -1,0 +1,453 @@
+/*
+ * Archivo: ReportesTIPage.css
+ * Objetivo: Definir la presentación visual del módulo Reportes para operadores TI.
+ * Responsabilidad: Maquetar indicadores, filtros, gráficos, tablas y accesos rápidos manteniendo la identidad visual CALIMOD y una lectura ejecutiva limpia.
+ * Dependencias: InicioPage.css y clases renderizadas por ReportesTIPage.tsx.
+ * Flujo: ReportesTIPage.tsx -> ReportesTIPage.css.
+ * Consideraciones: No depende de librerías de gráficos; las visualizaciones usan SVG y CSS para reducir dependencias y facilitar mantenimiento.
+ */
+
+.reportes-ti-page {
+  --reportes-borde: #dce8ec;
+  --reportes-texto: #102c3c;
+  --reportes-secundario: #647d8b;
+  --reportes-turquesa: #079b92;
+  --reportes-verde: #169c70;
+  --reportes-azul: #2586e5;
+  --reportes-rojo: #eb4c55;
+  --reportes-amarillo: #eca91e;
+  --reportes-sombra: 0 10px 28px rgba(12, 47, 61, .08);
+  background: #f4f8fa;
+}
+
+.reportes-ti-contenido { padding-bottom: 42px; }
+
+.reportes-ti-hero {
+  min-height: 164px;
+  align-items: center;
+  overflow: hidden;
+}
+
+.reportes-ti-hero .inicio-hero__contenido { max-width: 47%; }
+.reportes-ti-hero .inicio-hero__contenido h1 { margin-bottom: 7px; }
+.reportes-ti-hero__acciones { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.reportes-ti-hero__acciones button { min-height: 44px; }
+.reportes-ti-hero__acciones button:disabled { opacity: .55; cursor: not-allowed; }
+
+.reportes-ti-alerta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+  padding: 12px 14px;
+  border: 1px solid #f1b6b8;
+  border-radius: 12px;
+  color: #a9333a;
+  background: #fff4f4;
+}
+.reportes-ti-alerta span { flex: 1; }
+.reportes-ti-alerta button {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.reportes-ti-vistas {
+  display: flex;
+  gap: 4px;
+  margin: 14px 0;
+  padding: 4px;
+  overflow-x: auto;
+  border: 1px solid var(--reportes-borde);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 4px 14px rgba(12, 47, 61, .05);
+}
+.reportes-ti-vistas button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 0 auto;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 6px;
+  color: #526d7a;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.reportes-ti-vistas button:hover { color: #086f6b; background: #f1f9f8; }
+.reportes-ti-vistas button.activo { color: #fff; background: #087d77; }
+.reportes-ti-vistas button:focus-visible { outline: 3px solid rgba(42, 176, 169, .24); outline-offset: 1px; }
+
+.reportes-ti-metricas {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin: 14px 0;
+}
+
+.reportes-ti-metricas article {
+  display: flex;
+  align-items: center;
+  min-height: 96px;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--reportes-borde);
+  border-radius: 14px;
+  background: linear-gradient(135deg, #fff 0%, #fbfdfe 100%);
+  box-shadow: var(--reportes-sombra);
+}
+
+.reportes-ti-metrica__icono,
+.reportes-ti-panel__icono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  color: #057e79;
+  background: #dff7f5;
+}
+.reportes-ti-metrica__icono--turquesa { color: #05877f; background: #ddf8f5; }
+.reportes-ti-metrica__icono--azul { color: #1f79d4; background: #e6f1ff; }
+.reportes-ti-metrica__icono--verde { color: #168d68; background: #e3f8ef; }
+.reportes-ti-metrica__icono--amarillo { color: #d08b00; background: #fff4da; }
+
+.reportes-ti-metricas article > div:last-child { min-width: 0; }
+.reportes-ti-metricas small { display: block; color: var(--reportes-secundario); font-size: 11px; }
+.reportes-ti-metricas article > div > small:first-child { color: #274354; font-size: 12px; font-weight: 700; }
+.reportes-ti-metricas strong {
+  display: block;
+  margin: 2px 0 3px;
+  color: #0e2a3b;
+  font-size: clamp(22px, 2vw, 29px);
+  line-height: 1.08;
+}
+.reportes-ti-comparacion { font-weight: 650; white-space: nowrap; }
+.reportes-ti-comparacion--mejora { color: #15936d !important; }
+.reportes-ti-comparacion--alerta { color: #d75a5f !important; }
+.reportes-ti-comparacion--neutra { color: #7c919d !important; }
+
+.reportes-ti-panel {
+  border: 1px solid var(--reportes-borde);
+  border-radius: 15px;
+  background: #fff;
+  box-shadow: var(--reportes-sombra);
+}
+
+.reportes-ti-panel__cabecera {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 15px 10px;
+}
+.reportes-ti-panel__cabecera > div { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.reportes-ti-panel__icono { width: 35px; height: 35px; border-radius: 11px; }
+.reportes-ti-panel__icono--rojo { color: #d73c45; background: #ffeaeb; }
+.reportes-ti-panel__cabecera h2 { margin: 0; color: var(--reportes-texto); font-size: 15px; line-height: 1.2; }
+.reportes-ti-panel__cabecera p { margin: 3px 0 0; color: var(--reportes-secundario); font-size: 11px; line-height: 1.35; }
+
+.reportes-ti-filtros-panel { margin-bottom: 14px; }
+.reportes-ti-limpiar,
+.reportes-ti-enlace {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: #087c78;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.reportes-ti-filtros {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(120px, 1fr)) auto;
+  gap: 9px;
+  padding: 0 15px 15px;
+  align-items: end;
+}
+.reportes-ti-filtros label { display: flex; flex-direction: column; gap: 5px; color: #294757; font-size: 10.5px; font-weight: 700; }
+.reportes-ti-filtros input,
+.reportes-ti-filtros select {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid #d5e3e8;
+  border-radius: 9px;
+  outline: none;
+  background: #fbfdfe;
+  color: #183747;
+  font: inherit;
+  font-weight: 600;
+}
+.reportes-ti-filtros input:focus,
+.reportes-ti-filtros select:focus { border-color: #3ab7b2; box-shadow: 0 0 0 3px rgba(42, 176, 169, .12); }
+.reportes-ti-filtros > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 9px;
+  color: #fff;
+  background: linear-gradient(135deg, #087d77, #005f61);
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.reportes-ti-filtros > button:disabled { opacity: .6; cursor: wait; }
+
+.reportes-ti-grid-superior {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(250px, .95fr) minmax(230px, .8fr) minmax(215px, .72fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+.reportes-ti-evolucion,
+.reportes-ti-estados,
+.reportes-ti-areas,
+.reportes-ti-resumen { min-height: 286px; }
+
+.reportes-ti-vacio {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 190px;
+  padding: 20px;
+  color: #718995;
+  font-size: 12px;
+  text-align: center;
+}
+
+.reportes-ti-linea {
+  padding: 0 16px 14px;
+  color: #118d82;
+}
+.reportes-ti-linea svg { width: 100%; height: 192px; overflow: visible; }
+.reportes-ti-linea polyline { fill: none; stroke: currentColor; stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+.reportes-ti-linea circle { fill: #fff; stroke: currentColor; stroke-width: .8; vector-effect: non-scaling-stroke; }
+.reportes-ti-linea__rejilla line { stroke: #e3ecef; stroke-width: .55; vector-effect: non-scaling-stroke; }
+.reportes-ti-linea__eje { display: flex; justify-content: space-between; color: #728894; font-size: 10px; }
+
+.reportes-ti-donut-wrap {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 6px 14px 16px;
+}
+.reportes-ti-donut {
+  position: relative;
+  width: 126px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+}
+.reportes-ti-donut::after {
+  content: '';
+  position: absolute;
+  inset: 24px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px #edf3f5;
+}
+.reportes-ti-donut > div {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #163444;
+}
+.reportes-ti-donut strong { font-size: 24px; }
+.reportes-ti-donut span { color: #6f8794; font-size: 10px; }
+.reportes-ti-leyenda { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.reportes-ti-leyenda > div { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto auto; align-items: center; gap: 7px; color: #415d6b; font-size: 10px; }
+.reportes-ti-leyenda__punto { width: 8px; height: 8px; border-radius: 50%; }
+.reportes-ti-leyenda strong { color: #163747; }
+.reportes-ti-leyenda small { color: #7b909b; }
+
+.reportes-ti-barras { display: flex; flex-direction: column; gap: 10px; padding: 8px 14px 16px; }
+.reportes-ti-barras > div { display: grid; grid-template-columns: minmax(70px, .85fr) minmax(80px, 1.4fr) 28px; align-items: center; gap: 8px; }
+.reportes-ti-barras span { overflow: hidden; color: #385563; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.reportes-ti-barras > div > div { height: 9px; overflow: hidden; border-radius: 999px; background: #edf4f6; }
+.reportes-ti-barras i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #18998b, #55bdb3); }
+.reportes-ti-barras strong { color: #234553; font-size: 10px; text-align: right; }
+
+.reportes-ti-resumen-lista { display: flex; flex-direction: column; gap: 8px; padding: 5px 14px 16px; }
+.reportes-ti-resumen-lista > div { display: flex; align-items: center; gap: 9px; padding: 7px 8px; border-radius: 10px; background: #f8fbfc; }
+.reportes-ti-resumen-lista__icono { display: inline-flex; align-items: center; justify-content: center; width: 29px; height: 29px; border-radius: 9px; color: #0d8a82; background: #dff7f4; }
+.reportes-ti-resumen-lista p { margin: 0; min-width: 0; }
+.reportes-ti-resumen-lista strong { display: block; color: #173747; font-size: 14px; }
+.reportes-ti-resumen-lista small { display: block; color: #6f8794; font-size: 9.5px; }
+
+.reportes-ti-grid-inferior {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.7fr) minmax(210px, .62fr);
+  gap: 12px;
+  margin-top: 12px;
+  align-items: stretch;
+}
+
+.reportes-ti-vista-panel { min-height: 330px; }
+.reportes-ti-vista-panel .reportes-ti-tabla-wrap { padding: 3px 14px 15px; }
+.reportes-ti-vista-panel table { font-size: 10.5px; }
+.reportes-ti-vista-panel td { height: 50px; }
+.reportes-ti-fecha-avance { display: block; margin-top: 3px; color: #728894; font-size: 9px; white-space: nowrap; }
+
+.reportes-ti-areas-detalle {
+  display: grid;
+  grid-template-columns: minmax(280px, .8fr) minmax(440px, 1.2fr);
+  gap: 12px;
+}
+.reportes-ti-areas-detalle > article { min-height: 330px; }
+.reportes-ti-areas-detalle .reportes-ti-barras { padding-top: 15px; }
+
+.reportes-ti-progreso {
+  display: grid;
+  grid-template-columns: minmax(76px, 120px) 42px;
+  align-items: center;
+  gap: 7px;
+  min-width: 125px;
+}
+.reportes-ti-progreso > div { height: 7px; overflow: hidden; border-radius: 4px; background: #e9f1f3; }
+.reportes-ti-progreso i { display: block; height: 100%; border-radius: inherit; background: #15977f; }
+.reportes-ti-progreso strong { color: #34515f; font-size: 9.5px; white-space: nowrap; }
+
+.reportes-ti-paginacion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px 14px;
+  border-top: 1px solid #edf2f4;
+  color: #68808c;
+  font-size: 10px;
+}
+.reportes-ti-paginacion > div { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
+.reportes-ti-paginacion button {
+  width: 30px;
+  height: 30px;
+  border: 1px solid #d8e5e9;
+  border-radius: 6px;
+  color: #405d6a;
+  background: #fff;
+  font-size: 10px;
+  font-weight: 750;
+  cursor: pointer;
+}
+.reportes-ti-paginacion button:hover { border-color: #79bbb7; color: #08756f; }
+.reportes-ti-paginacion button.activo { border-color: #087d77; color: #fff; background: #087d77; }
+.reportes-ti-tiempos,
+.reportes-ti-prioritarios,
+.reportes-ti-accesos { min-height: 280px; }
+
+.reportes-ti-tabla-wrap { overflow-x: auto; padding: 2px 10px 12px; }
+.reportes-ti-tabla-wrap table { width: 100%; border-collapse: collapse; color: #35515f; font-size: 10.3px; }
+.reportes-ti-tabla-wrap th { padding: 8px 9px; border-bottom: 1px solid #dfe9ed; color: #526c79; background: #f8fbfc; text-align: left; font-size: 9.7px; font-weight: 750; white-space: nowrap; }
+.reportes-ti-tabla-wrap td { padding: 8px 9px; border-bottom: 1px solid #edf2f4; vertical-align: middle; }
+.reportes-ti-tabla-wrap tbody tr:hover { background: #f8fbfb; }
+.reportes-ti-tabla-wrap td:nth-child(2) { max-width: 260px; }
+.reportes-ti-tabla-vacia { padding: 28px !important; color: #7b909b; text-align: center !important; }
+
+.reportes-ti-badge,
+.reportes-ti-prioridad {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.reportes-ti-badge--verde { color: #0b7656; background: #e2f7ee; }
+.reportes-ti-badge--azul { color: #236fbd; background: #e7f1fd; }
+.reportes-ti-badge--amarillo { color: #9d7009; background: #fff2d3; }
+.reportes-ti-badge--rojo { color: #b63d44; background: #ffe8e9; }
+.reportes-ti-badge--neutro { color: #677b86; background: #edf2f4; }
+.reportes-ti-prioridad--alta { color: #b63d44; background: #ffe8e9; }
+.reportes-ti-prioridad--media { color: #9d7009; background: #fff2d3; }
+.reportes-ti-prioridad--baja { color: #08745b; background: #e2f7ee; }
+.reportes-ti-prioridad--sin-asignar { color: #677b86; background: #edf2f4; }
+
+.reportes-ti-accesos { padding-bottom: 12px; }
+.reportes-ti-accesos > button {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 8px;
+  width: calc(100% - 20px);
+  margin: 0 10px 8px;
+  padding: 10px;
+  border: 1px solid #e0eaee;
+  border-radius: 10px;
+  color: #2f4b5a;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+.reportes-ti-accesos > button:hover { border-color: #9fd5d1; background: #f7fcfb; }
+.reportes-ti-accesos > button:disabled { opacity: .5; cursor: not-allowed; }
+.reportes-ti-accesos > button > svg { color: #087d77; }
+.reportes-ti-accesos span { min-width: 0; }
+.reportes-ti-accesos strong { display: block; color: #173848; font-size: 10.5px; }
+.reportes-ti-accesos small { display: block; margin-top: 2px; color: #718894; font-size: 9px; }
+
+@media (max-width: 1500px) {
+  .reportes-ti-filtros { grid-template-columns: repeat(4, minmax(130px, 1fr)); }
+  .reportes-ti-grid-superior { grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr) minmax(235px, .85fr); }
+  .reportes-ti-resumen { grid-column: span 3; min-height: auto; }
+  .reportes-ti-resumen-lista { display: grid; grid-template-columns: repeat(5, 1fr); }
+}
+
+@media (max-width: 1180px) {
+  .reportes-ti-metricas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .reportes-ti-grid-superior { grid-template-columns: 1fr 1fr; }
+  .reportes-ti-resumen { grid-column: auto; }
+  .reportes-ti-resumen-lista { display: flex; }
+  .reportes-ti-grid-inferior { grid-template-columns: 1fr; }
+  .reportes-ti-accesos { display: grid; grid-template-columns: repeat(3, 1fr); min-height: auto; }
+  .reportes-ti-accesos .reportes-ti-panel__cabecera { grid-column: 1 / -1; }
+  .reportes-ti-areas-detalle { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 860px) {
+  .reportes-ti-hero .inicio-hero__contenido { max-width: 100%; }
+  .reportes-ti-hero__acciones { width: 100%; }
+  .reportes-ti-filtros { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .reportes-ti-grid-superior { grid-template-columns: 1fr; }
+  .reportes-ti-resumen-lista { display: grid; grid-template-columns: repeat(2, 1fr); }
+  .reportes-ti-accesos { grid-template-columns: 1fr; }
+  .reportes-ti-donut-wrap { grid-template-columns: 120px 1fr; }
+}
+
+@media (max-width: 600px) {
+  .reportes-ti-metricas { grid-template-columns: 1fr; }
+  .reportes-ti-filtros { grid-template-columns: 1fr; }
+  .reportes-ti-resumen-lista { grid-template-columns: 1fr; }
+  .reportes-ti-donut-wrap { grid-template-columns: 1fr; justify-items: center; }
+  .reportes-ti-leyenda { width: 100%; }
+  .reportes-ti-paginacion { align-items: flex-start; flex-direction: column; }
+  .reportes-ti-paginacion > div { justify-content: flex-start; }
+}

@@ -18,8 +18,25 @@ public sealed class ConexionSqlServer
     public ConexionSqlServer(string cadenaConexion)
     {
         if (string.IsNullOrWhiteSpace(cadenaConexion)) throw new ArgumentException("La cadena de conexión no puede estar vacía.", nameof(cadenaConexion));
-        this.cadenaConexion = cadenaConexion;
+        this.cadenaConexion = PrepararCadena(cadenaConexion);
     }
 
     public SqlConnection CrearConexion() => new(cadenaConexion);
+
+    public async Task VerificarAsync(CancellationToken cancellationToken = default)
+    {
+        await using var conexion = CrearConexion();
+        await conexion.OpenAsync(cancellationToken);
+        await using var comando = new SqlCommand("Select 1", conexion) { CommandTimeout = 10 };
+        await comando.ExecuteScalarAsync(cancellationToken);
+    }
+
+    public static string PrepararCadena(string cadenaConexion)
+    {
+        var configuracion = new SqlConnectionStringBuilder(cadenaConexion);
+        configuracion.ConnectTimeout = Math.Max(configuracion.ConnectTimeout, 30);
+        configuracion.ConnectRetryCount = 3;
+        configuracion.ConnectRetryInterval = 2;
+        return configuracion.ConnectionString;
+    }
 }

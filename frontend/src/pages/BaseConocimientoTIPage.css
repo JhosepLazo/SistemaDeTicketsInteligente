@@ -1,0 +1,1033 @@
+/*
+ * Archivo: BaseConocimientoTIPage.css
+ * Objetivo: Definir la presentación visual del módulo Base de Conocimiento para el operador TI.
+ * Responsabilidad: Construir una interfaz profesional, moderna, futurista y responsiva alineada al shell CALIMOD y a la estructura visual de la referencia proporcionada.
+ * Dependencias: InicioPage.css y clases renderizadas por BaseConocimientoTIPage.tsx.
+ * Flujo: BaseConocimientoTIPage.tsx -> clases conocimiento-ti-* -> composición visual responsive.
+ * Consideraciones: Los estilos usan el prefijo conocimiento-ti- para no afectar módulos existentes y reutilizan variables/patrones base del Inicio.
+ */
+
+.conocimiento-ti-page {
+  --conocimiento-verde: #087f78;
+  --conocimiento-verde-oscuro: #064f4d;
+  --conocimiento-turquesa: #25c8bd;
+  --conocimiento-azul: #3e8de8;
+  --conocimiento-rojo: #ef5a62;
+  --conocimiento-amarillo: #e2a62b;
+  --conocimiento-violeta: #7b61d9;
+  --conocimiento-panel: #fff;
+  --conocimiento-borde: #dce8ea;
+  --conocimiento-texto: #102934;
+  --conocimiento-secundario: #6a7f88;
+  --conocimiento-sombra: 0 12px 30px rgba(13, 50, 58, .08);
+}
+
+.conocimiento-ti-contenido {
+  padding-bottom: 42px;
+}
+
+.conocimiento-ti-hero {
+  min-height: 164px;
+  grid-template-columns: minmax(0, 1.25fr) auto 190px;
+}
+
+.conocimiento-ti-hero h1 {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.conocimiento-ti-hero h1 .inicio-icono {
+  color: #7ff5eb;
+}
+
+.conocimiento-ti-hero__acciones {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 510px;
+}
+
+.conocimiento-ti-alerta {
+  min-height: 46px;
+  margin-top: 14px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid;
+  border-radius: 12px;
+  font-size: 12px;
+  box-shadow: 0 8px 22px rgba(15, 51, 59, .06);
+}
+
+.conocimiento-ti-alerta > span {
+  flex: 1;
+}
+
+.conocimiento-ti-alerta button {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.conocimiento-ti-alerta--ok {
+  color: #0a6d57;
+  border-color: #b9eadb;
+  background: #f0fbf7;
+}
+
+.conocimiento-ti-alerta--error {
+  color: #a13740;
+  border-color: #f1c7ca;
+  background: #fff5f5;
+}
+
+.conocimiento-ti-metricas {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.conocimiento-ti-metricas > button {
+  min-height: 96px;
+  padding: 14px 16px;
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 13px;
+  align-items: center;
+  border: 1px solid var(--conocimiento-borde);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 90% 18%, rgba(30, 188, 176, .08), transparent 28%),
+    var(--conocimiento-panel);
+  color: var(--conocimiento-texto);
+  text-align: left;
+  box-shadow: var(--conocimiento-sombra);
+  cursor: pointer;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+
+.conocimiento-ti-metricas > button:hover {
+  transform: translateY(-2px);
+  border-color: #bcdeda;
+  box-shadow: 0 15px 34px rgba(13, 50, 58, .11);
+}
+
+.conocimiento-ti-metricas > button > div {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.conocimiento-ti-metricas small {
+  color: #30454e;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.conocimiento-ti-metricas strong {
+  color: #102631;
+  font-size: 28px;
+  line-height: 1;
+  letter-spacing: -.04em;
+}
+
+.conocimiento-ti-metricas div > span {
+  margin-top: 3px;
+  color: var(--conocimiento-secundario);
+  font-size: 10px;
+}
+
+.conocimiento-ti-metrica__icono {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+}
+
+.conocimiento-ti-metrica__icono--turquesa { color: #0b8d86; background: #d9f7f4; }
+.conocimiento-ti-metrica__icono--azul { color: #2c76d5; background: #e5f0ff; }
+.conocimiento-ti-metrica__icono--rojo { color: #d9414b; background: #ffe7e9; }
+.conocimiento-ti-metrica__icono--amarillo { color: #c88408; background: #fff2d8; }
+
+.conocimiento-ti-grid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 390px;
+  gap: 14px;
+  align-items: start;
+}
+
+.conocimiento-ti-columna-principal,
+.conocimiento-ti-columna-derecha {
+  min-width: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.conocimiento-ti-panel {
+  border: 1px solid var(--conocimiento-borde);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, .98);
+  box-shadow: var(--conocimiento-sombra);
+}
+
+.conocimiento-ti-panel__cabecera {
+  min-height: 66px;
+  padding: 13px 15px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #e8eff1;
+}
+
+.conocimiento-ti-panel__cabecera > div {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.conocimiento-ti-panel__cabecera h2,
+.conocimiento-ti-panel__cabecera p {
+  margin: 0;
+}
+
+.conocimiento-ti-panel__cabecera h2 {
+  color: #15303a;
+  font-size: 15px;
+}
+
+.conocimiento-ti-panel__cabecera p {
+  margin-top: 2px;
+  color: #7b8e96;
+  font-size: 10px;
+}
+
+.conocimiento-ti-panel__icono {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #daf7f4;
+  color: #087d77;
+}
+
+.conocimiento-ti-boton-secundario {
+  height: 34px;
+  padding: 0 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #cfe0e4;
+  border-radius: 9px;
+  background: #fff;
+  color: #1a6263;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.conocimiento-ti-buscador-panel {
+  padding-bottom: 14px;
+}
+
+.conocimiento-ti-busqueda {
+  margin: 14px 14px 10px;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-left: 13px;
+  border: 1px solid #cddfe3;
+  border-radius: 11px;
+  background: #fbfdfe;
+  color: #3a7280;
+}
+
+.conocimiento-ti-busqueda:focus-within {
+  border-color: #54cfc6;
+  box-shadow: 0 0 0 3px rgba(45, 190, 180, .09);
+}
+
+.conocimiento-ti-busqueda input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #17313b;
+  font-size: 12px;
+}
+
+.conocimiento-ti-busqueda button {
+  align-self: stretch;
+  min-width: 108px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #0a7772, #07514f);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.conocimiento-ti-filtros {
+  padding: 0 14px 11px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  gap: 9px;
+  align-items: end;
+}
+
+.conocimiento-ti-filtros label {
+  display: grid;
+  gap: 5px;
+  color: #4e626b;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.conocimiento-ti-filtros select {
+  height: 36px;
+  min-width: 0;
+  padding: 0 28px 0 10px;
+  border: 1px solid #d7e4e7;
+  border-radius: 9px;
+  outline: 0;
+  background: #fff;
+  color: #17323b;
+  font-size: 10px;
+}
+
+.conocimiento-ti-filtros > button {
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid #d7e4e7;
+  border-radius: 9px;
+  background: #f8fbfc;
+  color: #587078;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.conocimiento-ti-categorias {
+  padding: 0 14px;
+  display: grid;
+  gap: 7px;
+}
+
+.conocimiento-ti-categorias > strong {
+  color: #51666f;
+  font-size: 9px;
+}
+
+.conocimiento-ti-categorias > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.conocimiento-ti-categorias button {
+  min-height: 32px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #d9e7ea;
+  border-radius: 9px;
+  background: #f8fbfc;
+  color: #385760;
+  font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.conocimiento-ti-categorias button span {
+  min-width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #e4f3f1;
+  color: #087d77;
+  font-size: 8px;
+}
+
+.conocimiento-ti-categorias button.activo {
+  border-color: #78d9d1;
+  background: #e8faf8;
+  color: #086e69;
+}
+
+.conocimiento-ti-articulos {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--conocimiento-borde);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, .82);
+  box-shadow: var(--conocimiento-sombra);
+  scroll-margin-top: 78px;
+}
+
+.conocimiento-ti-tabs {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding: 0 0 10px;
+}
+
+.conocimiento-ti-tabs button {
+  min-height: 34px;
+  padding: 0 13px;
+  border: 1px solid #d9e6e9;
+  border-radius: 9px;
+  background: #f7fafb;
+  color: #4a636c;
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.conocimiento-ti-tabs button.activo {
+  border-color: #86dcd5;
+  background: linear-gradient(135deg, #e9fbf9, #dff7f5);
+  color: #066e69;
+  box-shadow: inset 0 0 0 1px rgba(36, 178, 168, .06);
+}
+
+.conocimiento-ti-tarjetas {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.conocimiento-ti-tarjeta {
+  min-height: 216px;
+  padding: 13px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #dbe7ea;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 7px 20px rgba(11, 48, 55, .045);
+  cursor: pointer;
+  transition: transform .17s ease, border-color .17s ease, box-shadow .17s ease;
+}
+
+.conocimiento-ti-tarjeta:hover,
+.conocimiento-ti-tarjeta.seleccionada {
+  transform: translateY(-2px);
+  border-color: #7ed9d1;
+  box-shadow: 0 12px 25px rgba(13, 72, 74, .09);
+}
+
+.conocimiento-ti-tarjeta.seleccionada {
+  box-shadow: inset 3px 0 0 #20b9ae, 0 12px 25px rgba(13, 72, 74, .09);
+}
+
+.conocimiento-ti-tarjeta__encabezado {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.conocimiento-ti-tarjeta__icono {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: #e8f7f6;
+  color: #138b84;
+}
+
+.conocimiento-ti-tarjeta > strong {
+  margin-top: 10px;
+  color: #17313b;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.conocimiento-ti-tarjeta > p {
+  margin: 6px 0 9px;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  color: #687e87;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.conocimiento-ti-tarjeta__tags,
+.conocimiento-ti-detalle__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.conocimiento-ti-tarjeta__tags span,
+.conocimiento-ti-detalle__tags span {
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #eef5f7;
+  color: #42636c;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.conocimiento-ti-tarjeta footer {
+  margin-top: auto;
+  padding-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-top: 1px solid #edf2f3;
+}
+
+.conocimiento-ti-tarjeta footer small {
+  color: #758991;
+  font-size: 8px;
+}
+
+.conocimiento-ti-tarjeta footer button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  color: #086f6a;
+  font-size: 9px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.conocimiento-ti-badge {
+  min-height: 22px;
+  padding: 3px 7px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.conocimiento-ti-badge--activo { color: #0b7b5d; background: #e0f7ed; }
+.conocimiento-ti-badge--pendiente { color: #9a6808; background: #fff2d7; }
+.conocimiento-ti-badge--borrador { color: #4e6d91; background: #e9f1fb; }
+.conocimiento-ti-badge--inactivo { color: #6d777b; background: #edf1f2; }
+
+.conocimiento-ti-articulos__pie {
+  min-height: 38px;
+  padding: 9px 4px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #73878f;
+  font-size: 9px;
+}
+
+.conocimiento-ti-articulos__pie button {
+  border: 0;
+  background: transparent;
+  color: #08766f;
+  font-size: 9px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.conocimiento-ti-detalle,
+.conocimiento-ti-tickets {
+  overflow: hidden;
+}
+
+.conocimiento-ti-detalle__contenido {
+  padding: 14px;
+}
+
+.conocimiento-ti-detalle__titulo > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.conocimiento-ti-detalle__titulo > div:first-child > strong {
+  color: #0d5f5d;
+  font-size: 11px;
+}
+
+.conocimiento-ti-detalle__titulo h3 {
+  margin: 9px 0 8px;
+  color: #132e38;
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.conocimiento-ti-revision {
+  margin-top: 11px;
+  padding: 9px 10px;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  border: 1px solid #f2c4c8;
+  border-radius: 9px;
+  background: #fff5f5;
+  color: #a53e47;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.conocimiento-ti-datos {
+  margin: 12px 0 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.conocimiento-ti-datos div {
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid #e1eaec;
+  border-radius: 9px;
+  background: #fafcfd;
+}
+
+.conocimiento-ti-datos dt {
+  color: #7d9098;
+  font-size: 8px;
+}
+
+.conocimiento-ti-datos dd {
+  margin: 2px 0 0;
+  overflow: hidden;
+  color: #29434d;
+  font-size: 9px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conocimiento-ti-contenido-scroll {
+  max-height: 430px;
+  margin-top: 11px;
+  display: grid;
+  gap: 8px;
+  overflow: auto;
+  padding-right: 3px;
+}
+
+.conocimiento-ti-bloque {
+  padding: 10px;
+  border: 1px solid #e2eaec;
+  border-radius: 9px;
+  background: #fbfcfd;
+}
+
+.conocimiento-ti-bloque > strong {
+  color: #35515a;
+  font-size: 9px;
+}
+
+.conocimiento-ti-bloque > p {
+  margin: 4px 0 0;
+  color: #5f747d;
+  font-size: 9px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.conocimiento-ti-bloque--alerta {
+  border-color: #f0d0d2;
+  background: #fff8f8;
+}
+
+.conocimiento-ti-bloque--alerta > strong,
+.conocimiento-ti-bloque--alerta > p {
+  color: #a3464d;
+}
+
+.conocimiento-ti-detalle__acciones {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.conocimiento-ti-detalle__acciones button {
+  min-height: 36px;
+  padding: 0 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid #d2e1e4;
+  border-radius: 9px;
+  background: #fff;
+  color: #31525b;
+  font-size: 9px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.conocimiento-ti-detalle__acciones button.principal {
+  border-color: #08716c;
+  background: linear-gradient(135deg, #0b7e77, #07534f);
+  color: #fff;
+}
+
+.conocimiento-ti-detalle__acciones button.peligro {
+  color: #b0444c;
+  border-color: #efc7ca;
+  background: #fff7f7;
+}
+
+.conocimiento-ti-detalle__acciones button:disabled {
+  opacity: .56;
+  cursor: wait;
+}
+
+.conocimiento-ti-tickets {
+  scroll-margin-top: 78px;
+}
+
+.conocimiento-ti-ticket-lista {
+  padding: 8px 10px 0;
+  display: grid;
+  gap: 6px;
+}
+
+.conocimiento-ti-ticket-lista > button {
+  min-height: 62px;
+  padding: 9px;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 18px;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid #dfe9eb;
+  border-radius: 10px;
+  background: #fff;
+  color: #2d4a53;
+  text-align: left;
+  cursor: pointer;
+  transition: .16s ease;
+}
+
+.conocimiento-ti-ticket-lista > button:hover {
+  border-color: #9eddd8;
+  background: #f8fdfc;
+}
+
+.conocimiento-ti-ticket-lista__icono {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: #e4f7f5;
+  color: #0b827b;
+}
+
+.conocimiento-ti-ticket-lista > button > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.conocimiento-ti-ticket-lista strong {
+  color: #155b5b;
+  font-size: 9px;
+}
+
+.conocimiento-ti-ticket-lista span {
+  overflow: hidden;
+  color: #354f58;
+  font-size: 9px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conocimiento-ti-ticket-lista small {
+  color: #87979d;
+  font-size: 8px;
+}
+
+.conocimiento-ti-ir-gestion {
+  width: calc(100% - 20px);
+  min-height: 36px;
+  margin: 9px 10px 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid #d0e1e4;
+  border-radius: 9px;
+  background: #f8fbfc;
+  color: #176360;
+  font-size: 9px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.conocimiento-ti-vacio {
+  min-height: 150px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #819299;
+  text-align: center;
+  font-size: 10px;
+}
+
+.conocimiento-ti-vacio strong {
+  color: #4d656d;
+}
+
+.conocimiento-ti-vacio--compacto {
+  min-height: 82px;
+  flex-direction: row;
+}
+
+.conocimiento-ti-modal-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(4, 22, 27, .56);
+  backdrop-filter: blur(5px);
+}
+
+.conocimiento-ti-modal {
+  width: min(940px, 96vw);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(203, 231, 230, .76);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 28px 75px rgba(3, 31, 37, .28);
+}
+
+.conocimiento-ti-modal > header {
+  min-height: 70px;
+  padding: 13px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 1px solid #e5edef;
+  background: linear-gradient(180deg, #fbfefe, #f4f9fa);
+}
+
+.conocimiento-ti-modal > header span {
+  color: #18847e;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.conocimiento-ti-modal > header h2 {
+  margin: 3px 0 0;
+  color: #15323b;
+  font-size: 18px;
+}
+
+.conocimiento-ti-modal > header button {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #dce7e9;
+  border-radius: 9px;
+  background: #fff;
+  color: #597077;
+  cursor: pointer;
+}
+
+.conocimiento-ti-modal form {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.conocimiento-ti-form-grid {
+  min-height: 0;
+  padding: 16px 18px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  overflow-y: auto;
+}
+
+.conocimiento-ti-form-grid label {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  color: #3b555e;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.conocimiento-ti-form-grid label > span {
+  color: #87989e;
+  font-size: 8px;
+  font-weight: 600;
+}
+
+.conocimiento-ti-form-grid .ancho-completo {
+  grid-column: 1 / -1;
+}
+
+.conocimiento-ti-form-grid input,
+.conocimiento-ti-form-grid select,
+.conocimiento-ti-form-grid textarea {
+  width: 100%;
+  border: 1px solid #d6e3e6;
+  border-radius: 9px;
+  outline: 0;
+  background: #fcfefe;
+  color: #18323b;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 500;
+  transition: .17s ease;
+}
+
+.conocimiento-ti-form-grid input,
+.conocimiento-ti-form-grid select {
+  height: 38px;
+  padding: 0 10px;
+}
+
+.conocimiento-ti-form-grid textarea {
+  min-height: 78px;
+  padding: 9px 10px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.conocimiento-ti-form-grid input:focus,
+.conocimiento-ti-form-grid select:focus,
+.conocimiento-ti-form-grid textarea:focus {
+  border-color: #55cfc6;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(36, 185, 174, .08);
+}
+
+.conocimiento-ti-form-grid label small {
+  color: #8a9ba1;
+  font-size: 8px;
+  font-weight: 500;
+}
+
+.conocimiento-ti-modal__nota {
+  margin: 0 18px 12px;
+  padding: 9px 10px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border: 1px solid #d8e9e8;
+  border-radius: 9px;
+  background: #f3fbfa;
+  color: #507077;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.conocimiento-ti-modal form > footer {
+  min-height: 62px;
+  padding: 11px 18px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  border-top: 1px solid #e6edef;
+  background: #fbfcfd;
+}
+
+.conocimiento-ti-modal form > footer button {
+  min-width: 110px;
+  height: 38px;
+  border: 1px solid #d5e1e4;
+  border-radius: 9px;
+  background: #fff;
+  color: #46616a;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.conocimiento-ti-modal form > footer button.principal {
+  border-color: #0a716c;
+  background: linear-gradient(135deg, #0b817a, #07534f);
+  color: #fff;
+}
+
+.conocimiento-ti-modal form > footer button:disabled {
+  opacity: .55;
+  cursor: wait;
+}
+
+.conocimiento-ti-modal__alerta {
+  margin: 12px 18px 0;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 1280px) {
+  .conocimiento-ti-grid { grid-template-columns: minmax(0, 1fr) 340px; }
+  .conocimiento-ti-tarjetas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .conocimiento-ti-hero { grid-template-columns: minmax(0, 1fr) auto; }
+  .conocimiento-ti-hero .inicio-hero__firma { display: none; }
+}
+
+@media (max-width: 1050px) {
+  .conocimiento-ti-metricas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .conocimiento-ti-grid { grid-template-columns: 1fr; }
+  .conocimiento-ti-columna-derecha { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 820px) {
+  .conocimiento-ti-hero { grid-template-columns: 1fr; }
+  .conocimiento-ti-hero__acciones { justify-content: flex-start; max-width: none; }
+  .conocimiento-ti-filtros { grid-template-columns: 1fr 1fr; }
+  .conocimiento-ti-columna-derecha { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 680px) {
+  .conocimiento-ti-metricas,
+  .conocimiento-ti-tarjetas,
+  .conocimiento-ti-form-grid { grid-template-columns: 1fr; }
+  .conocimiento-ti-form-grid .ancho-completo { grid-column: auto; }
+  .conocimiento-ti-filtros { grid-template-columns: 1fr; }
+  .conocimiento-ti-datos { grid-template-columns: 1fr; }
+  .conocimiento-ti-modal-fondo { padding: 10px; }
+  .conocimiento-ti-modal { max-height: 96vh; }
+}

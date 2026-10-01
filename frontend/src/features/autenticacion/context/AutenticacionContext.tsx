@@ -19,6 +19,7 @@ import type {
   RespuestaInicioSesion,
   SolicitudInicioSesion,
 } from '../types/autenticacion'
+import { EVENTO_SESION_EXPIRADA } from '../services/sesionExpirada'
 
 interface ValorAutenticacion {
   estado: EstadoAutenticacion
@@ -54,6 +55,17 @@ export function AutenticacionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void comprobarSesion()
   }, [comprobarSesion])
+
+  useEffect(() => {
+    function manejarSesionExpirada() {
+      setUsuario(null)
+      setEstado('noAutenticado')
+      setMensajeSesion('Tu sesión venció. Inicia sesión nuevamente para continuar.')
+    }
+
+    window.addEventListener(EVENTO_SESION_EXPIRADA, manejarSesionExpirada)
+    return () => window.removeEventListener(EVENTO_SESION_EXPIRADA, manejarSesionExpirada)
+  }, [])
 
   async function iniciarSesion(solicitud: SolicitudInicioSesion) {
     const sesion = await iniciarSesionServicio(solicitud)
