@@ -83,6 +83,10 @@ builder.Services.AddScoped<NotificacionesDAO>();
 builder.Services.AddScoped<NotificacionesBLL>();
 builder.Services.AddScoped<RecursosSoporteDAO>();
 builder.Services.AddScoped<RecursosSoporteBLL>();
+builder.Services.AddScoped<AsistenteUsuarioBLL>();
+builder.Services.AddScoped<AsistenteTIBLL>();
+builder.Services.AddHttpClient<OpenAIAsistenteClient>(cliente => cliente.Timeout = TimeSpan.FromSeconds(45));
+builder.Services.AddMemoryCache();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(opciones =>
@@ -119,6 +123,16 @@ builder.Services.AddRateLimiter(opciones =>
             QueueLimit = 0,
             AutoReplenishment = true
         }));
+    opciones.AddPolicy("Asistente", contexto => RateLimitPartition.GetTokenBucketLimiter(
+        contexto.Connection.RemoteIpAddress?.ToString() ?? "desconocido",
+        _ => new TokenBucketRateLimiterOptions
+        {
+            TokenLimit = 12,
+            TokensPerPeriod = 12,
+            ReplenishmentPeriod = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        }));
 });
 
 builder.Services.AddCors(opciones =>
@@ -139,16 +153,21 @@ app.UseExceptionHandler(aplicacionError =>
     aplicacionError.Run(async contexto =>
     {
         var excepcion = contexto.Features.Get<IExceptionHandlerFeature>()?.Error;
-        var baseDatosNoDisponible = excepcion is SqlException;
-        contexto.Response.StatusCode = baseDatosNoDisponible
-            ? StatusCodes.Status503ServiceUnavailable
-            : StatusCodes.Status500InternalServerError;
+        var errorSqlFuncional = excepcion is SqlException sqlFuncional && sqlFuncional.Number is >= 50000 and <= 50999;
+        var baseDatosNoDisponible = excepcion is SqlException && !errorSqlFuncional;
+        contexto.Response.StatusCode = errorSqlFuncional
+            ? StatusCodes.Status409Conflict
+            : baseDatosNoDisponible
+                ? StatusCodes.Status503ServiceUnavailable
+                : StatusCodes.Status500InternalServerError;
         contexto.Response.ContentType = "application/json";
         await contexto.Response.WriteAsJsonAsync(new
         {
-            mensaje = baseDatosNoDisponible
-                ? "La base de datos no se encuentra disponible. Intenta nuevamente en unos momentos."
-                : "Se produjo un error al procesar la solicitud.",
+            mensaje = errorSqlFuncional
+                ? excepcion!.Message
+                : baseDatosNoDisponible
+                    ? "La base de datos no se encuentra disponible. Intenta nuevamente en unos momentos."
+                    : "Se produjo un error al procesar la solicitud.",
             idSeguimiento = contexto.TraceIdentifier
         });
     });

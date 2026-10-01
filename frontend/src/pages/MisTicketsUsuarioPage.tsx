@@ -121,6 +121,7 @@ export default function MisTicketsUsuarioPage() {
   const { usuario, cerrarSesion } = useAutenticacion()
   const buscadorRef = useRef<HTMLInputElement>(null)
   const archivoRef = useRef<HTMLInputElement>(null)
+  const solicitudDetalleRef = useRef(0)
   const [datos, setDatos] = useState<MisTicketsRespuesta | null>(null)
   const [detalle, setDetalle] = useState<MisTicketDetalle | null>(null)
   const [seleccionado, setSeleccionado] = useState('')
@@ -141,16 +142,21 @@ export default function MisTicketsUsuarioPage() {
   const [mensaje, setMensaje] = useState('')
 
   async function cargarDetalle(incidenciaNumero: string) {
+    const solicitud = ++solicitudDetalleRef.current
     setCargandoDetalle(true)
     try {
       const valor = await obtenerDetalleMisTicket(incidenciaNumero)
+      if (solicitud !== solicitudDetalleRef.current) return null
       setDetalle(valor)
       return valor
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No fue posible cargar el detalle del ticket.')
+      if (solicitud === solicitudDetalleRef.current) {
+        setDetalle(null)
+        setError(e instanceof Error ? e.message : 'No fue posible cargar el detalle del ticket.')
+      }
       return null
     } finally {
-      setCargandoDetalle(false)
+      if (solicitud === solicitudDetalleRef.current) setCargandoDetalle(false)
     }
   }
 
@@ -175,8 +181,10 @@ export default function MisTicketsUsuarioPage() {
         setSeleccionado(candidato.incidenciaNumero)
         await cargarDetalle(candidato.incidenciaNumero)
       } else {
+        solicitudDetalleRef.current++
         setSeleccionado('')
         setDetalle(null)
+        setCargandoDetalle(false)
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No fue posible cargar tus tickets.')
@@ -247,6 +255,7 @@ export default function MisTicketsUsuarioPage() {
 
   function cerrarModal() {
     setModal(null)
+    setError('')
     setRespuesta('')
     setAdjuntos([])
     setSolucionada(null)
@@ -365,7 +374,7 @@ export default function MisTicketsUsuarioPage() {
         <div className="inicio-marca"><span className="inicio-marca__nombre">CALIMOD</span><span className="inicio-marca__sistema">Sistema inteligente<br />de incidencias TI</span></div>
         <nav className="inicio-menu">
           <button className="inicio-menu__item" type="button" onClick={() => navigate('/inicio')}><Icono nombre="inicio" /> <span>Inicio</span></button>
-          <button className="inicio-menu__item" type="button" disabled title="Se implementará en el módulo Asistente TI"><Icono nombre="asistente" /> <span>Asistente TI</span></button>
+          <button className="inicio-menu__item" type="button" onClick={() => navigate('/asistente')}><Icono nombre="asistente" /> <span>Asistente TI</span></button>
           <button className="inicio-menu__item" type="button" onClick={() => navigate('/nuevo-ticket')}><Icono nombre="nuevo" /> <span>Nuevo Ticket</span></button>
           <button className="inicio-menu__item inicio-menu__item--activo" type="button" aria-current="page"><Icono nombre="tickets" /> <span>Mis Tickets</span></button>
         </nav>
@@ -490,6 +499,7 @@ export default function MisTicketsUsuarioPage() {
         <div className="mis-tickets-modal-fondo" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget && !guardando) cerrarModal() }}>
           <section className={`mis-tickets-modal ${modal === 'DETALLE' ? 'mis-tickets-modal--grande' : ''}`} role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
             <header className="mis-tickets-modal__cabecera"><div><span>{detalle.incidenciaNumero}</span><h2 id="modal-titulo">{modal === 'DETALLE' ? 'Detalle completo del ticket' : modal === 'RESPONDER' ? 'Responder observación' : modal === 'VALIDAR' ? 'Validar solución' : 'Calificar atención'}</h2></div><button type="button" onClick={cerrarModal} disabled={guardando} aria-label="Cerrar"><Icono nombre="cerrar" /></button></header>
+            {error && <div className="mis-tickets-alerta mis-tickets-alerta--error mis-tickets-modal__alerta" role="alert"><span>{error}</span></div>}
 
             {modal === 'DETALLE' && <div className="mis-tickets-modal__detalle">
               <section className="mis-tickets-modal__resumen"><div><span className={claseEstado(detalle.estado)}>{detalle.estadoDescripcion}</span><h3>{detalle.titulo}</h3><p>{detalle.detalle}</p></div><dl><div><dt>Área</dt><dd>{detalle.areaDescripcion}</dd></div><div><dt>Sistema / módulo</dt><dd>{detalle.lineaDescripcion}</dd></div><div><dt>Tipo</dt><dd>{detalle.tipoDescripcion}</dd></div><div><dt>Responsable</dt><dd>{detalle.responsable}</dd></div><div><dt>Creación</dt><dd>{fechaCorta(detalle.fechaRegistro)}</dd></div><div><dt>Prioridad</dt><dd>{prioridadTexto(detalle.prioridad)}</dd></div></dl></section>

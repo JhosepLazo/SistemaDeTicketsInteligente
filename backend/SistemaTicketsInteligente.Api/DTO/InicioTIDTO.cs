@@ -36,6 +36,8 @@ public sealed class InicioTITicketPrioritario
     public string IncidenciaNumero { get; set; } = string.Empty;
     public string UsuarioSolicitante { get; set; } = string.Empty;
     public string Titulo { get; set; } = string.Empty;
+    public string Tipo { get; set; } = string.Empty;
+    public string TipoDescripcion { get; set; } = string.Empty;
     public string Estado { get; set; } = string.Empty;
     public string EstadoDescripcion { get; set; } = string.Empty;
     public int? Prioridad { get; set; }
@@ -59,6 +61,8 @@ public sealed class InicioTITicketActivo
     public string IncidenciaNumero { get; set; } = string.Empty;
     public string UsuarioSolicitante { get; set; } = string.Empty;
     public string Titulo { get; set; } = string.Empty;
+    public string Tipo { get; set; } = string.Empty;
+    public string TipoDescripcion { get; set; } = string.Empty;
     public int? Prioridad { get; set; }
     public string AreaTI { get; set; } = string.Empty;
     public string GrupoSoporte { get; set; } = string.Empty;

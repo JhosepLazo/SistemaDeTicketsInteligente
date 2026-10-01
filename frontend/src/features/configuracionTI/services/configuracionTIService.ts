@@ -4,8 +4,10 @@
  * Responsabilidad: Exponer contratos y operaciones simples para catálogos, matriz, SLA, identidad corporativa, formatos y publicación de conocimiento.
  * Dependencias: Fetch API y sesión autenticada mediante cookie HttpOnly.
  * Flujo: ConfiguracionTIPage -> configuracionTIService -> API /api/configuracion-ti.
- * Consideraciones: Solo SUP/ADM pueden usar estos endpoints; los registros se activan/inactivan en lugar de eliminarse.
+ * Consideraciones: Los perfiles TI autorizados pueden usar estos endpoints; los registros se activan/inactivan en lugar de eliminarse.
  */
+
+import { rechazarSiSesionExpirada } from '../../autenticacion/services/sesionExpirada'
 
 export interface AreaTI { area:string; descripcion:string; estado:string; telefono:string }
 export interface LineaTI { linea:string; area:string; descripcion:string; estado:string }
@@ -23,7 +25,7 @@ export interface ConfiguracionTIRespuesta { areas:AreaTI[]; lineas:LineaTI[]; it
 async function solicitar<T>(url:string, opciones?:RequestInit):Promise<T>{
   let respuesta:Response
   try{respuesta=await fetch(url,{credentials:'include',...opciones})}catch{throw new Error('No fue posible comunicarse con el sistema.')}
-  if(respuesta.status===401)throw new Error('Tu sesión ya no se encuentra disponible.')
+  rechazarSiSesionExpirada(respuesta)
   if(respuesta.status===403)throw new Error('Tu perfil no tiene acceso a Maestros TI.')
   if(!respuesta.ok){const datos=await respuesta.json().catch(()=>null) as {mensaje?:string}|null;throw new Error(datos?.mensaje||'No fue posible guardar la configuración.')}
   if(respuesta.status===204)return undefined as T

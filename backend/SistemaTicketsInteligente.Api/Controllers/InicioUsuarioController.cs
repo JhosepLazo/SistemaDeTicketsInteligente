@@ -16,7 +16,7 @@ using SistemaTicketsInteligente.Api.DTO;
 namespace SistemaTicketsInteligente.Api.Controllers;
 
 [ApiController]
-[Authorize]
+[Authorize(Roles = "USR")]
 [Route("api/inicio")]
 public sealed class InicioUsuarioController : ControllerBase
 {

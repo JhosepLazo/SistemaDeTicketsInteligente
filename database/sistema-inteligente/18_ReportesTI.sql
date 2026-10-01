@@ -136,6 +136,52 @@ Begin
 	Group By AreaSolicitante, AreaDescripcion
 	Order By Cantidad Desc, AreaDescripcion
 
+	;With AvanceAcumulado As (
+		Select av.IncidenciaNumero,
+			AvancesRegistrados = Count(1),
+			MinutosRegistrados = Cast(IsNull(Sum(av.TiempoUtilizado), 0) as decimal(18,2))
+		From dbo.TI_IncidenciaAvance as av
+		Inner Join #Tickets as t on t.IncidenciaNumero = av.IncidenciaNumero
+		Group By av.IncidenciaNumero
+	), UltimoAvance As (
+		Select av.IncidenciaNumero, av.PorcentajeAvance, av.FechaAvance,
+			Fila = Row_Number() Over (Partition By av.IncidenciaNumero Order By av.FechaAvance Desc, av.Secuencia Desc)
+		From dbo.TI_IncidenciaAvance as av
+		Inner Join #Tickets as t on t.IncidenciaNumero = av.IncidenciaNumero
+	)
+	Select t.IncidenciaNumero, t.Titulo, t.AreaDescripcion, t.Estado, t.EstadoDescripcion, t.Responsable,
+		PorcentajeAvance = u.PorcentajeAvance,
+		FechaUltimoAvance = u.FechaAvance,
+		AvancesRegistrados = IsNull(a.AvancesRegistrados, 0),
+		MinutosRegistrados = IsNull(a.MinutosRegistrados, 0)
+	From #Tickets as t
+	Left Join AvanceAcumulado as a on a.IncidenciaNumero = t.IncidenciaNumero
+	Left Join UltimoAvance as u on u.IncidenciaNumero = t.IncidenciaNumero and u.Fila = 1
+	Order By Case When u.FechaAvance Is Null Then 1 Else 0 End, u.FechaAvance Desc, t.FechaRegistro Desc
+
+	;With AvanceAcumulado As (
+		Select av.IncidenciaNumero,
+			AvancesRegistrados = Count(1),
+			MinutosRegistrados = Cast(IsNull(Sum(av.TiempoUtilizado), 0) as decimal(18,2)),
+			PorcentajePromedio = Cast(Avg(av.PorcentajeAvance) as decimal(10,2))
+		From dbo.TI_IncidenciaAvance as av
+		Inner Join #Tickets as t on t.IncidenciaNumero = av.IncidenciaNumero
+		Group By av.IncidenciaNumero
+	)
+	Select
+		Usuario = IsNull(NullIf(t.UsuarioTI, ''), 'SIN_ASIGNAR'),
+		Responsable = t.Responsable,
+		TicketsAsignados = Count(1),
+		TicketsResueltos = Sum(Case When t.Estado = 'RS' Then 1 Else 0 End),
+		TicketsEnCurso = Sum(Case When t.Estado Not In ('RS', 'CA') Then 1 Else 0 End),
+		AvancesRegistrados = IsNull(Sum(a.AvancesRegistrados), 0),
+		MinutosRegistrados = Cast(IsNull(Sum(a.MinutosRegistrados), 0) as decimal(18,2)),
+		PorcentajePromedio = Cast(Avg(a.PorcentajePromedio) as decimal(10,2))
+	From #Tickets as t
+	Left Join AvanceAcumulado as a on a.IncidenciaNumero = t.IncidenciaNumero
+	Group By IsNull(NullIf(t.UsuarioTI, ''), 'SIN_ASIGNAR'), t.Responsable
+	Order By TicketsAsignados Desc, t.Responsable
+
 	Select
 		p.PrioridadNombre as Prioridad,
 		Tickets = Count(1),

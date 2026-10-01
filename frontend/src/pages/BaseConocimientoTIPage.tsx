@@ -78,6 +78,7 @@ export default function BaseConocimientoTIPage() {
   const buscadorRef = useRef<HTMLInputElement>(null)
   const articulosRef = useRef<HTMLElement>(null)
   const ticketsRef = useRef<HTMLElement>(null)
+  const solicitudDetalleRef = useRef(0)
   const [datos, setDatos] = useState<BaseConocimientoTIRespuesta | null>(null)
   const [detalle, setDetalle] = useState<BaseConocimientoTIDetalle | null>(null)
   const [seleccionado, setSeleccionado] = useState('')
@@ -96,11 +97,20 @@ export default function BaseConocimientoTIPage() {
   const [formulario, setFormulario] = useState<GuardarBaseConocimientoTISolicitud>(solicitudVacia)
 
   async function cargarDetalle(codigo: string) {
+    const solicitud = ++solicitudDetalleRef.current
     setSeleccionado(codigo)
     setCargandoDetalle(true)
-    try { setDetalle(await obtenerDetalleBaseConocimientoTI(codigo)) }
-    catch (e) { setError(e instanceof Error ? e.message : 'No fue posible cargar el artículo.') }
-    finally { setCargandoDetalle(false) }
+    try {
+      const valor = await obtenerDetalleBaseConocimientoTI(codigo)
+      if (solicitud === solicitudDetalleRef.current) setDetalle(valor)
+    }
+    catch (e) {
+      if (solicitud === solicitudDetalleRef.current) {
+        setDetalle(null)
+        setError(e instanceof Error ? e.message : 'No fue posible cargar el artículo.')
+      }
+    }
+    finally { if (solicitud === solicitudDetalleRef.current) setCargandoDetalle(false) }
   }
 
   async function cargarModulo(preferido?: string) {
@@ -111,7 +121,7 @@ export default function BaseConocimientoTIPage() {
       setDatos(respuesta)
       const codigo = preferido || seleccionado || respuesta.articulos[0]?.conocimientoCodigo || ''
       if (codigo && respuesta.articulos.some(x => x.conocimientoCodigo === codigo)) await cargarDetalle(codigo)
-      else { setSeleccionado(''); setDetalle(null) }
+      else { solicitudDetalleRef.current++; setSeleccionado(''); setDetalle(null); setCargandoDetalle(false) }
     } catch (e) { setError(e instanceof Error ? e.message : 'No fue posible cargar la Base de Conocimiento.') }
     finally { setCargando(false) }
   }
@@ -161,6 +171,7 @@ export default function BaseConocimientoTIPage() {
   function filtrarEstado(estado: FiltroEstado) { setFiltroEstado(estado); requestAnimationFrame(irAArticulos) }
 
   function abrirNuevo(ticket?: BaseConocimientoTITicketOrigen) {
+    setError('')
     setCodigoEdicion(null)
     setFormulario(ticket ? solicitudDesdeTicket(ticket) : { ...solicitudVacia })
     setModalAbierto(true)
@@ -168,6 +179,7 @@ export default function BaseConocimientoTIPage() {
 
   function abrirEditar() {
     if (!detalle) return
+    setError('')
     setCodigoEdicion(detalle.conocimientoCodigo)
     setFormulario({
       titulo: detalle.titulo, problema: detalle.problema, sintomas: detalle.sintomas, mensajeError: detalle.mensajeError || null,
@@ -215,7 +227,7 @@ export default function BaseConocimientoTIPage() {
       <div className="inicio-marca"><span className="inicio-marca__nombre">CALIMOD</span><span className="inicio-marca__sistema">Sistema inteligente<br />de incidencias TI</span></div>
       <nav className="inicio-menu">
         <button className="inicio-menu__item" type="button" onClick={() => navigate('/inicio')}><Icono nombre="inicio"/> <span>Inicio</span></button>
-        <button className="inicio-menu__item" type="button" disabled title="Se implementará en el módulo Asistente TI"><Icono nombre="asistente"/> <span>Asistente TI</span></button>
+        <button className="inicio-menu__item" type="button" onClick={() => navigate('/asistente-ti')}><Icono nombre="asistente"/> <span>Asistente TI</span></button>
         <button className="inicio-menu__item" type="button" onClick={() => navigate('/gestion-tickets')}><Icono nombre="gestion"/> <span>Gestión de Tickets</span></button>
         <button className="inicio-menu__item inicio-menu__item--activo" type="button" aria-current="page"><Icono nombre="conocimiento"/> <span>Base de Conocimiento</span></button>
         <button className="inicio-menu__item" type="button" onClick={() => navigate('/reportes')}><Icono nombre="reporte"/><span>Reportes</span></button>
@@ -284,7 +296,7 @@ export default function BaseConocimientoTIPage() {
       </main>
     </section>
 
-    {modalAbierto && datos && <div className="conocimiento-ti-modal-fondo" onMouseDown={e => { if (e.target === e.currentTarget && !procesando) setModalAbierto(false) }}><section className="conocimiento-ti-modal" role="dialog" aria-modal="true"><header><div><span>{codigoEdicion ? codigoEdicion : 'Nuevo borrador'}</span><h2>{codigoEdicion ? 'Editar artículo de conocimiento' : 'Crear artículo de conocimiento'}</h2></div><button type="button" onClick={() => setModalAbierto(false)} disabled={procesando}><Icono nombre="cerrar"/></button></header><form onSubmit={e => { e.preventDefault(); void guardarArticulo() }}>
+    {modalAbierto && datos && <div className="conocimiento-ti-modal-fondo" onMouseDown={e => { if (e.target === e.currentTarget && !procesando) setModalAbierto(false) }}><section className="conocimiento-ti-modal" role="dialog" aria-modal="true"><header><div><span>{codigoEdicion ? codigoEdicion : 'Nuevo borrador'}</span><h2>{codigoEdicion ? 'Editar artículo de conocimiento' : 'Crear artículo de conocimiento'}</h2></div><button type="button" onClick={() => setModalAbierto(false)} disabled={procesando}><Icono nombre="cerrar"/></button></header>{error && <div className="conocimiento-ti-alerta conocimiento-ti-alerta--error conocimiento-ti-modal__alerta" role="alert"><span>{error}</span></div>}<form onSubmit={e => { e.preventDefault(); void guardarArticulo() }}>
       <div className="conocimiento-ti-form-grid">
         <label className="ancho-completo">Título<input required minLength={5} maxLength={250} value={formulario.titulo} onChange={e => setFormulario(v => ({ ...v, titulo: e.target.value }))} placeholder="Ej. Error al generar orden de compra por inconsistencia de datos"/></label>
         <label>Ticket de origen<select value={formulario.incidenciaOrigen ?? ''} onChange={e => seleccionarTicketOrigen(e.target.value)}><option value="">Sin ticket de origen</option>{formulario.incidenciaOrigen && !datos.catalogos.ticketsOrigen.some(x => x.incidenciaNumero === formulario.incidenciaOrigen) && <option value={formulario.incidenciaOrigen}>{formulario.incidenciaOrigen}</option>}{datos.catalogos.ticketsOrigen.map(x => <option key={x.incidenciaNumero} value={x.incidenciaNumero}>{x.incidenciaNumero} · {x.titulo}</option>)}</select><small>Solo se ofrecen tickets resueltos con solución técnica registrada.</small></label>

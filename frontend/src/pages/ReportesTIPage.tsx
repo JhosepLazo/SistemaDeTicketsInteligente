@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, type NavigateFunction } from 'react-router-dom'
 import { useAutenticacion } from '../features/autenticacion/context/AutenticacionContext'
 import {
   obtenerReportesTI,
@@ -22,6 +22,7 @@ import './InicioPage.css'
 import './ReportesTIPage.css'
 
 type IconoNombre = 'inicio' | 'asistente' | 'gestion' | 'conocimiento' | 'reporte' | 'buscar' | 'campana' | 'salir' | 'descargar' | 'filtro' | 'carpeta' | 'reloj' | 'check' | 'estrella' | 'grafico' | 'pastel' | 'area' | 'resumen' | 'actualizar' | 'flecha' | 'alerta' | 'ticket'
+type VistaReporte = 'resumen' | 'avance' | 'equipo' | 'areas' | 'listado'
 
 function Icono({ nombre, size = 19 }: { nombre: IconoNombre; size?: number }) {
   const trazos: Record<IconoNombre, React.ReactNode> = {
@@ -90,17 +91,26 @@ export default function ReportesTIPage() {
   const { usuario, cerrarSesion } = useAutenticacion()
   const buscadorRef = useRef<HTMLInputElement>(null)
   const filtrosRef = useRef<HTMLElement>(null)
+  const solicitudReporteRef = useRef(0)
   const [filtros, setFiltros] = useState<ReportesTIFiltros>(filtrosIniciales)
+  const [filtrosAplicados, setFiltrosAplicados] = useState<ReportesTIFiltros>(filtrosIniciales)
   const [datos, setDatos] = useState<ReportesTIRespuesta | null>(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [busqueda, setBusqueda] = useState('')
+  const [vista, setVista] = useState<VistaReporte>('resumen')
 
   async function cargar(nuevosFiltros = filtros) {
+    const solicitud = ++solicitudReporteRef.current
     setCargando(true); setError('')
-    try { setDatos(await obtenerReportesTI(nuevosFiltros)) }
-    catch (e) { setError(e instanceof Error ? e.message : 'No fue posible generar el reporte.') }
-    finally { setCargando(false) }
+    try {
+      const respuesta = await obtenerReportesTI(nuevosFiltros)
+      if (solicitud !== solicitudReporteRef.current) return
+      setDatos(respuesta)
+      setFiltrosAplicados({ ...nuevosFiltros })
+    }
+    catch (e) { if (solicitud === solicitudReporteRef.current) setError(e instanceof Error ? e.message : 'No fue posible generar el reporte.') }
+    finally { if (solicitud === solicitudReporteRef.current) setCargando(false) }
   }
 
   useEffect(() => { void cargar(filtros) }, [])
@@ -136,7 +146,7 @@ export default function ReportesTIPage() {
     const url = URL.createObjectURL(new Blob([`\uFEFF${contenido}`], { type: 'text/csv;charset=utf-8' }))
     const enlace = document.createElement('a')
     enlace.href = url
-    enlace.download = `reporte-ti-${filtros.fechaInicio}-${filtros.fechaFin}.csv`
+    enlace.download = `reporte-ti-${filtrosAplicados.fechaInicio}-${filtrosAplicados.fechaFin}.csv`
     enlace.click()
     URL.revokeObjectURL(url)
   }
@@ -146,7 +156,7 @@ export default function ReportesTIPage() {
       <div className="inicio-marca"><span className="inicio-marca__nombre">CALIMOD</span><span className="inicio-marca__sistema">Sistema inteligente<br />de incidencias TI</span></div>
       <nav className="inicio-menu">
         <button className="inicio-menu__item" type="button" onClick={() => navigate('/inicio')}><Icono nombre="inicio"/> <span>Inicio</span></button>
-        <button className="inicio-menu__item" type="button" disabled title="Se implementará en el módulo Asistente TI"><Icono nombre="asistente"/> <span>Asistente TI</span></button>
+        <button className="inicio-menu__item" type="button" onClick={() => navigate('/asistente-ti')}><Icono nombre="asistente"/> <span>Asistente TI</span></button>
         <button className="inicio-menu__item" type="button" onClick={() => navigate('/gestion-tickets')}><Icono nombre="gestion"/> <span>Gestión de Tickets</span></button>
         <button className="inicio-menu__item" type="button" onClick={() => navigate('/base-conocimiento')}><Icono nombre="conocimiento"/> <span>Base de Conocimiento</span></button>
         <button className="inicio-menu__item inicio-menu__item--activo" type="button" aria-current="page"><Icono nombre="reporte"/> <span>Reportes</span></button>
@@ -158,7 +168,7 @@ export default function ReportesTIPage() {
 
     <section className="inicio-principal">
       <header className="inicio-topbar">
-        <label className="inicio-buscador"><Icono nombre="buscar"/><input ref={buscadorRef} value={busqueda} onChange={e => setBusqueda(e.target.value)} placeholder="Buscar ticket crítico del período..."/><span>Ctrl + K</span></label>
+        <label className="inicio-buscador"><Icono nombre="buscar"/><input ref={buscadorRef} value={busqueda} onChange={e => setBusqueda(e.target.value)} placeholder="Buscar tickets, áreas o responsables..."/><span>Ctrl + K</span></label>
         <div className="inicio-topbar__usuario">
           <NotificacionesCampana />
           <div className="inicio-avatar">{nombre.slice(0, 1).toUpperCase()}</div><div className="inicio-identidad"><strong>{nombre}</strong><span>Operador TI</span></div>
@@ -174,6 +184,14 @@ export default function ReportesTIPage() {
         </section>
 
         {error && <div className="reportes-ti-alerta" role="alert"><Icono nombre="alerta"/><span>{error}</span><button type="button" onClick={() => void cargar()}><Icono nombre="actualizar" size={16}/> Reintentar</button></div>}
+
+        <nav className="reportes-ti-vistas" aria-label="Vistas del módulo de reportes">
+          <button type="button" className={vista === 'resumen' ? 'activo' : ''} onClick={() => setVista('resumen')}><Icono nombre="resumen"/>Resumen</button>
+          <button type="button" className={vista === 'avance' ? 'activo' : ''} onClick={() => setVista('avance')}><Icono nombre="grafico"/>Avance de atención</button>
+          <button type="button" className={vista === 'equipo' ? 'activo' : ''} onClick={() => setVista('equipo')}><Icono nombre="gestion"/>Equipo TI</button>
+          <button type="button" className={vista === 'areas' ? 'activo' : ''} onClick={() => setVista('areas')}><Icono nombre="area"/>Áreas</button>
+          <button type="button" className={vista === 'listado' ? 'activo' : ''} onClick={() => setVista('listado')}><Icono nombre="ticket"/>Listado de tickets</button>
+        </nav>
 
         <section className="reportes-ti-metricas" aria-label="Indicadores del período">
           <article><span className="reportes-ti-metrica__icono reportes-ti-metrica__icono--turquesa"><Icono nombre="carpeta"/></span><div><small>Tickets del período</small><strong>{cargando ? '—' : datos?.resumen.total ?? 0}</strong><Variacion actual={datos?.resumen.total ?? null} anterior={datos?.resumen.totalAnterior ?? null}/></div></article>
@@ -196,18 +214,11 @@ export default function ReportesTIPage() {
           </form>
         </section>
 
-        <section className="reportes-ti-grid-superior">
-          <article className="reportes-ti-panel reportes-ti-evolucion"><Cabecera icono="grafico" titulo="Incidencias por período" subtitulo="Evolución de tickets registrados en el rango seleccionado."/>{cargando ? <Vacio texto="Cargando evolución..."/> : <GraficoEvolucion datos={datos?.evolucion ?? []} inicio={filtros.fechaInicio} fin={filtros.fechaFin}/>}</article>
-          <article className="reportes-ti-panel reportes-ti-estados"><Cabecera icono="pastel" titulo="Estados de tickets" subtitulo="Distribución actual de los tickets filtrados."/>{cargando ? <Vacio texto="Cargando estados..."/> : <GraficoEstados datos={datos?.estados ?? []}/>}</article>
-          <article className="reportes-ti-panel reportes-ti-areas"><Cabecera icono="area" titulo="Incidencias por área" subtitulo="Áreas solicitantes con mayor volumen."/>{cargando ? <Vacio texto="Cargando áreas..."/> : <BarrasAreas datos={datos?.areas ?? []}/>}</article>
-          <article className="reportes-ti-panel reportes-ti-resumen"><Cabecera icono="resumen" titulo="Resumen ejecutivo" subtitulo="Lectura rápida del período seleccionado."/><ResumenEjecutivo datos={datos}/></article>
-        </section>
-
-        <section className="reportes-ti-grid-inferior">
-          <article className="reportes-ti-panel reportes-ti-tiempos"><Cabecera icono="reloj" titulo="Tiempo de resolución por prioridad" subtitulo="Duración calculada desde la creación hasta el cierre."/><div className="reportes-ti-tabla-wrap"><table><thead><tr><th>Prioridad</th><th>Tickets</th><th>Promedio</th><th>Más rápido</th><th>Más largo</th></tr></thead><tbody>{!datos?.tiemposPorPrioridad.length ? <tr><td colSpan={5} className="reportes-ti-tabla-vacia">No hay tickets cerrados suficientes para calcular tiempos.</td></tr> : datos.tiemposPorPrioridad.map(x => <tr key={x.prioridad}><td><span className={`reportes-ti-prioridad reportes-ti-prioridad--${x.prioridad.toLowerCase().replace(' ', '-')}`}>{x.prioridad}</span></td><td>{x.tickets}</td><td>{formatearHoras(x.tiempoPromedioHoras)}</td><td>{formatearHoras(x.tiempoMasRapidoHoras)}</td><td>{formatearHoras(x.tiempoMasLargoHoras)}</td></tr>)}</tbody></table></div></article>
-          <article className="reportes-ti-panel reportes-ti-prioritarios"><div className="reportes-ti-panel__cabecera"><div><span className="reportes-ti-panel__icono reportes-ti-panel__icono--rojo"><Icono nombre="alerta"/></span><div><h2>Tickets de prioridad alta recientes</h2><p>Casos que requieren seguimiento dentro del período.</p></div></div><button className="reportes-ti-enlace" type="button" onClick={() => navigate('/gestion-tickets')}>Ver todos <Icono nombre="flecha" size={14}/></button></div><div className="reportes-ti-tabla-wrap"><table><thead><tr><th>Ticket</th><th>Título</th><th>Área</th><th>Estado</th><th>Tiempo</th></tr></thead><tbody>{ticketsPrioritarios.length === 0 ? <tr><td colSpan={5} className="reportes-ti-tabla-vacia">No hay tickets de prioridad alta con el criterio actual.</td></tr> : ticketsPrioritarios.map(x => <tr key={x.incidenciaNumero}><td><strong>{x.incidenciaNumero}</strong></td><td>{x.titulo}</td><td>{x.areaDescripcion}</td><td><span className={claseEstado(x.estado)}>{x.estadoDescripcion}</span></td><td>{formatearHoras(x.tiempoAbiertoHoras)}</td></tr>)}</tbody></table></div></article>
-          <aside className="reportes-ti-panel reportes-ti-accesos"><Cabecera icono="ticket" titulo="Accesos rápidos" subtitulo="Continúa desde los datos del reporte."/><button type="button" onClick={() => navigate('/gestion-tickets')}><Icono nombre="gestion"/><span><strong>Ver Gestión de Tickets</strong><small>Revisa y atiende incidencias</small></span><Icono nombre="flecha" size={15}/></button><button type="button" onClick={exportarCsv} disabled={!datos?.detalleExportacion.length}><Icono nombre="descargar"/><span><strong>Exportar detalle CSV</strong><small>{datos?.detalleExportacion.length ?? 0} registros filtrados</small></span><Icono nombre="flecha" size={15}/></button><button type="button" onClick={() => void cargar()}><Icono nombre="actualizar"/><span><strong>Actualizar reporte</strong><small>Consulta nuevamente SQL Server</small></span><Icono nombre="flecha" size={15}/></button></aside>
-        </section>
+        {vista === 'resumen' && <VistaResumen datos={datos} cargando={cargando} ticketsPrioritarios={ticketsPrioritarios} filtros={filtrosAplicados} navigate={navigate} exportarCsv={exportarCsv} cargar={() => void cargar()}/>}
+        {vista === 'avance' && <VistaAvances datos={datos} cargando={cargando} busqueda={busqueda}/>}
+        {vista === 'equipo' && <VistaEquipo datos={datos} cargando={cargando}/>}
+        {vista === 'areas' && <VistaAreas datos={datos} cargando={cargando} seleccionarArea={area => { const nuevos = { ...filtros, area }; setFiltros(nuevos); void cargar(nuevos) }}/>}
+        {vista === 'listado' && <VistaListado datos={datos} cargando={cargando} busqueda={busqueda}/>}
       </main>
     </section>
   </div>
@@ -215,6 +226,81 @@ export default function ReportesTIPage() {
 
 function Cabecera({ icono, titulo, subtitulo }: { icono: IconoNombre; titulo: string; subtitulo: string }) { return <div className="reportes-ti-panel__cabecera"><div><span className="reportes-ti-panel__icono"><Icono nombre={icono}/></span><div><h2>{titulo}</h2><p>{subtitulo}</p></div></div></div> }
 function Vacio({ texto }: { texto: string }) { return <div className="reportes-ti-vacio">{texto}</div> }
+
+function VistaResumen({ datos, cargando, ticketsPrioritarios, filtros, navigate, exportarCsv, cargar }: {
+  datos: ReportesTIRespuesta | null
+  cargando: boolean
+  ticketsPrioritarios: ReportesTIRespuesta['ticketsPrioridadAlta']
+  filtros: ReportesTIFiltros
+  navigate: NavigateFunction
+  exportarCsv: () => void
+  cargar: () => void
+}) {
+  return <>
+    <section className="reportes-ti-grid-superior">
+      <article className="reportes-ti-panel reportes-ti-evolucion"><Cabecera icono="grafico" titulo="Incidencias por período" subtitulo="Evolución de tickets registrados en el rango seleccionado."/>{cargando ? <Vacio texto="Cargando evolución..."/> : <GraficoEvolucion datos={datos?.evolucion ?? []} inicio={filtros.fechaInicio} fin={filtros.fechaFin}/>}</article>
+      <article className="reportes-ti-panel reportes-ti-estados"><Cabecera icono="pastel" titulo="Estados de tickets" subtitulo="Distribución actual de los tickets filtrados."/>{cargando ? <Vacio texto="Cargando estados..."/> : <GraficoEstados datos={datos?.estados ?? []}/>}</article>
+      <article className="reportes-ti-panel reportes-ti-areas"><Cabecera icono="area" titulo="Incidencias por área" subtitulo="Áreas solicitantes con mayor volumen."/>{cargando ? <Vacio texto="Cargando áreas..."/> : <BarrasAreas datos={datos?.areas ?? []}/>}</article>
+      <article className="reportes-ti-panel reportes-ti-resumen"><Cabecera icono="resumen" titulo="Resumen ejecutivo" subtitulo="Lectura rápida del período seleccionado."/><ResumenEjecutivo datos={datos}/></article>
+    </section>
+    <section className="reportes-ti-grid-inferior">
+      <article className="reportes-ti-panel reportes-ti-tiempos"><Cabecera icono="reloj" titulo="Tiempo de resolución por prioridad" subtitulo="Duración calculada desde la creación hasta el cierre."/><div className="reportes-ti-tabla-wrap"><table><thead><tr><th>Prioridad</th><th>Tickets</th><th>Promedio</th><th>Más rápido</th><th>Más largo</th></tr></thead><tbody>{!datos?.tiemposPorPrioridad.length ? <tr><td colSpan={5} className="reportes-ti-tabla-vacia">No hay tickets cerrados suficientes para calcular tiempos.</td></tr> : datos.tiemposPorPrioridad.map(x => <tr key={x.prioridad}><td><span className={`reportes-ti-prioridad reportes-ti-prioridad--${x.prioridad.toLowerCase().replace(' ', '-')}`}>{x.prioridad}</span></td><td>{x.tickets}</td><td>{formatearHoras(x.tiempoPromedioHoras)}</td><td>{formatearHoras(x.tiempoMasRapidoHoras)}</td><td>{formatearHoras(x.tiempoMasLargoHoras)}</td></tr>)}</tbody></table></div></article>
+      <article className="reportes-ti-panel reportes-ti-prioritarios"><div className="reportes-ti-panel__cabecera"><div><span className="reportes-ti-panel__icono reportes-ti-panel__icono--rojo"><Icono nombre="alerta"/></span><div><h2>Tickets de prioridad alta recientes</h2><p>Casos que requieren seguimiento dentro del período.</p></div></div><button className="reportes-ti-enlace" type="button" onClick={() => navigate('/gestion-tickets')}>Ver todos <Icono nombre="flecha" size={14}/></button></div><div className="reportes-ti-tabla-wrap"><table><thead><tr><th>Ticket</th><th>Título</th><th>Área</th><th>Estado</th><th>Tiempo</th></tr></thead><tbody>{ticketsPrioritarios.length === 0 ? <tr><td colSpan={5} className="reportes-ti-tabla-vacia">No hay tickets de prioridad alta con el criterio actual.</td></tr> : ticketsPrioritarios.map(x => <tr key={x.incidenciaNumero}><td><strong>{x.incidenciaNumero}</strong></td><td>{x.titulo}</td><td>{x.areaDescripcion}</td><td><span className={claseEstado(x.estado)}>{x.estadoDescripcion}</span></td><td>{formatearHoras(x.tiempoAbiertoHoras)}</td></tr>)}</tbody></table></div></article>
+      <aside className="reportes-ti-panel reportes-ti-accesos"><Cabecera icono="ticket" titulo="Accesos rápidos" subtitulo="Continúa desde los datos del reporte."/><button type="button" onClick={() => navigate('/gestion-tickets')}><Icono nombre="gestion"/><span><strong>Ver Gestión de Tickets</strong><small>Revisa y atiende incidencias</small></span><Icono nombre="flecha" size={15}/></button><button type="button" onClick={exportarCsv} disabled={!datos?.detalleExportacion.length}><Icono nombre="descargar"/><span><strong>Exportar detalle CSV</strong><small>{datos?.detalleExportacion.length ?? 0} registros filtrados</small></span><Icono nombre="flecha" size={15}/></button><button type="button" onClick={cargar}><Icono nombre="actualizar"/><span><strong>Actualizar reporte</strong><small>Consulta nuevamente SQL Server</small></span><Icono nombre="flecha" size={15}/></button></aside>
+    </section>
+  </>
+}
+
+function VistaAvances({ datos, cargando, busqueda }: { datos: ReportesTIRespuesta | null; cargando: boolean; busqueda: string }) {
+  const texto = busqueda.trim().toLowerCase()
+  const filas = (datos?.avances ?? []).filter(x => !texto || `${x.incidenciaNumero} ${x.titulo} ${x.areaDescripcion} ${x.responsable} ${x.estadoDescripcion}`.toLowerCase().includes(texto))
+  return <section className="reportes-ti-panel reportes-ti-vista-panel">
+    <Cabecera icono="grafico" titulo="Avance de atención" subtitulo="Último avance, actividad registrada y responsable de cada ticket."/>
+    {cargando ? <Vacio texto="Cargando avances..."/> : <div className="reportes-ti-tabla-wrap"><table><thead><tr><th>Ticket</th><th>Asunto</th><th>Área</th><th>Responsable</th><th>Estado</th><th>Último avance</th><th>Actividad</th></tr></thead><tbody>{filas.length === 0 ? <tr><td colSpan={7} className="reportes-ti-tabla-vacia">No hay avances con los criterios seleccionados.</td></tr> : filas.map(x => <tr key={x.incidenciaNumero}><td><strong>{x.incidenciaNumero}</strong></td><td>{x.titulo}</td><td>{x.areaDescripcion}</td><td>{x.responsable}</td><td><span className={claseEstado(x.estado)}>{x.estadoDescripcion}</span></td><td><Progreso valor={x.porcentajeAvance}/><small className="reportes-ti-fecha-avance">{x.fechaUltimoAvance ? formatearFechaHora(x.fechaUltimoAvance) : 'Sin avance registrado'}</small></td><td><strong>{x.avancesRegistrados}</strong> avances<br/><small>{formatearMinutos(x.minutosRegistrados)}</small></td></tr>)}</tbody></table></div>}
+  </section>
+}
+
+function VistaEquipo({ datos, cargando }: { datos: ReportesTIRespuesta | null; cargando: boolean }) {
+  const filas = datos?.avancePorUsuario ?? []
+  return <section className="reportes-ti-panel reportes-ti-vista-panel">
+    <Cabecera icono="gestion" titulo="Avance de atención por usuario" subtitulo="Carga, resolución y esfuerzo del equipo TI en el período."/>
+    {cargando ? <Vacio texto="Cargando desempeño del equipo..."/> : <div className="reportes-ti-tabla-wrap"><table><thead><tr><th>Responsable</th><th>Asignados</th><th>En curso</th><th>Resueltos</th><th>Avances</th><th>Tiempo registrado</th><th>Avance promedio</th></tr></thead><tbody>{filas.length === 0 ? <tr><td colSpan={7} className="reportes-ti-tabla-vacia">No hay asignaciones en el período seleccionado.</td></tr> : filas.map(x => <tr key={x.usuario}><td><strong>{x.responsable}</strong><small className="reportes-ti-fecha-avance">{x.usuario === 'SIN_ASIGNAR' ? 'Pendiente de asignación' : x.usuario}</small></td><td>{x.ticketsAsignados}</td><td>{x.ticketsEnCurso}</td><td>{x.ticketsResueltos}</td><td>{x.avancesRegistrados}</td><td>{formatearMinutos(x.minutosRegistrados)}</td><td><Progreso valor={x.porcentajePromedio}/></td></tr>)}</tbody></table></div>}
+  </section>
+}
+
+function VistaAreas({ datos, cargando, seleccionarArea }: { datos: ReportesTIRespuesta | null; cargando: boolean; seleccionarArea: (area: string) => void }) {
+  const total = datos?.areas.reduce((suma, x) => suma + x.cantidad, 0) ?? 0
+  return <section className="reportes-ti-areas-detalle">
+    <article className="reportes-ti-panel"><Cabecera icono="area" titulo="Incidencias por áreas" subtitulo="Compara el volumen de solicitudes entre áreas."/>{cargando ? <Vacio texto="Cargando áreas..."/> : <BarrasAreas datos={datos?.areas ?? []}/>}</article>
+    <article className="reportes-ti-panel"><Cabecera icono="ticket" titulo="Detalle por cada área" subtitulo="Selecciona un área para aplicar el filtro a todo el módulo."/><div className="reportes-ti-tabla-wrap"><table><thead><tr><th>Área</th><th>Tickets</th><th>Participación</th><th></th></tr></thead><tbody>{!datos?.areas.length ? <tr><td colSpan={4} className="reportes-ti-tabla-vacia">No hay información por área.</td></tr> : datos.areas.map(x => <tr key={x.area}><td><strong>{x.areaDescripcion}</strong></td><td>{x.cantidad}</td><td>{total ? `${((x.cantidad / total) * 100).toFixed(1)}%` : '0%'}</td><td><button type="button" className="reportes-ti-enlace" onClick={() => seleccionarArea(x.area)}>Ver área <Icono nombre="flecha" size={14}/></button></td></tr>)}</tbody></table></div></article>
+  </section>
+}
+
+function VistaListado({ datos, cargando, busqueda }: { datos: ReportesTIRespuesta | null; cargando: boolean; busqueda: string }) {
+  const [pagina, setPagina] = useState(1)
+  const texto = busqueda.trim().toLowerCase()
+  const filas = useMemo(() => (datos?.detalleExportacion ?? []).filter(x => !texto || `${x.incidenciaNumero} ${x.solicitante} ${x.titulo} ${x.areaDescripcion} ${x.responsable} ${x.estadoDescripcion}`.toLowerCase().includes(texto)), [datos, texto])
+  const paginas = Math.max(1, Math.ceil(filas.length / 10))
+  useEffect(() => { setPagina(1) }, [datos, texto])
+  const visibles = filas.slice((pagina - 1) * 10, pagina * 10)
+  return <section className="reportes-ti-panel reportes-ti-vista-panel">
+    <Cabecera icono="ticket" titulo="Listado de tickets de atención" subtitulo={`${filas.length} tickets coinciden con el período y los filtros aplicados.`}/>
+    {cargando ? <Vacio texto="Cargando tickets..."/> : <><div className="reportes-ti-tabla-wrap"><table><thead><tr><th>Ticket</th><th>Solicitante</th><th>Asunto</th><th>Área</th><th>Tipo</th><th>Estado</th><th>Prioridad</th><th>Responsable</th><th>Registro</th></tr></thead><tbody>{visibles.length === 0 ? <tr><td colSpan={9} className="reportes-ti-tabla-vacia">No hay tickets con los criterios seleccionados.</td></tr> : visibles.map(x => <tr key={x.incidenciaNumero}><td><strong>{x.incidenciaNumero}</strong></td><td>{x.solicitante}</td><td>{x.titulo}</td><td>{x.areaDescripcion}</td><td>{x.tipoDescripcion}</td><td>{x.estadoDescripcion}</td><td><span className={clasePrioridad(x.prioridad)}>{textoPrioridad(x.prioridad)}</span></td><td>{x.responsable}</td><td>{formatearFechaHora(x.fechaRegistro)}</td></tr>)}</tbody></table></div><Paginacion pagina={pagina} paginas={paginas} total={filas.length} cambiar={setPagina}/></>}
+  </section>
+}
+
+function Progreso({ valor }: { valor: number | null }) {
+  return <div className="reportes-ti-progreso"><div><i style={{ width: `${Math.min(100, Math.max(0, valor ?? 0))}%` }}/></div><strong>{valor === null ? 'Sin %' : `${numero(valor, 0)}%`}</strong></div>
+}
+
+function Paginacion({ pagina, paginas, total, cambiar }: { pagina: number; paginas: number; total: number; cambiar: (pagina: number) => void }) {
+  const inicio = Math.max(1, Math.min(pagina - 2, paginas - 4))
+  const visibles = Array.from({ length: Math.min(5, paginas) }, (_, i) => inicio + i)
+  return <div className="reportes-ti-paginacion"><span>{total === 0 ? 'Sin registros' : `${(pagina - 1) * 10 + 1}-${Math.min(pagina * 10, total)} de ${total}`}</span><div>{pagina > 1 && <button type="button" onClick={() => cambiar(pagina - 1)} aria-label="Página anterior">‹</button>}{visibles.map(x => <button type="button" key={x} className={x === pagina ? 'activo' : ''} onClick={() => cambiar(x)} aria-label={`Página ${x}`}>{x}</button>)}{pagina < paginas && <button type="button" onClick={() => cambiar(pagina + 1)} aria-label="Página siguiente">›</button>}</div></div>
+}
+
+function formatearFechaHora(valor: string) { return new Intl.DateTimeFormat('es-PE', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(valor)) }
+function formatearMinutos(valor: number) { return valor <= 0 ? 'Sin tiempo' : valor >= 60 ? `${numero(valor / 60)} h` : `${numero(valor, 0)} min` }
 
 function GraficoEvolucion({ datos, inicio, fin }: { datos: ReportesTIEvolucion[]; inicio: string; fin: string }) {
   const serie = useMemo(() => completarSerie(datos, inicio, fin), [datos, inicio, fin])

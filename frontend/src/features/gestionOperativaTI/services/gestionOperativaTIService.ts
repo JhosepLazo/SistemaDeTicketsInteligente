@@ -7,6 +7,8 @@
  * Consideraciones: No envía identidad del operador; el backend la obtiene de la sesión autenticada.
  */
 
+import { rechazarSiSesionExpirada } from '../../autenticacion/services/sesionExpirada'
+
 export interface GestionOperativaCatalogoItem { codigo: string; descripcion: string }
 export interface GestionOperativaUsuario extends GestionOperativaCatalogoItem { area: string }
 export interface GestionOperativaAccion { accionCodigo: string; nombre: string; nivelRiesgo: string }
@@ -26,7 +28,7 @@ async function solicitar<T>(url: string, opciones?: RequestInit): Promise<T> {
   try { respuesta = await fetch(url, { credentials: 'include', ...opciones }) }
   catch { throw new Error('No fue posible comunicarse con el sistema. Intenta nuevamente en unos momentos.') }
 
-  if (respuesta.status === 401) throw new Error('Tu sesión ya no se encuentra disponible. Vuelve a iniciar sesión.')
+  rechazarSiSesionExpirada(respuesta)
   if (respuesta.status === 403) throw new Error('Tu perfil no tiene acceso a esta operación.')
   if (!respuesta.ok) {
     const datos = await respuesta.json().catch(() => null) as { mensaje?: string } | null

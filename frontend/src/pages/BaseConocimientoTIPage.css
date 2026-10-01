@@ -996,6 +996,11 @@
   cursor: wait;
 }
 
+.conocimiento-ti-modal__alerta {
+  margin: 12px 18px 0;
+  flex: 0 0 auto;
+}
+
 @media (max-width: 1280px) {
   .conocimiento-ti-grid { grid-template-columns: minmax(0, 1fr) 340px; }
   .conocimiento-ti-tarjetas { grid-template-columns: repeat(2, minmax(0, 1fr)); }

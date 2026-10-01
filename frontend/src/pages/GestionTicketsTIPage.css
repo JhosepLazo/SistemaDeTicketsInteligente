@@ -483,11 +483,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
   color: #7b8e95;
   font-size: 10px;
 }
 
-.gestion-ti-tabla__pie button {
+.gestion-ti-tabla__pie > button {
   border: 0;
   background: transparent;
   color: #087168;
@@ -1086,6 +1087,11 @@
   backdrop-filter: blur(10px);
 }
 
+.gestion-ti-modal__alerta {
+  margin: 12px 18px 0;
+  flex: 0 0 auto;
+}
+
 @media (max-width: 1250px) {
   .gestion-ti-grid { grid-template-columns: 1fr; }
   .gestion-ti-columna-derecha { position: static; grid-template-columns: 1fr 1fr; }
@@ -1101,6 +1107,58 @@
   .gestion-ti-hero__acciones { justify-content: flex-start; }
   .gestion-ti-detalle-completo__cuadricula { grid-template-columns: 1fr 1fr; }
   .gestion-ti-proceso { grid-template-columns: repeat(3, minmax(145px, 1fr)); }
+}
+
+.gestion-ti-paginacion {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-left: auto;
+}
+
+.gestion-ti-paginacion__grupo {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.gestion-ti-paginacion__grupo i {
+  color: #91a1a7;
+  font-style: normal;
+}
+
+.gestion-ti-paginacion button {
+  min-width: 31px;
+  height: 31px;
+  padding: 0 9px;
+  border: 1px solid #d7e3e6;
+  border-radius: 6px;
+  color: #405962;
+  background: #fff;
+  font-size: 9.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.gestion-ti-paginacion button:hover:not(:disabled) {
+  border-color: #5eb7b0;
+  color: #087168;
+}
+
+.gestion-ti-paginacion button.activo {
+  border-color: #08776e;
+  color: #fff;
+  background: #08776e;
+}
+
+.gestion-ti-paginacion button:disabled {
+  opacity: .42;
+  cursor: default;
+}
+
+.gestion-ti-quitar-filtros {
+  flex: 0 0 auto;
 }
 
 @media (max-width: 680px) {

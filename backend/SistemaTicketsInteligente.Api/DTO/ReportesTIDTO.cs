@@ -56,6 +56,32 @@ public sealed class ReportesTIArea
     public int Cantidad { get; set; }
 }
 
+public sealed class ReportesTIAvance
+{
+    public string IncidenciaNumero { get; set; } = string.Empty;
+    public string Titulo { get; set; } = string.Empty;
+    public string AreaDescripcion { get; set; } = string.Empty;
+    public string Estado { get; set; } = string.Empty;
+    public string EstadoDescripcion { get; set; } = string.Empty;
+    public string Responsable { get; set; } = string.Empty;
+    public decimal? PorcentajeAvance { get; set; }
+    public DateTime? FechaUltimoAvance { get; set; }
+    public int AvancesRegistrados { get; set; }
+    public decimal MinutosRegistrados { get; set; }
+}
+
+public sealed class ReportesTIUsuario
+{
+    public string Usuario { get; set; } = string.Empty;
+    public string Responsable { get; set; } = string.Empty;
+    public int TicketsAsignados { get; set; }
+    public int TicketsResueltos { get; set; }
+    public int TicketsEnCurso { get; set; }
+    public int AvancesRegistrados { get; set; }
+    public decimal MinutosRegistrados { get; set; }
+    public decimal? PorcentajePromedio { get; set; }
+}
+
 public sealed class ReportesTIPrioridadTiempo
 {
     public string Prioridad { get; set; } = string.Empty;
@@ -113,6 +139,8 @@ public sealed class ReportesTIRespuesta
     public List<ReportesTIEvolucion> Evolucion { get; set; } = [];
     public List<ReportesTIEstado> Estados { get; set; } = [];
     public List<ReportesTIArea> Areas { get; set; } = [];
+    public List<ReportesTIAvance> Avances { get; set; } = [];
+    public List<ReportesTIUsuario> AvancePorUsuario { get; set; } = [];
     public List<ReportesTIPrioridadTiempo> TiemposPorPrioridad { get; set; } = [];
     public List<ReportesTITicketDestacado> TicketsPrioridadAlta { get; set; } = [];
     public ReportesTICatalogos Catalogos { get; set; } = new();

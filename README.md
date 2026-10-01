@@ -69,6 +69,32 @@ dotnet run --project backend/SistemaTicketsInteligente.Api
 
 Las variables de entorno tienen prioridad sobre los archivos. Las credenciales reales no deben reemplazar los marcadores dentro de un archivo versionado.
 
+## Asistentes IA
+
+El asistente de colaboradores funciona en dos modos sin cambiar la interfaz:
+
+- `CONOCIMIENTO`: modo local sin costo. Busca únicamente en artículos publicados por TI y permite consultar los tickets propios del usuario.
+- `IA`: usa la Responses API de OpenAI para redactar una orientación más natural sobre el mismo contexto autorizado.
+
+Cuando el conocimiento publicado no resuelve el caso, el asistente puede preparar un borrador de ticket con el título y la descripción de la conversación. El colaborador siempre revisa la clasificación, completa la evidencia y realiza el envío final desde `Nuevo Ticket`.
+
+La conversación no se persiste. El backend no envía adjuntos, contraseñas, tickets de otros usuarios ni la base completa al proveedor. La clave se configura únicamente en el servidor:
+
+```powershell
+$env:OPENAI_API_KEY = "TU_CLAVE"
+$env:AsistenteIA__Modelo = "gpt-5-mini"
+```
+
+Después de definir la variable, se debe reiniciar la API. Si la clave no existe o el proveedor no está disponible, el sistema vuelve automáticamente al modo de conocimiento local. Nunca se debe colocar la clave en React ni en un archivo versionado.
+
+El asistente operativo para TI está disponible para los perfiles `TEC`, `SUP` y `ADM`. Consulta los catálogos vigentes de áreas, líneas, ítems, tipos, categorías, SLA, formatos, conocimiento y usuarios. También puede preparar la creación o actualización de un usuario corporativo a partir de una instrucción como:
+
+```text
+Crea el usuario JPEREZ en el area 021 con perfil USR y correo jperez@empresa.com
+```
+
+La operación valida los catálogos, muestra una propuesta y exige confirmación manual mediante un token firmado que vence en 10 minutos. No crea identidades ni contraseñas: el usuario debe existir previamente en Spring y la API reutiliza el flujo corporativo de sincronización. En `Local` la ejecución permanece bloqueada porque `IdentidadCorporativa:Habilitada` es `false`; en `Empresa` se habilita mediante la conexión corporativa ya configurada.
+
 ## Backend
 
 ```powershell

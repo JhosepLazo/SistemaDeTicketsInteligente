@@ -7,6 +7,11 @@
  * Consideraciones: La identidad del operador no se envía desde el navegador; el backend la obtiene de la sesión autenticada.
  */
 
+import { rechazarSiSesionExpirada } from '../../autenticacion/services/sesionExpirada'
+import { peticionHttp } from '../../../shared/services/peticionHttp'
+
+const mensajeConexion = 'No fue posible comunicarse con el sistema. Intenta nuevamente.'
+
 export interface BaseConocimientoTIResumen {
   total: number
   activos: number
@@ -114,7 +119,7 @@ interface BaseConocimientoTICreadoRespuesta {
 }
 
 async function procesarRespuesta(respuesta: Response, mensajePredeterminado: string) {
-  if (respuesta.status === 401) throw new Error('Tu sesión ya no se encuentra disponible. Vuelve a iniciar sesión.')
+  rechazarSiSesionExpirada(respuesta)
   if (respuesta.status === 403) throw new Error('Tu perfil no tiene acceso a la Base de Conocimiento TI.')
   if (respuesta.ok) return
 
@@ -128,38 +133,36 @@ async function procesarRespuesta(respuesta: Response, mensajePredeterminado: str
 }
 
 export async function obtenerBaseConocimientoTI(): Promise<BaseConocimientoTIRespuesta> {
-  let respuesta: Response
-  try { respuesta = await fetch('/api/base-conocimiento', { credentials: 'include' }) }
-  catch { throw new Error('No fue posible comunicarse con el sistema. Intenta nuevamente.') }
+  const respuesta = await peticionHttp('/api/base-conocimiento', { credentials: 'include' }, mensajeConexion)
 
   await procesarRespuesta(respuesta, 'No fue posible cargar la Base de Conocimiento.')
   return respuesta.json() as Promise<BaseConocimientoTIRespuesta>
 }
 
 export async function obtenerDetalleBaseConocimientoTI(codigo: string): Promise<BaseConocimientoTIDetalle> {
-  const respuesta = await fetch(`/api/base-conocimiento/${encodeURIComponent(codigo)}`, { credentials: 'include' })
+  const respuesta = await peticionHttp(`/api/base-conocimiento/${encodeURIComponent(codigo)}`, { credentials: 'include' }, mensajeConexion)
   await procesarRespuesta(respuesta, 'No fue posible cargar el artículo seleccionado.')
   return respuesta.json() as Promise<BaseConocimientoTIDetalle>
 }
 
 export async function crearBaseConocimientoTI(solicitud: GuardarBaseConocimientoTISolicitud): Promise<string> {
-  const respuesta = await fetch('/api/base-conocimiento', {
+  const respuesta = await peticionHttp('/api/base-conocimiento', {
     method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(solicitud),
-  })
+  }, mensajeConexion)
   await procesarRespuesta(respuesta, 'No fue posible crear el artículo.')
   const creado = await respuesta.json() as BaseConocimientoTICreadoRespuesta
   return creado.conocimientoCodigo
 }
 
 export async function actualizarBaseConocimientoTI(codigo: string, solicitud: GuardarBaseConocimientoTISolicitud): Promise<void> {
-  const respuesta = await fetch(`/api/base-conocimiento/${encodeURIComponent(codigo)}`, {
+  const respuesta = await peticionHttp(`/api/base-conocimiento/${encodeURIComponent(codigo)}`, {
     method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(solicitud),
-  })
+  }, mensajeConexion)
   await procesarRespuesta(respuesta, 'No fue posible actualizar el artículo.')
 }
 
 async function cambiarEstado(codigo: string, accion: 'enviar-validacion' | 'validar' | 'inactivar', mensaje: string) {
-  const respuesta = await fetch(`/api/base-conocimiento/${encodeURIComponent(codigo)}/${accion}`, { method: 'POST', credentials: 'include' })
+  const respuesta = await peticionHttp(`/api/base-conocimiento/${encodeURIComponent(codigo)}/${accion}`, { method: 'POST', credentials: 'include' }, mensajeConexion)
   await procesarRespuesta(respuesta, mensaje)
 }
 

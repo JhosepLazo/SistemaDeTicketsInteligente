@@ -94,6 +94,40 @@ public sealed class ReportesTIDAO
             await lector.NextResultAsync(cancellationToken);
             while (await lector.ReadAsync(cancellationToken))
             {
+                respuesta.Avances.Add(new ReportesTIAvance
+                {
+                    IncidenciaNumero = LeerCadena(lector, "IncidenciaNumero"),
+                    Titulo = LeerCadena(lector, "Titulo"),
+                    AreaDescripcion = LeerCadena(lector, "AreaDescripcion"),
+                    Estado = LeerCadena(lector, "Estado"),
+                    EstadoDescripcion = LeerCadena(lector, "EstadoDescripcion"),
+                    Responsable = LeerCadena(lector, "Responsable"),
+                    PorcentajeAvance = LeerDecimalNullable(lector, "PorcentajeAvance"),
+                    FechaUltimoAvance = LeerFechaNullable(lector, "FechaUltimoAvance"),
+                    AvancesRegistrados = LeerEntero(lector, "AvancesRegistrados"),
+                    MinutosRegistrados = LeerDecimalNullable(lector, "MinutosRegistrados") ?? 0
+                });
+            }
+
+            await lector.NextResultAsync(cancellationToken);
+            while (await lector.ReadAsync(cancellationToken))
+            {
+                respuesta.AvancePorUsuario.Add(new ReportesTIUsuario
+                {
+                    Usuario = LeerCadena(lector, "Usuario"),
+                    Responsable = LeerCadena(lector, "Responsable"),
+                    TicketsAsignados = LeerEntero(lector, "TicketsAsignados"),
+                    TicketsResueltos = LeerEntero(lector, "TicketsResueltos"),
+                    TicketsEnCurso = LeerEntero(lector, "TicketsEnCurso"),
+                    AvancesRegistrados = LeerEntero(lector, "AvancesRegistrados"),
+                    MinutosRegistrados = LeerDecimalNullable(lector, "MinutosRegistrados") ?? 0,
+                    PorcentajePromedio = LeerDecimalNullable(lector, "PorcentajePromedio")
+                });
+            }
+
+            await lector.NextResultAsync(cancellationToken);
+            while (await lector.ReadAsync(cancellationToken))
+            {
                 respuesta.TiemposPorPrioridad.Add(new ReportesTIPrioridadTiempo
                 {
                     Prioridad = LeerCadena(lector, "Prioridad"),

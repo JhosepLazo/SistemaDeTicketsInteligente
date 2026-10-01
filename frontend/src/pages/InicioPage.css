@@ -1149,7 +1149,7 @@
   }
 
   .inicio-sidebar {
-    position: static;
+    position: relative;
     width: 100%;
     height: 64px;
     padding: 8px 12px;

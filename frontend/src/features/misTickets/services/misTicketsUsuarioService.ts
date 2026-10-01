@@ -7,6 +7,11 @@
  * Consideraciones: No envía la identidad del usuario; el backend la obtiene desde la sesión autenticada y valida nuevamente la propiedad del ticket.
  */
 
+import { rechazarSiSesionExpirada } from '../../autenticacion/services/sesionExpirada'
+import { peticionHttp } from '../../../shared/services/peticionHttp'
+
+const mensajeConexion = 'No fue posible comunicarse con el sistema. Intenta nuevamente en unos momentos.'
+
 export interface MisTicketsResumen {
   activos: number
   enAtencion: number
@@ -107,7 +112,7 @@ export interface MisTicketDetalle {
 }
 
 async function procesarRespuesta(respuesta: Response, mensajePredeterminado: string) {
-  if (respuesta.status === 401) throw new Error('Tu sesión ya no se encuentra disponible. Vuelve a iniciar sesión.')
+  rechazarSiSesionExpirada(respuesta)
   if (respuesta.ok) return
 
   let mensaje = mensajePredeterminado
@@ -122,19 +127,14 @@ async function procesarRespuesta(respuesta: Response, mensajePredeterminado: str
 }
 
 export async function obtenerMisTickets(): Promise<MisTicketsRespuesta> {
-  let respuesta: Response
-  try {
-    respuesta = await fetch('/api/mis-tickets', { credentials: 'include' })
-  } catch {
-    throw new Error('No fue posible comunicarse con el sistema. Intenta nuevamente en unos momentos.')
-  }
+  const respuesta = await peticionHttp('/api/mis-tickets', { credentials: 'include' }, mensajeConexion)
 
   await procesarRespuesta(respuesta, 'No fue posible cargar tus tickets.')
   return respuesta.json() as Promise<MisTicketsRespuesta>
 }
 
 export async function obtenerDetalleMisTicket(incidenciaNumero: string): Promise<MisTicketDetalle> {
-  const respuesta = await fetch(`/api/mis-tickets/${encodeURIComponent(incidenciaNumero)}`, { credentials: 'include' })
+  const respuesta = await peticionHttp(`/api/mis-tickets/${encodeURIComponent(incidenciaNumero)}`, { credentials: 'include' }, mensajeConexion)
   await procesarRespuesta(respuesta, 'No fue posible cargar el detalle del ticket.')
   return respuesta.json() as Promise<MisTicketDetalle>
 }
@@ -144,31 +144,31 @@ export async function responderObservacion(incidenciaNumero: string, contenido: 
   datos.append('contenido', contenido)
   adjuntos.forEach(archivo => datos.append('adjuntos', archivo))
 
-  const respuesta = await fetch(`/api/mis-tickets/${encodeURIComponent(incidenciaNumero)}/responder-observacion`, {
+  const respuesta = await peticionHttp(`/api/mis-tickets/${encodeURIComponent(incidenciaNumero)}/responder-observacion`, {
     method: 'POST',
     credentials: 'include',
     body: datos,
-  })
+  }, mensajeConexion)
   await procesarRespuesta(respuesta, 'No fue posible enviar la información solicitada.')
 }
 
 export async function validarSolucion(incidenciaNumero: string, solucionada: boolean, comentario: string): Promise<void> {
-  const respuesta = await fetch(`/api/mis-tickets/${encodeURIComponent(incidenciaNumero)}/validar-solucion`, {
+  const respuesta = await peticionHttp(`/api/mis-tickets/${encodeURIComponent(incidenciaNumero)}/validar-solucion`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ solucionada, comentario }),
-  })
+  }, mensajeConexion)
   await procesarRespuesta(respuesta, 'No fue posible registrar la validación de la solución.')
 }
 
 export async function calificarTicket(incidenciaNumero: string, calificacion: number, comentario: string): Promise<void> {
-  const respuesta = await fetch(`/api/mis-tickets/${encodeURIComponent(incidenciaNumero)}/calificar`, {
+  const respuesta = await peticionHttp(`/api/mis-tickets/${encodeURIComponent(incidenciaNumero)}/calificar`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ calificacion, comentario }),
-  })
+  }, mensajeConexion)
   await procesarRespuesta(respuesta, 'No fue posible registrar la calificación.')
 }
 

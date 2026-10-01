@@ -89,7 +89,14 @@ public sealed class MisTicketsUsuarioBLL
         }
         catch
         {
-            if (Directory.Exists(carpetaAdjuntos)) Directory.Delete(carpetaAdjuntos, true);
+            try
+            {
+                if (Directory.Exists(carpetaAdjuntos)) Directory.Delete(carpetaAdjuntos, true);
+            }
+            catch
+            {
+                // La limpieza no debe ocultar el error que impidió registrar la respuesta.
+            }
             throw;
         }
     }

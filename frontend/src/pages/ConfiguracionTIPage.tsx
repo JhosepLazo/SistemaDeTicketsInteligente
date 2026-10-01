@@ -111,7 +111,7 @@ export default function ConfiguracionTIPage() {
 
   useEffect(() => { void cargar() }, [])
 
-  async function ejecutar(accion: () => Promise<unknown>, exito: string) {
+  async function ejecutar(accion: () => Promise<unknown>, exito: string): Promise<boolean> {
     setProcesando(true)
     setError('')
     setMensaje('')
@@ -119,8 +119,10 @@ export default function ConfiguracionTIPage() {
       await accion()
       setMensaje(exito)
       await cargar()
+      return true
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No fue posible completar la operación.')
+      return false
     } finally {
       setProcesando(false)
     }
@@ -156,6 +158,11 @@ export default function ConfiguracionTIPage() {
     return guardarSubTipoTI({ subTipo: formulario.codigo, tipo: formulario.relacion, categoria: formulario.relacion2, abreviatura: formulario.abreviatura, ...base })
   }
 
+  async function guardarCatalogoYLimpiar() {
+    const guardado = await ejecutar(guardarCatalogo, 'El catálogo fue actualizado.')
+    if (guardado) setFormulario(formularioCatalogoVacio)
+  }
+
   if (!usuario) return null
   const nombre = primerNombre(usuario.nombreCompleto)
 
@@ -164,7 +171,7 @@ export default function ConfiguracionTIPage() {
       <div className="inicio-marca"><span className="inicio-marca__nombre">CALIMOD</span><span className="inicio-marca__sistema">Sistema inteligente<br />de incidencias TI</span></div>
       <nav className="inicio-menu">
         <button className="inicio-menu__item" type="button" onClick={() => navigate('/inicio')}><Icono nombre="inicio"/><span>Inicio</span></button>
-        <button className="inicio-menu__item" type="button" disabled title="Se implementará en el módulo Asistente TI"><Icono nombre="asistente"/><span>Asistente TI</span></button>
+        <button className="inicio-menu__item" type="button" onClick={() => navigate('/asistente-ti')}><Icono nombre="asistente"/><span>Asistente TI</span></button>
         <button className="inicio-menu__item" type="button" onClick={() => navigate('/gestion-tickets')}><Icono nombre="gestion"/><span>Gestión de Tickets</span></button>
         <button className="inicio-menu__item" type="button" onClick={() => navigate('/base-conocimiento')}><Icono nombre="conocimiento"/><span>Base de Conocimiento</span></button>
         <button className="inicio-menu__item" type="button" onClick={() => navigate('/reportes')}><Icono nombre="reporte"/><span>Reportes</span></button>
@@ -207,7 +214,7 @@ export default function ConfiguracionTIPage() {
 
             <article className="config-ti-panel config-ti-panel--formulario">
               <CabeceraPanel icono="configuracion" titulo={`${formulario.codigo ? 'Editar' : 'Registrar'} ${nombreCatalogo(catalogo)}`} subtitulo="Completa únicamente los datos necesarios para mantener este maestro."/>
-              <div className="config-ti-panel__cuerpo"><form className="config-ti-form" onSubmit={e => { e.preventDefault(); void ejecutar(guardarCatalogo, 'El catálogo fue actualizado.').then(() => setFormulario(formularioCatalogoVacio)) }}>
+              <div className="config-ti-panel__cuerpo"><form className="config-ti-form" onSubmit={e => { e.preventDefault(); void guardarCatalogoYLimpiar() }}>
                 <label>Código<input required value={formulario.codigo} disabled={Boolean(formulario.codigo && filasCatalogo.some(x => x.codigo === formulario.codigo))} onChange={e => setFormulario(v => ({ ...v, codigo: e.target.value.toUpperCase() }))}/></label>
                 <label>Descripción<input required value={formulario.descripcion} onChange={e => setFormulario(v => ({ ...v, descripcion: e.target.value }))}/></label>
                 {catalogo === 'AREA' && <label>Teléfono<input value={formulario.telefono} onChange={e => setFormulario(v => ({ ...v, telefono: e.target.value }))}/></label>}

@@ -7,6 +7,8 @@
  * Consideraciones: El usuario y área nunca se envían como datos confiables; el backend los obtiene desde la sesión autenticada.
  */
 
+import { rechazarSiSesionExpirada } from '../../autenticacion/services/sesionExpirada'
+
 export interface NuevoTicketCatalogoItem {
   codigo: string
   descripcion: string
@@ -53,7 +55,7 @@ export async function obtenerDatosNuevoTicket(): Promise<NuevoTicketDatos> {
     throw new Error('No fue posible comunicarse con el sistema. Intenta nuevamente en unos momentos.')
   }
 
-  if (respuesta.status === 401) throw new Error('Tu sesión ya no se encuentra disponible. Vuelve a iniciar sesión.')
+  rechazarSiSesionExpirada(respuesta)
   if (respuesta.status === 403) throw new Error('Tu perfil no tiene acceso al registro de tickets de usuario.')
   if (!respuesta.ok) throw new Error(await obtenerMensajeError(respuesta, 'No fue posible cargar los datos del formulario.'))
 
@@ -77,7 +79,7 @@ export async function crearNuevoTicket(formulario: NuevoTicketFormulario): Promi
     throw new Error('No fue posible enviar el ticket. Verifica tu conexión e intenta nuevamente.')
   }
 
-  if (respuesta.status === 401) throw new Error('Tu sesión ya no se encuentra disponible. Vuelve a iniciar sesión.')
+  rechazarSiSesionExpirada(respuesta)
   if (respuesta.status === 403) throw new Error('Tu perfil no tiene permiso para registrar este ticket.')
   if (!respuesta.ok) throw new Error(await obtenerMensajeError(respuesta, 'No fue posible registrar el ticket.'))
 

@@ -49,6 +49,8 @@ Begin
 		i.IncidenciaNumero,
 		UsuarioSolicitante = us.NombreCompleto,
 		i.Titulo,
+		i.Tipo,
+		TipoDescripcion = t.Descripcion,
 		i.Estado,
 		EstadoDescripcion = e.Descripcion,
 		i.Prioridad,
@@ -67,6 +69,7 @@ Begin
 		Accion = Case When i.UsuarioTI Is Null Then 'ASIGNAR' When i.Estado = 'RA' Then 'CONTINUAR' Else 'REVISAR' End
 	From dbo.TI_Incidencia as i
 	Inner Join dbo.TI_Estado as e on e.Estado = i.Estado
+	Inner Join dbo.TI_Tipo as t on t.Tipo = i.Tipo
 	Inner Join dbo.TI_Usuario as us on us.Usuario = i.UsuarioSolicitante
 	Left Join dbo.TI_Usuario as ut on ut.Usuario = i.UsuarioTI
 	Where (i.AreaTI = @cArea or i.AreaTI Is Null or i.CanalRegistro = 'LEGADO')
@@ -105,6 +108,8 @@ Begin
 		i.IncidenciaNumero,
 		UsuarioSolicitante = us.NombreCompleto,
 		i.Titulo,
+		i.Tipo,
+		TipoDescripcion = t.Descripcion,
 		i.Prioridad,
 		i.AreaTI,
 		GrupoSoporte = Case i.AreaTI When '002' Then 'SOFTWARE' When '003' Then 'HARDWARE' Else 'OTRO' End,
@@ -115,6 +120,7 @@ Begin
 		i.UltimaFechaModif
 	From dbo.TI_Incidencia as i
 	Inner Join dbo.TI_Estado as e on e.Estado = i.Estado
+	Inner Join dbo.TI_Tipo as t on t.Tipo = i.Tipo
 	Inner Join dbo.TI_Usuario as us on us.Usuario = i.UsuarioSolicitante
 	Left Join dbo.TI_Usuario as ut on ut.Usuario = i.UsuarioTI
 	Where (i.AreaTI = @cArea or i.AreaTI Is Null or i.CanalRegistro = 'LEGADO') and i.Estado Not In ('RS', 'CA', 'CF', 'NP')

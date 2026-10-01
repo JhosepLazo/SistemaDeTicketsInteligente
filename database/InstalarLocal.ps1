@@ -84,7 +84,8 @@ $scriptsAplicacion = @(
     '21_CorreccionesCompatibilidadSinIA.sql',
     '22_CierreMejorasFuncionalesSinIA.sql',
     '08_Validacion.sql',
-    '23_SincronizarDatosLegado.sql'
+    '23_SincronizarDatosLegado.sql',
+    '24_OptimizacionRendimiento.sql'
 )
 
 foreach ($nombre in $scriptsAplicacion) {

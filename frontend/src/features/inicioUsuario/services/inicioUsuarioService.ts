@@ -7,6 +7,8 @@
  * Consideraciones: No almacena datos de sesión ni permite enviar un usuario arbitrario; la identidad se obtiene en el backend desde la cookie autenticada.
  */
 
+import { rechazarSiSesionExpirada } from '../../autenticacion/services/sesionExpirada'
+
 export interface InicioUsuarioResumen {
   ticketsActivos: number
   enAtencion: number
@@ -58,7 +60,7 @@ export async function obtenerInicioUsuario(): Promise<InicioUsuarioRespuesta> {
     throw new Error('No fue posible comunicarse con el sistema. Intenta nuevamente en unos momentos.')
   }
 
-  if (respuesta.status === 401) throw new Error('Tu sesión ya no se encuentra disponible. Vuelve a iniciar sesión.')
+  rechazarSiSesionExpirada(respuesta)
   if (!respuesta.ok) throw new Error('No fue posible cargar la información de inicio.')
 
   return respuesta.json() as Promise<InicioUsuarioRespuesta>

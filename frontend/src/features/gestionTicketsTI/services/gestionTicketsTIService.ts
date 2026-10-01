@@ -7,6 +7,8 @@
  * Consideraciones: No envía usuario, área ni perfil; la identidad y autorización se resuelven en el backend desde la sesión autenticada.
  */
 
+import { rechazarSiSesionExpirada } from '../../autenticacion/services/sesionExpirada'
+
 export interface GestionTicketsTIResumen {
   pendientes: number
   enAtencion: number
@@ -224,7 +226,7 @@ async function solicitar<T>(url: string, opciones?: RequestInit): Promise<T> {
     throw new Error('No fue posible comunicarse con el sistema. Intenta nuevamente en unos momentos.')
   }
 
-  if (respuesta.status === 401) throw new Error('Tu sesión ya no se encuentra disponible. Vuelve a iniciar sesión.')
+  rechazarSiSesionExpirada(respuesta)
   if (respuesta.status === 403) throw new Error('Tu perfil no tiene acceso a Gestión de Tickets.')
 
   if (!respuesta.ok) {

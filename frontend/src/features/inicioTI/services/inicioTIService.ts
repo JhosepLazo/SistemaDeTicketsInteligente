@@ -7,6 +7,8 @@
  * Consideraciones: No envía usuario, área ni perfil; la identidad y autorización se resuelven en el backend desde la sesión autenticada.
  */
 
+import { rechazarSiSesionExpirada } from '../../autenticacion/services/sesionExpirada'
+
 export interface InicioTIResumen {
   pendientes: number
   pendientesDesdeAyer: number
@@ -23,6 +25,8 @@ export interface InicioTITicketPrioritario {
   incidenciaNumero: string
   usuarioSolicitante: string
   titulo: string
+  tipo: string
+  tipoDescripcion: string
   estado: string
   estadoDescripcion: string
   prioridad: number | null
@@ -44,6 +48,8 @@ export interface InicioTITicketActivo {
   incidenciaNumero: string
   usuarioSolicitante: string
   titulo: string
+  tipo: string
+  tipoDescripcion: string
   prioridad: number | null
   areaTI: string
   grupoSoporte: 'SOFTWARE' | 'HARDWARE' | 'OTRO'
@@ -80,7 +86,7 @@ export async function obtenerInicioTI(): Promise<InicioTIRespuesta> {
     throw new Error('No fue posible comunicarse con el sistema. Intenta nuevamente en unos momentos.')
   }
 
-  if (respuesta.status === 401) throw new Error('Tu sesión ya no se encuentra disponible. Vuelve a iniciar sesión.')
+  rechazarSiSesionExpirada(respuesta)
   if (respuesta.status === 403) throw new Error('Tu perfil no tiene acceso al inicio operativo de TI.')
   if (!respuesta.ok) throw new Error('No fue posible cargar la información operativa de TI.')
 

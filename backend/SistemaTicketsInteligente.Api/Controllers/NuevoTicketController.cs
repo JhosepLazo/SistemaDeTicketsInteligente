@@ -33,7 +33,12 @@ public sealed class NuevoTicketController : ControllerBase
         var usuario = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrWhiteSpace(usuario)) return Unauthorized();
 
-        return Ok(await nuevoTicketBLL.ObtenerDatosAsync(usuario, cancellationToken));
+        try
+        {
+            return Ok(await nuevoTicketBLL.ObtenerDatosAsync(usuario, cancellationToken));
+        }
+        catch (ArgumentException ex) { return BadRequest(new { mensaje = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { mensaje = ex.Message }); }
     }
 
     [HttpPost]
@@ -51,6 +56,10 @@ public sealed class NuevoTicketController : ControllerBase
         catch (ArgumentException ex)
         {
             return BadRequest(new { mensaje = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { mensaje = ex.Message });
         }
     }
 }

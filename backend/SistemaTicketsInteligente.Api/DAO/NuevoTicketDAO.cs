@@ -87,7 +87,7 @@ public sealed class NuevoTicketDAO
             await transaccion.CommitAsync(cancellationToken);
             return creado;
         }
-        catch
+        catch (Exception ex)
         {
             try
             {
@@ -97,6 +97,9 @@ public sealed class NuevoTicketDAO
             {
                 // El procedimiento puede haber revertido toda la transacción; se conserva la excepción que originó el fallo.
             }
+
+            if (ex is SqlException sqlException && sqlException.Number is >= 50000 and <= 50099)
+                throw new InvalidOperationException(sqlException.Message, sqlException);
 
             throw;
         }

@@ -57,6 +57,38 @@
   cursor: pointer;
 }
 
+.reportes-ti-vistas {
+  display: flex;
+  gap: 4px;
+  margin: 14px 0;
+  padding: 4px;
+  overflow-x: auto;
+  border: 1px solid var(--reportes-borde);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 4px 14px rgba(12, 47, 61, .05);
+}
+.reportes-ti-vistas button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 0 auto;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 6px;
+  color: #526d7a;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.reportes-ti-vistas button:hover { color: #086f6b; background: #f1f9f8; }
+.reportes-ti-vistas button.activo { color: #fff; background: #087d77; }
+.reportes-ti-vistas button:focus-visible { outline: 3px solid rgba(42, 176, 169, .24); outline-offset: 1px; }
+
 .reportes-ti-metricas {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -276,6 +308,56 @@
   margin-top: 12px;
   align-items: stretch;
 }
+
+.reportes-ti-vista-panel { min-height: 330px; }
+.reportes-ti-vista-panel .reportes-ti-tabla-wrap { padding: 3px 14px 15px; }
+.reportes-ti-vista-panel table { font-size: 10.5px; }
+.reportes-ti-vista-panel td { height: 50px; }
+.reportes-ti-fecha-avance { display: block; margin-top: 3px; color: #728894; font-size: 9px; white-space: nowrap; }
+
+.reportes-ti-areas-detalle {
+  display: grid;
+  grid-template-columns: minmax(280px, .8fr) minmax(440px, 1.2fr);
+  gap: 12px;
+}
+.reportes-ti-areas-detalle > article { min-height: 330px; }
+.reportes-ti-areas-detalle .reportes-ti-barras { padding-top: 15px; }
+
+.reportes-ti-progreso {
+  display: grid;
+  grid-template-columns: minmax(76px, 120px) 42px;
+  align-items: center;
+  gap: 7px;
+  min-width: 125px;
+}
+.reportes-ti-progreso > div { height: 7px; overflow: hidden; border-radius: 4px; background: #e9f1f3; }
+.reportes-ti-progreso i { display: block; height: 100%; border-radius: inherit; background: #15977f; }
+.reportes-ti-progreso strong { color: #34515f; font-size: 9.5px; white-space: nowrap; }
+
+.reportes-ti-paginacion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px 14px;
+  border-top: 1px solid #edf2f4;
+  color: #68808c;
+  font-size: 10px;
+}
+.reportes-ti-paginacion > div { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
+.reportes-ti-paginacion button {
+  width: 30px;
+  height: 30px;
+  border: 1px solid #d8e5e9;
+  border-radius: 6px;
+  color: #405d6a;
+  background: #fff;
+  font-size: 10px;
+  font-weight: 750;
+  cursor: pointer;
+}
+.reportes-ti-paginacion button:hover { border-color: #79bbb7; color: #08756f; }
+.reportes-ti-paginacion button.activo { border-color: #087d77; color: #fff; background: #087d77; }
 .reportes-ti-tiempos,
 .reportes-ti-prioritarios,
 .reportes-ti-accesos { min-height: 280px; }
@@ -347,6 +429,7 @@
   .reportes-ti-grid-inferior { grid-template-columns: 1fr; }
   .reportes-ti-accesos { display: grid; grid-template-columns: repeat(3, 1fr); min-height: auto; }
   .reportes-ti-accesos .reportes-ti-panel__cabecera { grid-column: 1 / -1; }
+  .reportes-ti-areas-detalle { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 860px) {
@@ -365,4 +448,6 @@
   .reportes-ti-resumen-lista { grid-template-columns: 1fr; }
   .reportes-ti-donut-wrap { grid-template-columns: 1fr; justify-items: center; }
   .reportes-ti-leyenda { width: 100%; }
+  .reportes-ti-paginacion { align-items: flex-start; flex-direction: column; }
+  .reportes-ti-paginacion > div { justify-content: flex-start; }
 }

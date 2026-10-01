@@ -925,6 +925,11 @@
   background: #fbfdfe;
 }
 
+.mis-tickets-modal__alerta {
+  margin: 12px 18px 0;
+  flex: 0 0 auto;
+}
+
 @media (max-width: 1320px) {
   .mis-tickets-grid { grid-template-columns: minmax(0, 1.45fr) minmax(320px, .9fr); }
   .mis-tickets-herramientas { grid-template-columns: 1fr auto; }

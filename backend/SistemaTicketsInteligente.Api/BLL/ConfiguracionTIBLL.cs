@@ -155,7 +155,14 @@ public sealed class ConfiguracionTIBLL
         }
         catch
         {
-            if (File.Exists(rutaFisica)) File.Delete(rutaFisica);
+            try
+            {
+                if (File.Exists(rutaFisica)) File.Delete(rutaFisica);
+            }
+            catch
+            {
+                // La limpieza no debe ocultar el error que impidió guardar el formato.
+            }
             throw;
         }
     }
