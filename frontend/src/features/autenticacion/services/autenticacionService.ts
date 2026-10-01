@@ -4,7 +4,7 @@
  * Responsabilidad: Iniciar, recuperar y cerrar la sesión mediante la cookie administrada por el navegador.
  * Dependencias: Fetch API y contratos TypeScript de autenticación.
  * Flujo: React -> autenticacionService -> API de autenticación.
- * Consideraciones: No almacena tokens, cookies, contraseñas ni detalles técnicos de errores.
+ * Consideraciones: No almacena tokens de sesión, cookies, contraseñas ni detalles técnicos de errores; el token CSRF se solicita solo para operaciones protegidas.
  */
 
 import type {
@@ -36,6 +36,23 @@ async function obtenerMensajeError(respuesta: Response, mensajePredeterminado: s
   } catch {
     return mensajePredeterminado
   }
+}
+
+async function obtenerTokenCsrf(): Promise<string | null> {
+  const respuesta = await realizarPeticion('token-csrf', {
+    method: 'GET',
+  }, 'No fue posible validar la seguridad de la sesión.')
+
+  if (respuesta.status === 401) return null
+
+  if (!respuesta.ok) {
+    throw new Error(await obtenerMensajeError(respuesta, 'No fue posible validar la seguridad de la sesión.'))
+  }
+
+  const datos = await respuesta.json() as { token?: string }
+  if (!datos.token) throw new Error('No fue posible validar la seguridad de la sesión.')
+
+  return datos.token
 }
 
 export async function iniciarSesion(
@@ -73,8 +90,12 @@ export async function obtenerSesion(): Promise<RespuestaInicioSesion | null> {
 }
 
 export async function cerrarSesion(): Promise<void> {
+  const tokenCsrf = await obtenerTokenCsrf()
+  if (!tokenCsrf) return
+
   const respuesta = await realizarPeticion('cerrar-sesion', {
     method: 'POST',
+    headers: { 'X-CSRF-TOKEN': tokenCsrf },
   }, 'No fue posible comunicarse con el sistema al cerrar la sesión.')
 
   if (respuesta.status === 401 || respuesta.ok) return
