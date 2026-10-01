@@ -2,7 +2,7 @@
  * Archivo: AutenticacionBLL.cs
  * Objetivo: Aplicar las reglas necesarias para iniciar y cerrar la sesión de un usuario.
  * Responsabilidad: Validar credenciales y estados, devolver identidad segura y auditar el cierre de sesión.
- * Dependencias: AutenticacionDAO, PasswordHasher y DTO de autenticación.
+ * Dependencias: AutenticacionDAO, PasswordHasher, ILogger y DTO de autenticación.
  * Flujo: AutenticacionController -> AutenticacionBLL -> AutenticacionDAO -> SQL Server.
  * Consideraciones: No conoce HTTP ni React; la contraseña nunca se registra, persiste ni se envía a SQL Server para comparación.
  */
@@ -25,11 +25,13 @@ public enum ResultadoInicioSesion
 public sealed class AutenticacionBLL
 {
     private readonly AutenticacionDAO autenticacionDAO;
+    private readonly ILogger<AutenticacionBLL> logger;
     private readonly PasswordHasher<UsuarioAutenticacion> passwordHasher = new();
 
-    public AutenticacionBLL(AutenticacionDAO autenticacionDAO)
+    public AutenticacionBLL(AutenticacionDAO autenticacionDAO, ILogger<AutenticacionBLL> logger)
     {
         this.autenticacionDAO = autenticacionDAO;
+        this.logger = logger;
     }
 
     public async Task<(ResultadoInicioSesion Resultado, RespuestaInicioSesion? Respuesta)> IniciarSesionAsync(
@@ -56,6 +58,11 @@ public sealed class AutenticacionBLL
         }
         catch (FormatException ex)
         {
+            logger.LogError(
+                ex,
+                "Hash de contraseña inválido para usuario {Usuario}. Correlación {IdCorrelacion}",
+                usuario.Usuario,
+                idCorrelacion);
             throw new InvalidOperationException("El usuario posee un hash de contraseña con formato inválido.", ex);
         }
 

@@ -2,12 +2,13 @@
  * Archivo: AutenticacionController.cs
  * Objetivo: Exponer los endpoints HTTP necesarios para iniciar, consultar y cerrar la sesión del usuario.
  * Responsabilidad: Recibir solicitudes, delegar la autenticación a BLL y administrar la identidad web mediante cookie segura.
- * Dependencias: AutenticacionBLL, DTO de autenticación y autenticación de ASP.NET Core.
+ * Dependencias: AutenticacionBLL, antiforgery, DTO de autenticación y autenticación de ASP.NET Core.
  * Flujo: Frontend -> AutenticacionController -> AutenticacionBLL -> AutenticacionDAO -> SQL Server.
  * Consideraciones: No contiene SQL ni valida hashes; los códigos HTTP se determinan a partir del resultado entregado por BLL.
  */
 
 using System.Security.Claims;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -23,13 +24,16 @@ namespace SistemaTicketsInteligente.Api.Controllers;
 public sealed class AutenticacionController : ControllerBase
 {
     private readonly AutenticacionBLL autenticacionBLL;
+    private readonly IAntiforgery antiforgery;
 
-    public AutenticacionController(AutenticacionBLL autenticacionBLL)
+    public AutenticacionController(AutenticacionBLL autenticacionBLL, IAntiforgery antiforgery)
     {
         this.autenticacionBLL = autenticacionBLL;
+        this.antiforgery = antiforgery;
     }
 
     [AllowAnonymous]
+    [IgnoreAntiforgeryToken]
     [EnableRateLimiting("Login")]
     [HttpPost("iniciar-sesion")]
     public async Task<IActionResult> IniciarSesion(SolicitudInicioSesion solicitud, CancellationToken cancellationToken)
@@ -77,6 +81,14 @@ public sealed class AutenticacionController : ControllerBase
             Area = User.FindFirst("Area")?.Value ?? string.Empty,
             Perfil = User.FindFirst(ClaimTypes.Role)?.Value ?? string.Empty
         });
+    }
+
+    [Authorize]
+    [HttpGet("token-csrf")]
+    public IActionResult TokenCsrf()
+    {
+        var tokens = antiforgery.GetAndStoreTokens(HttpContext);
+        return Ok(new { token = tokens.RequestToken });
     }
 
     [Authorize]

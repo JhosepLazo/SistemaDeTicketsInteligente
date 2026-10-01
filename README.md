@@ -28,7 +28,12 @@ dotnet build SistemaTicketsInteligente.sln
 dotnet run --project backend/SistemaTicketsInteligente.Api
 ```
 
-Comprobación básica: `GET /api/salud`.
+Comprobaciones disponibles:
+
+- `GET /api/salud`: confirma que la API está ejecutándose.
+- `GET /api/salud/bd`: confirma que SQL Server está disponible para la API.
+
+La autenticación utiliza cookie HttpOnly, expiración deslizante, rate limiting y protección antiforgery para operaciones autenticadas que modifican estado.
 
 ## Frontend
 
@@ -39,3 +44,17 @@ npm run dev
 ```
 
 La aplicación consulta la sesión al abrirse, muestra el Login cuando no existe una cookie válida y protege temporalmente la ruta `/inicio`.
+
+En desarrollo, Vite redirige `/api` hacia `http://localhost:5000`, por lo que no es necesario configurar una URL absoluta en los servicios React.
+
+## Configuración por ambiente
+
+La configuración local actual utiliza `appsettings.json`. En producción, los secretos y datos sensibles deben suministrarse mediante configuración externa y no versionarse en Git.
+
+Ejemplo de variable de entorno para la conexión:
+
+```text
+ConnectionStrings__CnnGestionTi=<cadena de conexión de producción>
+```
+
+Los orígenes CORS también pueden sobreescribirse mediante configuración del ambiente. En producción la API fuerza cookie segura, HSTS y redirección HTTPS.
