@@ -11,6 +11,13 @@ Use [GestionSistemas]
 Go
 
 Set Xact_Abort On
+Set Ansi_Nulls On
+Set Ansi_Padding On
+Set Ansi_Warnings On
+Set ArithAbort On
+Set Concat_Null_Yields_Null On
+Set Quoted_Identifier On
+Set Numeric_RoundAbort Off
 Go
 
 If Object_Id('dbo.TI_AgenteSesion', 'U') Is Null
@@ -55,8 +62,21 @@ Begin
 		Constraint CK_TI_AgenteSesion_Confianza Check (Confianza Is Null or Confianza Between 0 and 100)
 	)
 
-	Create Index IX_TI_AgenteSesion_UsuarioEstadoFecha on dbo.TI_AgenteSesion (UsuarioTI, Estado, FechaInicio Desc)
-	Create Index IX_TI_AgenteSesion_IncidenciaFecha on dbo.TI_AgenteSesion (IncidenciaNumero, FechaInicio Desc) Where IncidenciaNumero Is Not Null
+End
+Go
+
+If Not Exists (Select 1 From sys.indexes Where object_id = Object_Id(N'dbo.TI_AgenteSesion') and name = N'IX_TI_AgenteSesion_UsuarioEstadoFecha')
+Begin
+	Create Nonclustered Index IX_TI_AgenteSesion_UsuarioEstadoFecha
+		on dbo.TI_AgenteSesion (UsuarioTI, Estado, FechaInicio Desc)
+End
+Go
+
+If Not Exists (Select 1 From sys.indexes Where object_id = Object_Id(N'dbo.TI_AgenteSesion') and name = N'IX_TI_AgenteSesion_IncidenciaFecha')
+Begin
+	Create Nonclustered Index IX_TI_AgenteSesion_IncidenciaFecha
+		on dbo.TI_AgenteSesion (IncidenciaNumero, FechaInicio Desc)
+		Where IncidenciaNumero Is Not Null
 End
 Go
 
