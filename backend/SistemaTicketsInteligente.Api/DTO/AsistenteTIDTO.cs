@@ -114,6 +114,10 @@ public sealed class AgenteTISesion
     public string UsuarioTI { get; set; } = string.Empty;
     public string NombreOperador { get; set; } = string.Empty;
     public bool EsPropietario { get; set; }
+    public string UsuarioInvitado { get; set; } = string.Empty;
+    public string NombreInvitado { get; set; } = string.Empty;
+    public string EstadoInvitacion { get; set; } = string.Empty;
+    public DateTime? InvitacionExpira { get; set; }
     [JsonIgnore] public string EvidenciasJson { get; set; } = string.Empty;
     [JsonIgnore] public string InformeMarkdown { get; set; } = string.Empty;
 }
@@ -241,6 +245,75 @@ public sealed class AgenteTIDiagnosticoRespuesta
     public bool InformeDisponible { get; set; }
     public string InformeMarkdown { get; set; } = string.Empty;
     public string Limitacion { get; set; } = string.Empty;
+    /// <summary>AGENTE (bucle con herramientas), IA (una sola llamada) o SIN_MODELO.</summary>
+    public string Modo { get; set; } = string.Empty;
+    public List<AgenteTIPasoInvestigacion> Pasos { get; set; } = [];
+    public List<AgenteTIHallazgo> Hallazgos { get; set; } = [];
+    /// <summary>Datos sensibles ocultados antes de enviar el contexto al proveedor de IA.</summary>
+    public int DatosOcultados { get; set; }
+}
+
+/// <summary>Herramienta diagnóstica de solo lectura del catálogo TI_AgenteHerramienta.</summary>
+public sealed class AgenteTIHerramienta
+{
+    public string HerramientaCodigo { get; set; } = string.Empty;
+    public string Nombre { get; set; } = string.Empty;
+    public string Descripcion { get; set; } = string.Empty;
+    public string Procedimiento { get; set; } = string.Empty;
+    public string ParametrosEsquemaJson { get; set; } = string.Empty;
+    public bool Automatica { get; set; }
+    public bool RequiereTicket { get; set; }
+    public int MaximoFilas { get; set; }
+}
+
+public sealed class AgenteTIHerramientaResultado
+{
+    public List<Dictionary<string, object?>> Filas { get; set; } = [];
+    public bool Truncado { get; set; }
+}
+
+/// <summary>Un paso de la investigación: qué herramienta se usó, con qué parámetros y qué devolvió.</summary>
+public sealed class AgenteTIPasoInvestigacion
+{
+    public int Orden { get; set; }
+    public string HerramientaCodigo { get; set; } = string.Empty;
+    public string Nombre { get; set; } = string.Empty;
+    /// <summary>AUTOMATICA (antes del modelo) o MODELO (el agente decidió usarla).</summary>
+    public string Origen { get; set; } = string.Empty;
+    public string ParametrosJson { get; set; } = "{}";
+    public int Filas { get; set; }
+    public bool Truncado { get; set; }
+    public long DuracionMs { get; set; }
+    public string Resumen { get; set; } = string.Empty;
+    public string Error { get; set; } = string.Empty;
+}
+
+/// <summary>Hallazgo del agente que cita una evidencia verificable (referencia comprobada por el servidor).</summary>
+public sealed class AgenteTIHallazgo
+{
+    public string Fuente { get; set; } = string.Empty;
+    public string Referencia { get; set; } = string.Empty;
+    public string Descripcion { get; set; } = string.Empty;
+}
+
+public sealed class AgenteTIEjecutorSimulacion
+{
+    public string IncidenciaNumero { get; set; } = string.Empty;
+    public string AccionCodigo { get; set; } = string.Empty;
+    public string ParametrosJson { get; set; } = "{}";
+    public string Procedimiento { get; set; } = string.Empty;
+    public int MaximoFilas { get; set; }
+}
+
+public sealed class AgenteTISimulacionRespuesta
+{
+    public long SesionNumero { get; set; }
+    public string AccionCodigo { get; set; } = string.Empty;
+    public bool Exito { get; set; }
+    public int? FilasAfectadas { get; set; }
+    public string ResultadoJson { get; set; } = string.Empty;
+    public string ParametrosJson { get; set; } = "{}";
+    public string Mensaje { get; set; } = string.Empty;
 }
 
 public sealed class AgenteTIInvestigacionTicket
@@ -273,6 +346,33 @@ public sealed class ReasignarInvestigacionTISolicitud
     public string NuevoUsuario { get; set; } = string.Empty;
 }
 
+public sealed record AgenteTIInvitacionRespuesta(string UsuarioInvitado, string NombreInvitado, DateTime InvitacionExpira);
+
+/// <summary>Invitación vista por el usuario final: solo datos de su propio ticket, nunca el diagnóstico interno.</summary>
+public sealed class ReproduccionInvitacion
+{
+    public long SesionNumero { get; set; }
+    public string IncidenciaNumero { get; set; } = string.Empty;
+    public string TituloTicket { get; set; } = string.Empty;
+    public string OperadorTI { get; set; } = string.Empty;
+    public string EstadoInvitacion { get; set; } = string.Empty;
+    public DateTime FechaInvitacion { get; set; }
+    public DateTime InvitacionExpira { get; set; }
+}
+
+public sealed class ResponderReproduccionSolicitud
+{
+    public bool Aceptar { get; set; }
+    public bool AceptaConsentimiento { get; set; }
+    public string? Motivo { get; set; }
+}
+
+public sealed class RegistrarEventoReproduccionSolicitud
+{
+    public string Tipo { get; set; } = string.Empty;
+    public string Contenido { get; set; } = string.Empty;
+}
+
 public sealed record AgenteTICodigoReferencia(string Archivo, int Linea, string Fragmento);
 public sealed record AgenteTIComprobacion(string Codigo, string Descripcion, string Resultado);
 public sealed class VincularIncidenciaTISolicitud
@@ -287,6 +387,10 @@ public sealed class AgenteTILiveTokenRespuesta
     public string Modelo { get; set; } = string.Empty;
     public string WebSocketUrl { get; set; } = string.Empty;
     public string InstruccionSistema { get; set; } = string.Empty;
+    /// <summary>La configuración (modelo, instrucción, herramientas) quedó fijada en el token; el navegador no puede cambiarla.</summary>
+    public bool Restringido { get; set; }
+    /// <summary>Declaraciones de funciones Live, solo para tokens no restringidos.</summary>
+    public object? Herramientas { get; set; }
     public DateTimeOffset? ExpiraEn { get; set; }
     public string Mensaje { get; set; } = string.Empty;
 }

@@ -16,6 +16,7 @@ import {
   type InicioUsuarioTicket,
 } from '../features/inicioUsuario/services/inicioUsuarioService'
 import NotificacionesCampana from '../components/NotificacionesCampana'
+import InvitacionesReproduccionAviso from '../components/InvitacionesReproduccionAviso'
 import './InicioPage.css'
 
 type NombreIcono = 'inicio' | 'asistente' | 'nuevo' | 'tickets' | 'buscar' | 'campana' | 'carpeta' | 'engranaje' | 'alerta' | 'check' | 'actividad' | 'salir' | 'flecha'
@@ -203,6 +204,8 @@ export default function InicioPage() {
             </div>
             <div className="inicio-hero__firma"><span>Personas</span><span>que avanzan</span><strong>CALIMOD</strong></div>
           </section>
+
+          <InvitacionesReproduccionAviso />
 
           {cargando && <section className="inicio-estado-carga" role="status"><span className="inicio-spinner" /> Cargando tu información...</section>}
 

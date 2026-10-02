@@ -1,6 +1,17 @@
 -- Migracion aditiva: no elimina ni recrea bases o datos empresariales.
 Use [GestionSistemas]
 Go
+
+-- Mismas opciones que 25_AsistenteIngenieriaAutonomo.sql: los SP deben compilarse con QUOTED_IDENTIFIER ON
+-- para poder modificar TI_AgenteSesion cuando existen índices filtrados (IX_TI_AgenteSesion_IncidenciaFecha).
+Set Ansi_Nulls On
+Set Ansi_Padding On
+Set Ansi_Warnings On
+Set ArithAbort On
+Set Concat_Null_Yields_Null On
+Set Quoted_Identifier On
+Set Numeric_RoundAbort Off
+Go
 If Col_Length('dbo.TI_AgenteEvento', 'OrigenServidor') Is Null
     Alter Table dbo.TI_AgenteEvento Add OrigenServidor bit Not Null Constraint DF_TI_AgenteEvento_Origen Default 0
 Go

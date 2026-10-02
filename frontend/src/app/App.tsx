@@ -22,6 +22,7 @@ const GestionTicketsTIPage = lazy(() => import('../pages/GestionTicketsTIPage'))
 const BaseConocimientoTIPage = lazy(() => import('../pages/BaseConocimientoTIPage'))
 const ReportesTIPage = lazy(() => import('../pages/ReportesTIPage'))
 const ConfiguracionTIPage = lazy(() => import('../pages/ConfiguracionTIPage'))
+const ReproduccionUsuarioPage = lazy(() => import('../pages/ReproduccionUsuarioPage'))
 
 class LimiteErrores extends Component<{ children: ReactNode }, { fallo: boolean }> {
   state = { fallo: false }
@@ -88,6 +89,8 @@ function RutasAplicacion() {
     <Route path="/asistente-ti" element={<RutaProtegida><RutaTI><AsistenteTIPage /></RutaTI></RutaProtegida>} />
     <Route path="/nuevo-ticket" element={<RutaProtegida><RutaUsuario><NuevoTicketPage /></RutaUsuario></RutaProtegida>} />
     <Route path="/mis-tickets" element={<RutaProtegida><RutaUsuario><MisTicketsUsuarioPage /></RutaUsuario></RutaProtegida>} />
+    {/* Cualquier perfil autenticado: los SP solo responden al usuario invitado por TI. */}
+    <Route path="/reproducir" element={<RutaProtegida><ReproduccionUsuarioPage /></RutaProtegida>} />
     <Route path="/gestion-tickets" element={<RutaProtegida><RutaTI><GestionTicketsTIPage /></RutaTI></RutaProtegida>} />
     <Route path="/base-conocimiento" element={<RutaProtegida><RutaTI><BaseConocimientoTIPage /></RutaTI></RutaProtegida>} />
     <Route path="/reportes" element={<RutaProtegida><RutaTI><ReportesTIPage /></RutaTI></RutaProtegida>} />

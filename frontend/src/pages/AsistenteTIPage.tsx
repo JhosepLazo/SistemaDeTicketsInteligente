@@ -15,12 +15,14 @@ import {
   analizarInvestigacionTI,
   buscarCodigoInvestigacionTI,
   cancelarInvestigacionTI,
+  cancelarInvitacionReproduccionTI,
   comprobarInvestigacionTI,
   crearConocimientoInvestigacionTI,
   crearInvestigacionTI,
   crearTokenLiveTI,
   finalizarObservacionTI,
   grabarInformacionTI,
+  invitarUsuarioReproduccionTI,
   listarInvestigacionesTI,
   obtenerCatalogosAgenteTI,
   obtenerDiagnosticoTI,
@@ -28,6 +30,7 @@ import {
   realizarCambioTI,
   reasignarInvestigacionTI,
   registrarEventoInvestigacionTI,
+  simularCambioTI,
   validarSolucionInvestigacionTI,
   vincularIncidenciaTI,
   type AgenteCodigoReferencia,
@@ -36,6 +39,7 @@ import {
   type AgenteTIContextoInvestigacion,
   type AgenteTIDiagnosticoRespuesta,
   type AgenteTISesion,
+  type AgenteTISimulacionRespuesta,
 } from '../features/asistente/services/asistenteTIService'
 import { GeminiLiveSesion } from '../features/asistente/services/geminiLiveTIService'
 import { registrarAvanceDetalladoTI } from '../features/gestionOperativaTI/services/gestionOperativaTIService'
@@ -77,10 +81,20 @@ const claveSesionActiva='calimod.agente.sesionActiva.v1'
 const estadosObservacion=['RECOPILANDO','OBSERVANDO','LISTO_INVESTIGAR']
 const estadosFinales=['INFORME_GRABADO','CAMBIO_VALIDADO','CANCELADO']
 const estadosDecision=['PENDIENTE_TI','PENDIENTE_APROBACION','SIN_EJECUTOR']
+const estadosSimulacion=['PENDIENTE_TI','PENDIENTE_APROBACION','LISTO_EJECUCION','ERROR_EJECUCION']
+const modoDiagnostico=(modo:string)=>modo==='AGENTE'?'Agente con herramientas':modo==='IA'?'Análisis de una llamada':'Sin modelo de IA'
+const etiquetaEventoLive=(tipo:string,fuente:string)=>{
+  const usuarioFinal=fuente==='LIVE_USUARIO'
+  if(tipo==='PASO_OBSERVADO')return usuarioFinal?'Paso observado (usuario final)':'Paso observado'
+  if(tipo==='TRANSCRIPCION_USUARIO')return usuarioFinal?'Usuario final':'Usuario'
+  return usuarioFinal?'Asistente del usuario':'Agente'
+}
 const estadosCancelables=[...estadosObservacion,...estadosDecision]
 const estadosReasignables=[...estadosCancelables,'ERROR_EJECUCION']
 const estadosTicketCerrados=['PV','RS','CA','NP','CF','PA']
 type Resolucion={causaRaiz:string;solucion:string;respuestaUsuario:string;tipoResolucion:string;registrarAvance:boolean;minutos:number;areaCausante:string}
+const fuentesUsuarioFinal=['LIVE_USUARIO','USUARIO_FINAL']
+const esTranscripcion=(tipo:string)=>tipo==='TRANSCRIPCION_USUARIO'||tipo==='TRANSCRIPCION_AGENTE'
 const patronError=/error|fall|excep|no puede|no se puede|incorrect|denegad|no encontr/i
 const codigoSesion=(numero:number)=>`AGT-${String(numero).padStart(6,'0')}`
 const primerNombre=(nombre:string)=>nombre.trim().split(/\s+/)[0]||nombre
@@ -114,6 +128,7 @@ export default function AsistenteTIPage(){
   const [liveEstado,setLiveEstado]=useState('Listo para iniciar observación')
   const [vinculo,setVinculo]=useState('')
   const [comprobaciones,setComprobaciones]=useState<AgenteComprobacion[]|null>(null)
+  const [simulacion,setSimulacion]=useState<AgenteTISimulacionRespuesta|null>(null)
   const [codigo,setCodigo]=useState<AgenteCodigoReferencia[]|null>(null)
   const [verInforme,setVerInforme]=useState(false)
   const [alcanceEquipo,setAlcanceEquipo]=useState(false)
@@ -148,6 +163,14 @@ export default function AsistenteTIPage(){
     guardarSesionActiva(sesion&&!estadosFinales.includes(sesion.estado)?sesion.sesionNumero:null)
   },[sesion])
 
+  // Mientras el usuario está invitado, la consola consulta su evidencia periódicamente.
+  const invitacionVigente=!!sesion&&sesion.esPropietario&&estadosObservacion.includes(sesion.estado)&&(sesion.estadoInvitacion==='PENDIENTE'||sesion.estadoInvitacion==='ACEPTADA')
+  useEffect(()=>{
+    if(!invitacionVigente)return
+    const intervalo=window.setInterval(()=>{void refrescar().catch(()=>undefined)},8000)
+    return()=>window.clearInterval(intervalo)
+  },[invitacionVigente,sesion?.sesionNumero])
+
   const progreso=useMemo(()=>obtenerProgreso(sesion?.estado||''),[sesion?.estado])
   if(!usuario)return null
   const nombre=primerNombre(usuario.nombreCompleto)
@@ -157,6 +180,8 @@ export default function AsistenteTIPage(){
   const esSupervisor=['SUP','ADM'].includes(usuario.perfil)
   const puedeActuar=!!sesion?.esPropietario
   const estadoTicket=contexto?.ticket.estado||''
+  const eventosUsuarioFinal=contexto?.eventos.filter(x=>fuentesUsuarioFinal.includes(x.fuente))??[]
+  const hayTranscripcionServidor=!!contexto?.eventos.some(x=>esTranscripcion(x.tipo))
   const puedeEnviarSolucion=puedeActuar&&['CAMBIO_VALIDADO','INFORME_GRABADO'].includes(estado)&&!!sesion?.incidenciaNumero&&!!estadoTicket&&!estadosTicketCerrados.includes(estadoTicket)
   const accionCatalogo=diagnostico?.accion?contexto?.acciones.find(x=>x.accionCodigo===diagnostico.accion?.accionCodigo):undefined
 
@@ -206,7 +231,7 @@ export default function AsistenteTIPage(){
     if(numero)await cargarContexto(numero)
   }
 
-  function limpiarHerramientas(){setComprobaciones(null);setCodigo(null);setVerInforme(false);setVinculo('');setResolucion(null);setOperadorDestino('')}
+  function limpiarHerramientas(){setComprobaciones(null);setSimulacion(null);setCodigo(null);setVerInforme(false);setVinculo('');setResolucion(null);setOperadorDestino('')}
 
   async function ejecutar(accion:()=>Promise<void>,defecto:string){
     if(procesando)return
@@ -229,6 +254,24 @@ export default function AsistenteTIPage(){
     if(actual)void registrarEventoInvestigacionTI(actual.sesionNumero,rol==='usuario'?'TRANSCRIPCION_USUARIO':'TRANSCRIPCION_AGENTE','LIVE',limpio.slice(0,12000)).catch(()=>setLiveEstado('Live activo · una transcripción no pudo registrarse; continúa la observación'))
   }
 
+  // El modelo Live registra pasos y el error exacto mediante funciones; solo se guarda evidencia, nunca se cambia nada.
+  async function atenderFuncionLive(nombre:string,argumentos:Record<string,unknown>){
+    const actual=sesionRef.current
+    if(!actual)return 'No hay una investigación activa.'
+    const texto=String(argumentos.descripcion??argumentos.mensaje??'').trim().slice(0,1000)
+    if(!texto)return 'La descripción está vacía; no se registró.'
+    if(nombre==='registrar_paso'){
+      await registrarEventoInvestigacionTI(actual.sesionNumero,'PASO_OBSERVADO','LIVE',texto,JSON.stringify({origen:'funcion_live'}))
+      return 'Paso registrado como evidencia.'
+    }
+    if(nombre==='registrar_error'){
+      await registrarEventoInvestigacionTI(actual.sesionNumero,'ERROR_OBSERVADO','LIVE',texto,JSON.stringify({origen:'funcion_live'}))
+      setErrorRegistrado(texto);setErrorObservado(texto);setLiveEstado('Live activo · el agente registró el error observado')
+      return 'Error registrado como evidencia.'
+    }
+    return 'Función no disponible.'
+  }
+
   async function iniciarLive(){
     if(!sesion||liveActivo||procesando)return
     setProcesando(true);setError('');setMensaje('')
@@ -239,6 +282,7 @@ export default function AsistenteTIPage(){
       const live=new GeminiLiveSesion({
         onEstado:setLiveEstado,
         onTranscripcion:agregarTranscripcion,
+        onFuncion:atenderFuncionLive,
         onError:setError,
         onPantallaFinalizada:()=>void cerrarObservacion(false),
         onDesconexion:()=>{liveRef.current=null;setLiveActivo(false);if(videoRef.current)videoRef.current.srcObject=null;setLiveEstado('Gemini cerró la sesión Live (límite de tiempo o red). La transcripción se conservó; puedes reanudar o finalizar la reproducción.')},
@@ -274,21 +318,44 @@ export default function AsistenteTIPage(){
     if(detener)await liveRef.current?.detener()
     liveRef.current=null;setLiveActivo(false)
     if(videoRef.current)videoRef.current.srcObject=null
-    const turnos=transcripcionesRef.current
-    const proceso=turnos.map((x,i)=>`${i+1}. ${x.rol==='usuario'?'Usuario':'Agente'}: ${x.texto}`).join('\n')
-    const error=errorRegistradoRef.current||[...turnos].reverse().find(x=>x.rol==='usuario'&&patronError.test(x.texto))?.texto||''
     try{
-      await registrarEventoInvestigacionTI(actual.sesionNumero,'FIN_LIVE','LIVE','La etapa de observación Live finalizó y el agente continuará con investigación técnica.')
-      await finalizarObservacionTI(actual.sesionNumero,`Sesión Live finalizada con ${turnos.length} turnos de conversación registrados.`,proceso||'No se obtuvo transcripción; la pantalla fue compartida durante la sesión.',error.slice(0,1000))
+      await registrarEventoInvestigacionTI(actual.sesionNumero,'FIN_LIVE','LIVE','La etapa de observación finalizó y el agente continuará con investigación técnica.')
+      // Se usa lo registrado en el servidor: incluye la reproducción del usuario final, no solo la conversación de esta consola.
+      const registrado=await obtenerInvestigacionTI(actual.sesionNumero)
+      const turnos=registrado.eventos.filter(x=>esTranscripcion(x.tipo))
+      const lineas=registrado.eventos.filter(x=>esTranscripcion(x.tipo)||x.tipo==='PASO_OBSERVADO')
+      const delUsuario=lineas.some(x=>x.fuente==='LIVE_USUARIO')
+      const proceso=lineas.map((x,i)=>`${i+1}. ${etiquetaEventoLive(x.tipo,x.fuente)}: ${x.contenido}`).join('\n')
+      const error=errorRegistradoRef.current||[...registrado.eventos].reverse().find(x=>x.tipo==='ERROR_OBSERVADO')?.contenido||[...turnos].reverse().find(x=>x.tipo==='TRANSCRIPCION_USUARIO'&&patronError.test(x.contenido))?.contenido||''
+      await finalizarObservacionTI(actual.sesionNumero,`Observación finalizada con ${turnos.length} turnos registrados${delUsuario?', incluida la reproducción del usuario final desde su portal':''}.`,proceso||'No se obtuvo transcripción; la pantalla fue compartida durante la sesión.',error.slice(0,1000))
       await refrescar();setLiveEstado('Observación finalizada · lista para investigar');setMensaje('La reproducción humana terminó. El agente ya puede analizar ticket, conocimiento, auditoría y telemetría disponible.')
     }catch(e){setError(mensajeError(e,'No fue posible finalizar la observación.'))}
   }
 
-  const investigar=()=>ejecutar(async()=>{
-    if(liveActivo)await cerrarObservacion()
+  function confirmarCierreConUsuario(){
+    return sesion?.estadoInvitacion!=='ACEPTADA'||window.confirm(`${sesion.nombreInvitado} todavía puede estar mostrando el error. Al cerrar la observación ya no podrá enviar más evidencia. ¿Continuar?`)
+  }
+
+  const investigar=()=>{
+    if(!confirmarCierreConUsuario())return
+    return ejecutar(async()=>{
+    if(liveActivo||(estado!=='LISTO_INVESTIGAR'&&hayTranscripcionServidor))await cerrarObservacion()
     const r=await analizarInvestigacionTI(sesion!.sesionNumero)
     setDiagnostico(r);await refrescar();setMensaje('Investigación completada. Revisa la evidencia, la causa probable y la acción propuesta antes de decidir.')
   },'No fue posible completar la investigación.')
+  }
+
+  const invitarUsuario=()=>ejecutar(async()=>{
+    const r=await invitarUsuarioReproduccionTI(sesion!.sesionNumero)
+    await refrescar();setMensaje(`Invitación enviada a ${r.nombreInvitado}. Verás su respuesta y su evidencia aquí; vence el ${fechaCorta(r.invitacionExpira)}.`)
+  },'No fue posible invitar al usuario.')
+
+  const cancelarInvitacion=()=>{
+    if(!window.confirm('El usuario ya no podrá compartir su pantalla para esta investigación. ¿Continuar?'))return
+    return ejecutar(async()=>{await cancelarInvitacionReproduccionTI(sesion!.sesionNumero);await refrescar();setMensaje('Invitación cancelada; se avisó al usuario.')},'No fue posible cancelar la invitación.')
+  }
+
+  const cerrarObservacionManual=()=>{if(confirmarCierreConUsuario())void ejecutar(()=>cerrarObservacion(false),'No fue posible cerrar la observación.')}
 
   const grabar=()=>ejecutar(async()=>{
     const blob=await grabarInformacionTI(sesion!.sesionNumero)
@@ -311,6 +378,12 @@ export default function AsistenteTIPage(){
     await vincularIncidenciaTI(sesion!.sesionNumero,vinculo.trim().toUpperCase())
     setVinculo('');await refrescar();setMensaje('Ticket vinculado. El agente usará su contexto, documentos, mensajes y auditoría.')
   },'No fue posible vincular el ticket.')
+
+  const simular=()=>ejecutar(async()=>{
+    const r=await simularCambioTI(sesion!.sesionNumero)
+    setSimulacion(r);setComprobaciones(null);await refrescar()
+    setMensaje(r.exito?'Simulación completada sin persistir cambios. Revisa el resultado antes de decidir.':'La simulación detectó que la acción no podría aplicarse. Revisa el motivo.')
+  },'No fue posible simular el cambio.')
 
   const comprobar=()=>ejecutar(async()=>{setComprobaciones(await comprobarInvestigacionTI(sesion!.sesionNumero))},'No fue posible ejecutar la comprobación sin cambios.')
   const consultarCodigo=()=>ejecutar(async()=>{setCodigo(await buscarCodigoInvestigacionTI(sesion!.sesionNumero))},'No fue posible consultar referencias de código.')
@@ -412,9 +485,15 @@ export default function AsistenteTIPage(){
             <section className="agente-panel agente-live"><header><div><span className="agente-panel__icono"><Icono nombre="pantalla" size={19}/></span><div><h2>Observación Live</h2><p>Pantalla + voz para reproducir exactamente el proceso del usuario</p></div></div><span className={`agente-estado ${liveActivo?'agente-estado--live':''}`}>{liveActivo?'EN VIVO':'OBSERVACIÓN'}</span></header>
               <div className="agente-live__visor"><video ref={videoRef} muted playsInline/><div className={liveActivo?'agente-live__placeholder agente-live__placeholder--oculto':'agente-live__placeholder'}><Icono nombre="pantalla" size={34}/><strong>{contexto?.sesion.procesoObservado?'Reproducción registrada':'Comparte la pantalla cuando estés listo'}</strong><span>La imagen se procesa durante Live y no se almacena; el expediente conserva eventos, transcripción y el error observado.</span></div></div>
               <div className="agente-live__estado"><span className={liveActivo?'agente-pulso':''}/><p>{liveEstado}</p></div>
-              <div className="agente-live__acciones">{!liveActivo?<button className="agente-btn agente-btn--live" onClick={()=>void iniciarLive()} disabled={procesando||!enObservacion||!puedeActuar}><Icono nombre="pantalla" size={17}/>{transcripciones.length?'Reanudar pantalla y conversación':'Compartir pantalla y conversar'}</button>:<><button className="agente-btn agente-btn--stop" onClick={()=>void cerrarObservacion()}><Icono nombre="stop" size={15}/>Finalizar reproducción</button><button className="agente-btn agente-btn--secundario" onClick={alternarMicrofono} aria-pressed={microSilenciado}><Icono nombre="microfono" size={15}/>{microSilenciado?'Activar micrófono':'Silenciar micrófono'}</button></>}<button className="agente-btn agente-btn--primario" onClick={()=>void investigar()} disabled={procesando||finalizada||!!diag||!puedeActuar}><Icono nombre="buscar" size={17}/>{procesando?'Procesando...':diag?'Diagnóstico generado':'Investigar ahora'}</button></div>
+              <div className="agente-live__acciones">{!liveActivo?<button className="agente-btn agente-btn--live" onClick={()=>void iniciarLive()} disabled={procesando||!enObservacion||!puedeActuar}><Icono nombre="pantalla" size={17}/>{transcripciones.length?'Reanudar pantalla y conversación':'Compartir pantalla y conversar'}</button>:<><button className="agente-btn agente-btn--stop" onClick={()=>void cerrarObservacion()}><Icono nombre="stop" size={15}/>Finalizar reproducción</button><button className="agente-btn agente-btn--secundario" onClick={alternarMicrofono} aria-pressed={microSilenciado}><Icono nombre="microfono" size={15}/>{microSilenciado?'Activar micrófono':'Silenciar micrófono'}</button></>}<button className="agente-btn agente-btn--primario" onClick={()=>void investigar()} disabled={procesando||finalizada||!!diag||!puedeActuar}><Icono nombre="buscar" size={17}/>{procesando?'Investigando...':diag?'Diagnóstico generado':'Investigar ahora'}</button></div>
               {liveActivo&&<form className="agente-live__texto" onSubmit={e=>{e.preventDefault();enviarTextoLive()}}><input value={textoLive} onChange={e=>setTextoLive(e.target.value)} maxLength={500} placeholder="Escribe al agente Live (por ejemplo, el número de documento)"/><button className="agente-btn agente-btn--secundario" disabled={!textoLive.trim()}><Icono nombre="flecha" size={15}/>Enviar</button></form>}
               {enObservacion&&puedeActuar&&<div className="agente-error-observado"><label htmlFor="error-observado"><Icono nombre="alerta" size={14}/>Error observado {errorRegistrado&&<small>· registrado</small>}</label><div><input id="error-observado" value={errorObservado} onChange={e=>setErrorObservado(e.target.value)} maxLength={1000} placeholder="Copia el mensaje exacto que muestra la pantalla cuando aparece el error"/><button className="agente-btn agente-btn--stop" onClick={()=>void marcarError()} disabled={procesando}>Marcar error</button></div></div>}
+              {(enObservacion||sesion.estadoInvitacion)&&<div className="agente-invitacion">
+                <div className="agente-invitacion__cabecera"><div><strong><Icono nombre="pantalla" size={14}/>Reproducción por el usuario</strong><p>{textoInvitacion(sesion,!!sesion.incidenciaNumero)}</p></div>
+                  {puedeActuar&&enObservacion&&(invitacionVigente?<button className="agente-btn agente-btn--secundario" onClick={()=>void cancelarInvitacion()} disabled={procesando}>Cancelar invitación</button>:<button className="agente-btn agente-btn--live" onClick={()=>void invitarUsuario()} disabled={procesando||!sesion.incidenciaNumero}><Icono nombre="flecha" size={15}/>{sesion.estadoInvitacion?'Invitar de nuevo':'Invitar al usuario'}</button>)}</div>
+                {eventosUsuarioFinal.length>0&&<div className="agente-invitacion__lista">{eventosUsuarioFinal.slice(-8).map(x=><p key={x.secuencia} className={x.tipo==='ERROR_OBSERVADO'?'agente-invitacion__error':''}><b>{x.tipo==='TRANSCRIPCION_USUARIO'?'Usuario':x.tipo==='TRANSCRIPCION_AGENTE'?'Asistente':x.tipo==='ERROR_OBSERVADO'?'Error marcado':x.tipo==='PASO_OBSERVADO'?'Paso':'Sesión'}</b><span>{x.contenido}</span></p>)}</div>}
+                {puedeActuar&&enObservacion&&!liveActivo&&(hayTranscripcionServidor||eventosUsuarioFinal.length>0)&&<button className="agente-btn agente-btn--stop agente-invitacion__cerrar" onClick={cerrarObservacionManual} disabled={procesando}><Icono nombre="stop" size={14}/>Cerrar observación</button>}
+              </div>}
               <div className="agente-transcripcion"><div className="agente-transcripcion__titulo"><Icono nombre="microfono" size={15}/><strong>Conversación Live</strong><span>{transcripciones.length} turnos</span></div>{transcripciones.length===0?<p className="agente-vacio">La transcripción aparecerá aquí durante la reproducción.</p>:<div className="agente-transcripcion__lista">{transcripciones.slice(-12).map((t,i)=><div key={`${i}-${t.texto.slice(0,20)}`} className={`agente-transcripcion__item agente-transcripcion__item--${t.rol}`}><b>{t.rol==='usuario'?'Usuario':'Agente'}</b><span>{t.texto}</span></div>)}</div>}</div>
             </section>
 
@@ -435,10 +514,16 @@ export default function AsistenteTIPage(){
             </aside>
           </div>
 
-          <section className="agente-panel agente-diagnostico"><header><div><span className="agente-panel__icono"><Icono nombre="codigo" size={19}/></span><div><h2>Investigación técnica</h2><p>Evidencia verificada y reproducción técnica disponible</p></div></div>{diag&&<div className="agente-confianza"><span>{Math.round(diag.confianza)}%</span><small>confianza diagnóstica</small></div>}</header>
+          <section className="agente-panel agente-diagnostico"><header><div><span className="agente-panel__icono"><Icono nombre="codigo" size={19}/></span><div><h2>Investigación técnica</h2><p>Evidencia verificada y reproducción técnica disponible</p></div></div>{diag&&<div className="agente-confianza"><span>{Math.round(diag.confianza)}%</span><small>confianza diagnóstica</small>{diag.modo&&<em className={`agente-modo agente-modo--${diag.modo.toLowerCase()}`}>{modoDiagnostico(diag.modo)}</em>}</div>}</header>
             {!diag?<div className="agente-diagnostico__espera"><div><Icono nombre="buscar" size={25}/></div><strong>{estado==='CANCELADO'?'Investigación cancelada':'Esperando investigación'}</strong><p>Al iniciar el análisis, el agente combinará el flujo observado con ticket, mensajes, documentos, conocimiento, auditoría y telemetría autorizada.</p></div>:<div className="agente-diagnostico__contenido"><div className="agente-hallazgo"><span>DIAGNÓSTICO</span><h3>{diag.diagnostico}</h3></div><div className="agente-dos-columnas"><article><span>CAUSA PROBABLE</span><p>{diag.causaProbable}</p></article><article><span>SOLUCIÓN PROPUESTA</span><p>{diag.solucionPropuesta}</p></article></div>{diag.limitacion&&<div className="agente-limitacion"><Icono nombre="alerta" size={17}/><span>{diag.limitacion}</span></div>}
               <div className="agente-evidencia-grid"><article><header><Icono nombre="archivo" size={16}/><strong>Evidencia</strong><span>{diag.evidencias.length}</span></header>{diag.evidencias.length===0?<p className="agente-vacio">Sin evidencia adicional.</p>:diag.evidencias.slice(0,10).map((e,i)=><div className="agente-evidencia" key={`${e.referencia}-${i}`}><b>{e.tipoFuente}</b><strong>{e.referencia}</strong><p>{e.descripcion}</p></div>)}</article><article><header><Icono nombre="codigo" size={16}/><strong>Traza técnica</strong><span>{diag.trazaTecnica.length}</span></header>{diag.trazaTecnica.length===0?<p className="agente-vacio">No hay trazas instrumentadas. El agente no inventará un recorrido de código.</p>:diag.trazaTecnica.map((t,i)=><div className="agente-traza" key={i}><span>{i+1}</span><code>{t}</code></div>)}</article></div>
-              {diag.accion&&<section className="agente-accion-propuesta"><div><span className="agente-panel__icono"><Icono nombre="escudo" size={18}/></span><div><small>ACCIÓN PROPUESTA</small><strong>{diag.accion.accionCodigo} · {diag.accion.nombre}</strong><p>Riesgo {diag.accion.nivelRiesgo} · {diag.accion.requiereAprobacion?'requiere aprobación de otro operador TI':'sin aprobación adicional según catálogo'} · {accionCatalogo?.tieneEjecutor?'ejecutor autorizado disponible':'sin ejecutor autorizado (no podrá aplicarse automáticamente)'}</p></div></div><code>{diag.accion.parametrosJson}</code></section>}
+              {diag.pasos.length>0&&<section className="agente-pasos"><header><Icono nombre="buscar" size={16}/><strong>Pasos de investigación</strong><span>{diag.pasos.length} consultas de solo lectura</span></header><ol>{diag.pasos.map(p=><li key={p.orden} className={p.error?'agente-paso agente-paso--error':'agente-paso'}><span className={`agente-paso__origen agente-paso__origen--${p.origen==='MODELO'?'modelo':'auto'}`}>{p.origen==='MODELO'?'Agente':'Automática'}</span><div><strong>{p.nombre}{p.parametrosJson&&p.parametrosJson!=='{}'&&<code>{p.parametrosJson}</code>}</strong><p>{p.error?`No disponible: ${p.error}`:p.resumen}</p></div><small>{p.error?'—':`${p.filas} fila(s)${p.truncado?' · truncado':''} · ${p.duracionMs} ms`}</small></li>)}</ol><p className="agente-nota">Cada consulta corrió en una transacción revertida: investigar no modifica información.</p></section>}
+              {diag.hallazgos.length>0&&<section className="agente-hallazgos"><header><Icono nombre="check" size={16}/><strong>Hallazgos con evidencia verificada</strong></header><ul>{diag.hallazgos.map((h,i)=><li key={`${h.referencia}-${i}`}><b>{h.fuente.replaceAll('_',' ')}</b><code>{h.referencia}</code><span>{h.descripcion}</span></li>)}</ul></section>}
+              {diag.datosOcultados>0&&<p className="agente-nota agente-nota--privacidad"><Icono nombre="escudo" size={14}/>Se ocultaron {diag.datosOcultados} dato(s) sensibles antes de enviar el contexto al proveedor de IA.</p>}
+              {diag.accion&&<section className="agente-accion-propuesta"><div><span className="agente-panel__icono"><Icono nombre="escudo" size={18}/></span><div><small>ACCIÓN PROPUESTA</small><strong>{diag.accion.accionCodigo} · {diag.accion.nombre}</strong><p>Riesgo {diag.accion.nivelRiesgo} · {diag.accion.requiereAprobacion?'requiere aprobación de otro operador TI':'sin aprobación adicional según catálogo'} · {accionCatalogo?.tieneEjecutor?'ejecutor autorizado disponible':'sin ejecutor autorizado (no podrá aplicarse automáticamente)'}</p></div></div><code>{diag.accion.parametrosJson}</code>
+                {puedeActuar&&accionCatalogo?.tieneEjecutor&&estadosSimulacion.includes(estado)&&<div className="agente-simulacion"><button className="agente-btn agente-btn--secundario" onClick={()=>void simular()} disabled={procesando}><Icono nombre="escudo" size={15}/>Simular cambio</button><span>Ejecuta la acción con estos parámetros en una transacción que siempre se revierte.</span></div>}
+                {simulacion&&<div className={`agente-simulacion__resultado ${simulacion.exito?'agente-simulacion__resultado--ok':'agente-simulacion__resultado--error'}`} role="status"><strong>{simulacion.exito?'Simulación exitosa':'La acción no podría aplicarse'}</strong><p>{simulacion.mensaje}</p>{simulacion.exito&&simulacion.resultadoJson&&<code>{simulacion.resultadoJson}</code>}</div>}
+              </section>}
               {diag.informeMarkdown&&<div className="agente-informe"><button className="agente-btn agente-btn--secundario" onClick={()=>setVerInforme(v=>!v)}><Icono nombre="archivo" size={15}/>{verInforme?'Ocultar expediente':'Ver expediente técnico'}</button>{verInforme&&<pre>{diag.informeMarkdown}</pre>}</div>}
               <footer className="agente-decision"><div><strong>{finalizada?'Investigación cerrada':estado==='ERROR_EJECUCION'?'Ejecución pendiente de revisión TI':'Decisión de TI'}</strong><p>{estado==='PENDIENTE_APROBACION'?'La acción espera la aprobación de otro operador. Cuando sea aprobada, vuelve a pulsar Realizar cambio.':estado==='ERROR_EJECUCION'?'El cambio no se confirmó. Revisa la auditoría del ticket antes de cualquier nuevo intento.':'El .md documenta la investigación; nunca se interpreta como instrucción ejecutable.'}</p></div><div className="agente-decision__botones"><button className="agente-btn agente-btn--secundario" onClick={()=>void grabar()} disabled={procesando||!puedeActuar||!(estadosDecision.includes(estado)||estado==='INFORME_GRABADO')}><Icono nombre="archivo" size={16}/>{estado==='INFORME_GRABADO'?'Descargar expediente':'Grabar información'}</button><button className="agente-btn agente-btn--cambio" onClick={()=>void realizarCambio()} disabled={procesando||!puedeActuar||!diag.accion||!estadosDecision.includes(estado)}><Icono nombre="escudo" size={16}/>{estado==='PENDIENTE_APROBACION'?'Verificar aprobación y ejecutar':'Realizar cambio'}</button></div></footer>
             </div>}
@@ -462,6 +547,19 @@ export default function AsistenteTIPage(){
       </main>
     </section>
   </div>
+}
+
+function textoInvitacion(sesion:AgenteTISesion,tieneTicket:boolean){
+  const nombre=sesion.nombreInvitado||'El usuario'
+  switch(sesion.estadoInvitacion){
+    case 'PENDIENTE':return `Invitación enviada a ${nombre}${sesion.invitacionExpira?`; vence ${fechaCorta(sesion.invitacionExpira)}`:''}. Esperando su respuesta.`
+    case 'ACEPTADA':return `${nombre} aceptó y otorgó su consentimiento. Su conversación y el error que marque aparecen aquí.`
+    case 'RECHAZADA':return `${nombre} rechazó la sesión. Continúa con la evidencia disponible o invítalo de nuevo.`
+    case 'CANCELADA':return 'Cancelaste la invitación.'
+    case 'FINALIZADA':return `${nombre} terminó de mostrar el error. Cierra la observación para investigar.`
+    case 'VENCIDA':return 'La invitación venció sin completarse.'
+    default:return tieneTicket?'Invita al solicitante a mostrar el error desde su propio portal, con su consentimiento.':'Vincula un ticket para poder invitar a su solicitante.'
+  }
 }
 
 function obtenerProgreso(estado:string){

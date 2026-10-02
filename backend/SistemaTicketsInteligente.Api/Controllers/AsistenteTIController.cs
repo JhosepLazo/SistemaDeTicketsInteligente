@@ -91,6 +91,10 @@ public sealed class AsistenteTIController : ControllerBase
     public Task<IActionResult> RealizarCambio(long sesionNumero, RealizarCambioAgenteTISolicitud solicitud, CancellationToken ct) =>
         Ejecutar(async identidad => Ok(await asistente.RealizarCambioAsync(identidad.Usuario, identidad.Area, sesionNumero, solicitud, ct)));
 
+    [HttpPost("investigaciones/{sesionNumero:long}/simular-cambio")]
+    public Task<IActionResult> SimularCambio(long sesionNumero, CancellationToken ct) =>
+        Ejecutar(async identidad => Ok(await asistente.SimularCambioAsync(identidad.Usuario, identidad.Area, sesionNumero, ct)));
+
     [HttpGet("investigaciones")]
     public Task<IActionResult> Listar([FromQuery] string? alcance, CancellationToken ct) =>
         Ejecutar(async i => Ok(await asistente.ListarAsync(i.Usuario, i.Area, string.Equals(alcance, "todas", StringComparison.OrdinalIgnoreCase), ct)));
@@ -105,6 +109,14 @@ public sealed class AsistenteTIController : ControllerBase
     [HttpGet("investigaciones/{sesionNumero:long}/informe")]
     public Task<IActionResult> Informe(long sesionNumero, CancellationToken ct) =>
         Ejecutar(async i => Ok(await asistente.ObtenerInformeAsync(i.Usuario, i.Area, sesionNumero, ct)));
+
+    [HttpPost("investigaciones/{sesionNumero:long}/invitacion")]
+    public Task<IActionResult> InvitarUsuario(long sesionNumero, CancellationToken ct) =>
+        Ejecutar(async i => Ok(await asistente.InvitarUsuarioAsync(i.Usuario, i.Area, sesionNumero, ct)));
+
+    [HttpPost("investigaciones/{sesionNumero:long}/invitacion/cancelar")]
+    public Task<IActionResult> CancelarInvitacion(long sesionNumero, CancellationToken ct) =>
+        Ejecutar(async i => { await asistente.CancelarInvitacionAsync(i.Usuario, i.Area, sesionNumero, ct); return NoContent(); });
 
     [HttpPost("investigaciones/{sesionNumero:long}/reasignar")]
     public Task<IActionResult> Reasignar(long sesionNumero, ReasignarInvestigacionTISolicitud solicitud, CancellationToken ct) =>

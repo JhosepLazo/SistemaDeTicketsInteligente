@@ -3,6 +3,8 @@
  * Objetivo: Conectar el navegador con Gemini Live usando el token efímero emitido por el backend.
  * Responsabilidad: Compartir pantalla, transmitir audio PCM/video y reproducir la respuesta de voz sin exponer la API key permanente.
  * Consideraciones: Live solo observa y conversa; no llama endpoints de cambio ni posee autoridad para ejecutar acciones productivas.
+ *   Sus funciones (registrar_paso, registrar_error) solo guardan evidencia mediante el callback onFuncion.
+ *   Con token restringido, modelo, instrucción y funciones vienen fijados desde el backend y el navegador solo abre la conexión.
  */
 
 import type { AgenteTILiveTokenRespuesta } from './asistenteTIService'
@@ -14,7 +16,27 @@ export interface GeminiLiveCallbacks {
   onPantallaFinalizada?: () => void
   /** El proveedor cerró la conexión (límite de sesión o red); la captura local se detiene. */
   onDesconexion?: () => void
+  /** El modelo llamó una función Live; devuelve el texto de resultado que se le responde. */
+  onFuncion?: (nombre: string, argumentos: Record<string, unknown>) => Promise<string> | string
 }
+
+// Captura PCM en el hilo de audio; ScriptProcessorNode está obsoleto y bloquea el hilo principal.
+const CODIGO_WORKLET = `
+class CapturaPcm extends AudioWorkletProcessor {
+  constructor() { super(); this.buffer = new Float32Array(4096); this.posicion = 0 }
+  process(entradas) {
+    const canal = entradas[0] && entradas[0][0]
+    if (canal) {
+      for (let i = 0; i < canal.length; i++) {
+        this.buffer[this.posicion++] = canal[i]
+        if (this.posicion === this.buffer.length) { this.port.postMessage(this.buffer.slice(0)); this.posicion = 0 }
+      }
+    }
+    return true
+  }
+}
+registerProcessor('captura-pcm', CapturaPcm)
+`
 
 export class GeminiLiveSesion {
   private socket: WebSocket | null = null
@@ -23,6 +45,7 @@ export class GeminiLiveSesion {
   private audioEntrada: AudioContext | null = null
   private audioSalida: AudioContext | null = null
   private procesador: ScriptProcessorNode | null = null
+  private worklet: AudioWorkletNode | null = null
   private origenMicrofono: MediaStreamAudioSourceNode | null = null
   private intervaloVideo: number | null = null
   private listo = false
@@ -80,6 +103,8 @@ export class GeminiLiveSesion {
     if (this.intervaloVideo !== null) window.clearInterval(this.intervaloVideo)
     this.intervaloVideo = null
     this.procesador?.disconnect()
+    this.worklet?.port.close()
+    this.worklet?.disconnect()
     this.origenMicrofono?.disconnect()
     this.microfono?.getTracks().forEach(track => track.stop())
     this.pantalla?.getTracks().forEach(track => track.stop())
@@ -92,6 +117,7 @@ export class GeminiLiveSesion {
     this.audioEntrada = null
     this.audioSalida = null
     this.procesador = null
+    this.worklet = null
     this.origenMicrofono = null
     this.callbacks.onEstado?.('Sesión Live finalizada')
   }
@@ -106,15 +132,18 @@ export class GeminiLiveSesion {
 
       this.socket.onopen = () => {
         this.callbacks.onEstado?.('Conectado. Configurando observación multimodal…')
-        this.socket?.send(JSON.stringify({
-          setup: {
-            model: `models/${configuracion.modelo}`,
-            responseModalities: ['AUDIO'],
-            systemInstruction: { parts: [{ text: configuracion.instruccionSistema }] },
-            inputAudioTranscription: {},
-            outputAudioTranscription: {},
-          },
-        }))
+        // Con token restringido el servidor ignora este setup y aplica el fijado en el token.
+        const setup = configuracion.restringido
+          ? { model: `models/${configuracion.modelo}` }
+          : {
+              model: `models/${configuracion.modelo}`,
+              generationConfig: { responseModalities: ['AUDIO'] },
+              systemInstruction: { parts: [{ text: configuracion.instruccionSistema }] },
+              tools: configuracion.herramientas ?? undefined,
+              inputAudioTranscription: {},
+              outputAudioTranscription: {},
+            }
+        this.socket?.send(JSON.stringify({ setup }))
       }
 
       this.socket.onmessage = event => {
@@ -124,7 +153,7 @@ export class GeminiLiveSesion {
             window.clearTimeout(timeout)
             this.listo = true
             this.iniciarVideo()
-            this.iniciarMicrofono()
+            void this.iniciarMicrofono()
             this.enviarTexto('La pantalla ya está compartida. Guíame para reproducir el problema exactamente hasta que aparezca el error.')
             this.callbacks.onEstado?.('Live activo · pantalla y conversación en tiempo real')
             resolve()
@@ -173,25 +202,63 @@ export class GeminiLiveSesion {
     }, 1000)
   }
 
-  private iniciarMicrofono() {
+  private async iniciarMicrofono() {
     if (!this.microfono || !this.listo) return
     const AudioContextCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
     if (!AudioContextCtor) return
     this.audioEntrada = new AudioContextCtor()
     this.origenMicrofono = this.audioEntrada.createMediaStreamSource(this.microfono)
-    this.procesador = this.audioEntrada.createScriptProcessor(4096, 1, 1)
-    this.procesador.onaudioprocess = evento => {
-      if (!this.listo || !this.socket || this.socket.readyState !== WebSocket.OPEN || !this.audioEntrada) return
-      const entrada = evento.inputBuffer.getChannelData(0)
-      const muestras = resamplear(entrada, this.audioEntrada.sampleRate, 16000)
-      const pcm = convertirPcm16(muestras)
-      this.socket.send(JSON.stringify({ realtimeInput: { audio: { data: base64DesdeArrayBuffer(pcm.buffer), mimeType: 'audio/pcm;rate=16000' } } }))
+
+    if (this.audioEntrada.audioWorklet) {
+      const url = URL.createObjectURL(new Blob([CODIGO_WORKLET], { type: 'application/javascript' }))
+      try {
+        await this.audioEntrada.audioWorklet.addModule(url)
+        if (!this.audioEntrada || !this.origenMicrofono) return
+        this.worklet = new AudioWorkletNode(this.audioEntrada, 'captura-pcm', { numberOfInputs: 1, numberOfOutputs: 1, channelCount: 1 })
+        this.worklet.port.onmessage = evento => this.enviarAudio(evento.data as Float32Array)
+        this.origenMicrofono.connect(this.worklet)
+        // La salida es silencio; conectarla al destino garantiza que el navegador procese el nodo.
+        this.worklet.connect(this.audioEntrada.destination)
+        return
+      } catch {
+        // Navegadores sin AudioWorklet utilizable continúan con el procesador clásico.
+      } finally {
+        URL.revokeObjectURL(url)
+      }
     }
+
+    if (!this.audioEntrada || !this.origenMicrofono) return
+    this.procesador = this.audioEntrada.createScriptProcessor(4096, 1, 1)
+    this.procesador.onaudioprocess = evento => this.enviarAudio(evento.inputBuffer.getChannelData(0))
     this.origenMicrofono.connect(this.procesador)
     this.procesador.connect(this.audioEntrada.destination)
   }
 
+  private enviarAudio(entrada: Float32Array) {
+    if (!this.listo || !this.socket || this.socket.readyState !== WebSocket.OPEN || !this.audioEntrada) return
+    const muestras = resamplear(entrada, this.audioEntrada.sampleRate, 16000)
+    const pcm = convertirPcm16(muestras)
+    this.socket.send(JSON.stringify({ realtimeInput: { audio: { data: base64DesdeArrayBuffer(pcm.buffer), mimeType: 'audio/pcm;rate=16000' } } }))
+  }
+
+  private async atenderFunciones(llamadas: Array<{ id?: string; name?: string; args?: Record<string, unknown> }>) {
+    const respuestas = []
+    for (const llamada of llamadas) {
+      if (!llamada.name) continue
+      let resultado = 'Función no disponible.'
+      try {
+        resultado = this.callbacks.onFuncion ? await this.callbacks.onFuncion(llamada.name, llamada.args ?? {}) : resultado
+      } catch (error) {
+        resultado = error instanceof Error ? `No se pudo registrar: ${error.message}` : 'No se pudo registrar la evidencia.'
+      }
+      respuestas.push({ id: llamada.id, name: llamada.name, response: { resultado } })
+    }
+    if (respuestas.length === 0 || !this.socket || this.socket.readyState !== WebSocket.OPEN) return
+    this.socket.send(JSON.stringify({ toolResponse: { functionResponses: respuestas } }))
+  }
+
   private procesarRespuesta(respuesta: RespuestaLive) {
+    if (respuesta.toolCall?.functionCalls?.length) void this.atenderFunciones(respuesta.toolCall.functionCalls)
     const contenido = respuesta.serverContent
     if (!contenido) return
     const textoUsuario = contenido.inputTranscription?.text
@@ -244,6 +311,7 @@ export class GeminiLiveSesion {
 
 interface RespuestaLive {
   setupComplete?: Record<string, never>
+  toolCall?: { functionCalls?: Array<{ id?: string; name?: string; args?: Record<string, unknown> }> }
   serverContent?: {
     inputTranscription?: { text?: string }
     outputTranscription?: { text?: string }

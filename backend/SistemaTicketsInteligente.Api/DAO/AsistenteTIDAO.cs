@@ -18,6 +18,7 @@ namespace SistemaTicketsInteligente.Api.DAO;
 public sealed class AsistenteTIDAO
 {
     private static readonly Regex ProcedimientoPermitido = new(@"^dbo\.Usp_TI_AgenteAccion_[A-Za-z0-9_]+$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex HerramientaPermitida = new(@"^dbo\.Usp_TI_AgenteDiag_[A-Za-z0-9_]+$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
     private readonly ConexionSqlServer conexionSqlServer;
 
     public AsistenteTIDAO(ConexionSqlServer conexionSqlServer)
@@ -119,6 +120,10 @@ public sealed class AsistenteTIDAO
                     UsuarioTI = LeerCadena(lector, "UsuarioTI"),
                     NombreOperador = LeerCadena(lector, "NombreOperador"),
                     EsPropietario = LeerBooleano(lector, "EsPropietario"),
+                    UsuarioInvitado = LeerCadena(lector, "UsuarioInvitado"),
+                    NombreInvitado = LeerCadena(lector, "NombreInvitado"),
+                    EstadoInvitacion = LeerCadena(lector, "EstadoInvitacion"),
+                    InvitacionExpira = LeerFechaNullable(lector, "InvitacionExpira"),
                     EvidenciasJson = LeerCadena(lector, "EvidenciasJson"),
                     InformeMarkdown = LeerCadena(lector, "InformeMarkdown")
                 },
@@ -264,7 +269,14 @@ public sealed class AsistenteTIDAO
         }
     }
 
-    public async Task<AgenteTIEjecucionResultado> EjecutarProcedimientoControladoAsync(string procedimiento, string usuario, string area, string incidenciaNumero, string parametrosJson, Guid idCorrelacion, int maximoFilas, CancellationToken ct)
+    public Task<AgenteTIEjecucionResultado> EjecutarProcedimientoControladoAsync(string procedimiento, string usuario, string area, string incidenciaNumero, string parametrosJson, Guid idCorrelacion, int maximoFilas, CancellationToken ct) =>
+        EjecutarEjecutorAsync(procedimiento, usuario, area, incidenciaNumero, parametrosJson, idCorrelacion, maximoFilas, false, ct);
+
+    /// <summary>Ejecuta el mismo ejecutor con las mismas validaciones, pero revierte siempre: nada queda persistido.</summary>
+    public Task<AgenteTIEjecucionResultado> SimularProcedimientoControladoAsync(string procedimiento, string usuario, string area, string incidenciaNumero, string parametrosJson, Guid idCorrelacion, int maximoFilas, CancellationToken ct) =>
+        EjecutarEjecutorAsync(procedimiento, usuario, area, incidenciaNumero, parametrosJson, idCorrelacion, maximoFilas, true, ct);
+
+    private async Task<AgenteTIEjecucionResultado> EjecutarEjecutorAsync(string procedimiento, string usuario, string area, string incidenciaNumero, string parametrosJson, Guid idCorrelacion, int maximoFilas, bool simular, CancellationToken ct)
     {
         if (!ProcedimientoPermitido.IsMatch(procedimiento)) throw new InvalidOperationException("El procedimiento ejecutor no pertenece a la lista permitida del agente.");
 
@@ -292,7 +304,8 @@ public sealed class AsistenteTIDAO
                 throw new InvalidOperationException("No se confirmaron las postcondiciones; el cambio se revierte.");
             if (maximoFilas is < 1 or > 1000 || resultado.FilasAfectadas < 0 || resultado.FilasAfectadas > maximoFilas)
                 throw new InvalidOperationException("El ejecutor excedió el límite de filas autorizado; el cambio se revierte.");
-            await transaccion.CommitAsync(ct);
+            if (simular) await transaccion.RollbackAsync(ct);
+            else await transaccion.CommitAsync(ct);
             return resultado;
         }
         catch (Exception ex)
@@ -468,6 +481,197 @@ public sealed class AsistenteTIDAO
         await conexion.OpenAsync(ct);
         return (await comando.ExecuteScalarAsync(ct))?.ToString() ?? throw new InvalidOperationException("No se pudo crear el borrador.");
     }
+
+    public async Task<AgenteTIInvitacionRespuesta> InvitarUsuarioAsync(string usuario, string area, long sesion, CancellationToken ct)
+    {
+        await using var conexion = conexionSqlServer.CrearConexion();
+        await using var comando = new SqlCommand("dbo.Usp_TI_Agente_InvitarUsuario", conexion) { CommandType = CommandType.StoredProcedure };
+        AgregarSesion(comando, usuario, area, sesion);
+        await conexion.OpenAsync(ct);
+        try
+        {
+            await using var lector = await comando.ExecuteReaderAsync(ct);
+            if (!await lector.ReadAsync(ct)) throw new InvalidOperationException("No fue posible registrar la invitación.");
+            return new(LeerCadena(lector, "UsuarioInvitado"), LeerCadena(lector, "NombreInvitado"), LeerFecha(lector, "InvitacionExpira"));
+        }
+        catch (SqlException ex) when (EsErrorFuncional(ex))
+        {
+            throw new InvalidOperationException(ex.Message, ex);
+        }
+    }
+
+    public Task CancelarInvitacionAsync(string usuario, string area, long sesion, CancellationToken ct) =>
+        EjecutarAsync("dbo.Usp_TI_Agente_CancelarInvitacion", c => AgregarSesion(c, usuario, area, sesion), ct);
+
+    public async Task<List<ReproduccionInvitacion>> ListarReproduccionesAsync(string usuario, long? sesion, CancellationToken ct)
+    {
+        await using var conexion = conexionSqlServer.CrearConexion();
+        await using var comando = new SqlCommand("dbo.Usp_TI_Reproduccion_Listar", conexion) { CommandType = CommandType.StoredProcedure };
+        comando.Parameters.Add("@cUsuario", SqlDbType.VarChar, 20).Value = usuario;
+        comando.Parameters.Add("@nSesionNumero", SqlDbType.BigInt).Value = sesion.HasValue ? sesion.Value : DBNull.Value;
+        await conexion.OpenAsync(ct);
+        await using var lector = await comando.ExecuteReaderAsync(ct);
+        var invitaciones = new List<ReproduccionInvitacion>();
+        while (await lector.ReadAsync(ct)) invitaciones.Add(new ReproduccionInvitacion
+        {
+            SesionNumero = LeerLong(lector, "SesionNumero"), IncidenciaNumero = LeerCadena(lector, "IncidenciaNumero"), TituloTicket = LeerCadena(lector, "TituloTicket"),
+            OperadorTI = LeerCadena(lector, "OperadorTI"), EstadoInvitacion = LeerCadena(lector, "EstadoInvitacion"),
+            FechaInvitacion = LeerFecha(lector, "FechaInvitacion"), InvitacionExpira = LeerFecha(lector, "InvitacionExpira")
+        });
+        return invitaciones;
+    }
+
+    public Task ResponderReproduccionAsync(string usuario, long sesion, bool aceptar, string? consentimientoVersion, string? motivo, CancellationToken ct) =>
+        EjecutarAsync("dbo.Usp_TI_Reproduccion_Responder", c =>
+        {
+            c.Parameters.Add("@cUsuario", SqlDbType.VarChar, 20).Value = usuario;
+            c.Parameters.Add("@nSesionNumero", SqlDbType.BigInt).Value = sesion;
+            c.Parameters.Add("@lAceptar", SqlDbType.Bit).Value = aceptar;
+            c.Parameters.Add("@cConsentimientoVersion", SqlDbType.VarChar, 30).Value = string.IsNullOrWhiteSpace(consentimientoVersion) ? DBNull.Value : consentimientoVersion;
+            c.Parameters.Add("@cMotivo", SqlDbType.NVarChar, 500).Value = string.IsNullOrWhiteSpace(motivo) ? DBNull.Value : motivo;
+        }, ct);
+
+    public Task RegistrarEventoReproduccionAsync(string usuario, long sesion, string tipo, string contenido, CancellationToken ct) =>
+        EjecutarAsync("dbo.Usp_TI_Reproduccion_RegistrarEvento", c =>
+        {
+            c.Parameters.Add("@cUsuario", SqlDbType.VarChar, 20).Value = usuario;
+            c.Parameters.Add("@nSesionNumero", SqlDbType.BigInt).Value = sesion;
+            c.Parameters.Add("@cTipo", SqlDbType.VarChar, 40).Value = tipo;
+            c.Parameters.Add("@cContenido", SqlDbType.NVarChar, -1).Value = contenido;
+        }, ct);
+
+    public Task FinalizarReproduccionAsync(string usuario, long sesion, CancellationToken ct) =>
+        EjecutarAsync("dbo.Usp_TI_Reproduccion_Finalizar", c =>
+        {
+            c.Parameters.Add("@cUsuario", SqlDbType.VarChar, 20).Value = usuario;
+            c.Parameters.Add("@nSesionNumero", SqlDbType.BigInt).Value = sesion;
+        }, ct);
+
+    public async Task<List<AgenteTIHerramienta>> ListarHerramientasAsync(string usuario, string area, CancellationToken ct)
+    {
+        await using var conexion = conexionSqlServer.CrearConexion();
+        await using var comando = new SqlCommand("dbo.Usp_TI_Agente_Herramientas", conexion) { CommandType = CommandType.StoredProcedure };
+        AgregarIdentidad(comando, usuario, area);
+        await conexion.OpenAsync(ct);
+        try
+        {
+            await using var lector = await comando.ExecuteReaderAsync(ct);
+            var herramientas = new List<AgenteTIHerramienta>();
+            while (await lector.ReadAsync(ct)) herramientas.Add(new AgenteTIHerramienta
+            {
+                HerramientaCodigo = LeerCadena(lector, "HerramientaCodigo"), Nombre = LeerCadena(lector, "Nombre"), Descripcion = LeerCadena(lector, "Descripcion"),
+                Procedimiento = LeerCadena(lector, "Procedimiento"), ParametrosEsquemaJson = LeerCadena(lector, "ParametrosEsquemaJson"),
+                Automatica = LeerBooleano(lector, "Automatica"), RequiereTicket = LeerBooleano(lector, "RequiereTicket"), MaximoFilas = LeerEntero(lector, "MaximoFilas")
+            });
+            return herramientas;
+        }
+        catch (SqlException ex) when (EsErrorFuncional(ex))
+        {
+            throw new InvalidOperationException(ex.Message, ex);
+        }
+    }
+
+    /// <summary>
+    /// Ejecuta una herramienta diagnóstica del catálogo. Corre dentro de una transacción que siempre se revierte:
+    /// aunque un procedimiento mal escrito intentara modificar datos, nada queda persistido.
+    /// </summary>
+    public async Task<AgenteTIHerramientaResultado> EjecutarHerramientaAsync(string procedimiento, string usuario, string area, long sesion, string parametrosJson, int maximoFilas, CancellationToken ct)
+    {
+        if (!HerramientaPermitida.IsMatch(procedimiento)) throw new InvalidOperationException("La herramienta no pertenece a la lista permitida de diagnóstico.");
+        maximoFilas = Math.Clamp(maximoFilas, 1, 200);
+
+        await using var conexion = conexionSqlServer.CrearConexion();
+        await using var comando = new SqlCommand(procedimiento, conexion) { CommandType = CommandType.StoredProcedure, CommandTimeout = 20 };
+        AgregarSesion(comando, usuario, area, sesion);
+        comando.Parameters.Add("@cParametrosJson", SqlDbType.NVarChar, -1).Value = string.IsNullOrWhiteSpace(parametrosJson) ? "{}" : parametrosJson;
+
+        await conexion.OpenAsync(ct);
+        await using var transaccion = (SqlTransaction)await conexion.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
+        comando.Transaction = transaccion;
+        try
+        {
+            var resultado = new AgenteTIHerramientaResultado();
+            await using (var lector = await comando.ExecuteReaderAsync(ct))
+            {
+                while (await lector.ReadAsync(ct))
+                {
+                    if (resultado.Filas.Count >= maximoFilas)
+                    {
+                        resultado.Truncado = true;
+                        break;
+                    }
+                    var fila = new Dictionary<string, object?>(lector.FieldCount, StringComparer.OrdinalIgnoreCase);
+                    for (var i = 0; i < lector.FieldCount; i++) fila[lector.GetName(i)] = ValorHerramienta(lector.GetValue(i));
+                    resultado.Filas.Add(fila);
+                }
+            }
+            return resultado;
+        }
+        catch (SqlException ex) when (EsErrorFuncional(ex))
+        {
+            throw new InvalidOperationException(ex.Message, ex);
+        }
+        finally
+        {
+            try { await transaccion.RollbackAsync(CancellationToken.None); } catch (Exception) { /* La conexion puede haberse cerrado. */ }
+        }
+    }
+
+    public Task RegistrarHerramientaAsync(string usuario, long sesion, string herramientaCodigo, string origen, string contenido, string datosJson, CancellationToken ct) =>
+        EjecutarAsync("dbo.Usp_TI_Agente_RegistrarHerramienta", c =>
+        {
+            c.Parameters.Add("@cUsuario", SqlDbType.VarChar, 20).Value = usuario;
+            c.Parameters.Add("@nSesionNumero", SqlDbType.BigInt).Value = sesion;
+            c.Parameters.Add("@cHerramientaCodigo", SqlDbType.VarChar, 40).Value = herramientaCodigo;
+            c.Parameters.Add("@cOrigen", SqlDbType.VarChar, 20).Value = origen;
+            c.Parameters.Add("@cContenido", SqlDbType.NVarChar, 2000).Value = contenido;
+            c.Parameters.Add("@cDatosJson", SqlDbType.NVarChar, -1).Value = datosJson;
+        }, ct);
+
+    public async Task<AgenteTIEjecutorSimulacion> ObtenerEjecutorSimulacionAsync(string usuario, string area, long sesion, CancellationToken ct)
+    {
+        await using var conexion = conexionSqlServer.CrearConexion();
+        await using var comando = new SqlCommand("dbo.Usp_TI_Agente_ObtenerEjecutorSimulacion", conexion) { CommandType = CommandType.StoredProcedure };
+        AgregarSesion(comando, usuario, area, sesion);
+        await conexion.OpenAsync(ct);
+        try
+        {
+            await using var lector = await comando.ExecuteReaderAsync(ct);
+            if (!await lector.ReadAsync(ct)) throw new InvalidOperationException("La acción propuesta no tiene un ejecutor autorizado instalado; no puede simularse.");
+            return new AgenteTIEjecutorSimulacion
+            {
+                IncidenciaNumero = LeerCadena(lector, "IncidenciaNumero"), AccionCodigo = LeerCadena(lector, "AccionCodigo"),
+                ParametrosJson = LeerCadena(lector, "ParametrosJson"), Procedimiento = LeerCadena(lector, "Procedimiento"), MaximoFilas = LeerEntero(lector, "MaximoFilas")
+            };
+        }
+        catch (SqlException ex) when (EsErrorFuncional(ex))
+        {
+            throw new InvalidOperationException(ex.Message, ex);
+        }
+    }
+
+    public Task RegistrarSimulacionAsync(string usuario, long sesion, bool exito, string parametrosJson, string? resultadoJson, int? filas, string? error, CancellationToken ct) =>
+        EjecutarAsync("dbo.Usp_TI_Agente_RegistrarSimulacion", c =>
+        {
+            c.Parameters.Add("@cUsuario", SqlDbType.VarChar, 20).Value = usuario;
+            c.Parameters.Add("@nSesionNumero", SqlDbType.BigInt).Value = sesion;
+            c.Parameters.Add("@lExito", SqlDbType.Bit).Value = exito;
+            c.Parameters.Add("@cParametrosJson", SqlDbType.NVarChar, -1).Value = parametrosJson;
+            c.Parameters.Add("@cResultadoJson", SqlDbType.NVarChar, -1).Value = string.IsNullOrWhiteSpace(resultadoJson) ? DBNull.Value : resultadoJson;
+            c.Parameters.Add("@nFilasAfectadas", SqlDbType.Int).Value = filas.HasValue ? filas.Value : DBNull.Value;
+            c.Parameters.Add("@cError", SqlDbType.NVarChar, 2000).Value = string.IsNullOrWhiteSpace(error) ? DBNull.Value : error;
+        }, ct);
+
+    private static object? ValorHerramienta(object valor) => valor switch
+    {
+        DBNull => null,
+        DateTime fecha => fecha.ToString("yyyy-MM-dd HH:mm:ss"),
+        DateTimeOffset fecha => fecha.ToString("yyyy-MM-dd HH:mm:ss zzz"),
+        Guid guid => guid.ToString(),
+        string texto => texto.Trim(),
+        byte[] => "[binario omitido]",
+        _ => valor
+    };
 
     private static void AgregarSesion(SqlCommand comando, string usuario, string area, long sesion)
     {

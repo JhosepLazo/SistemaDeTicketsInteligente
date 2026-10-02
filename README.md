@@ -85,6 +85,15 @@ $env:OPENAI_API_KEY = "TU_CLAVE"
 $env:AsistenteIA__Modelo = "gpt-5-mini"
 ```
 
+Para pruebas sin costo puede usarse **Gemini en su nivel gratuito** (sin tarjeta): una sola clave de [Google AI Studio](https://aistudio.google.com/apikey) activa el asistente del colaborador, el diagnóstico del Agente de Ingeniería y la observación Live. Como alternativa existe Groq (`GROQ_API_KEY`, clave gratuita en console.groq.com), aunque su límite gratuito de tokens por minuto es bajo para investigaciones extensas.
+
+```powershell
+$env:GEMINI_API_KEY = "TU_CLAVE_DE_AI_STUDIO"
+# Opcional: fijar proveedor y modelo (por defecto se usa el primero con clave: OpenAI, Gemini, Groq)
+$env:AsistenteIA__Proveedor = "Gemini"
+$env:AsistenteIA__ModeloGemini = "gemini-3.8-flash"
+```
+
 Después de definir la variable, se debe reiniciar la API. Si la clave no existe o el proveedor no está disponible, el sistema vuelve automáticamente al modo de conocimiento local. Nunca se debe colocar la clave en React ni en un archivo versionado.
 
 El asistente operativo para TI está disponible para los perfiles `TEC`, `SUP` y `ADM`. Consulta los catálogos vigentes de áreas, líneas, ítems, tipos, categorías, SLA, formatos, conocimiento y usuarios. También puede preparar la creación o actualización de un usuario corporativo a partir de una instrucción como:

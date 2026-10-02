@@ -68,6 +68,10 @@ export interface AgenteTISesion {
   usuarioTI: string
   nombreOperador: string
   esPropietario: boolean
+  usuarioInvitado: string
+  nombreInvitado: string
+  estadoInvitacion: '' | 'PENDIENTE' | 'ACEPTADA' | 'RECHAZADA' | 'CANCELADA' | 'FINALIZADA' | 'VENCIDA'
+  invitacionExpira: string | null
 }
 
 export interface AgenteTITicketContexto {
@@ -173,6 +177,36 @@ export interface AgenteTIDiagnosticoRespuesta {
   informeDisponible: boolean
   informeMarkdown: string
   limitacion: string
+  /** AGENTE (varios pasos con herramientas), IA (una llamada) o SIN_MODELO. */
+  modo: string
+  pasos: AgenteTIPasoInvestigacion[]
+  hallazgos: AgenteTIHallazgo[]
+  datosOcultados: number
+}
+
+export interface AgenteTIPasoInvestigacion {
+  orden: number
+  herramientaCodigo: string
+  nombre: string
+  origen: 'AUTOMATICA' | 'MODELO' | string
+  parametrosJson: string
+  filas: number
+  truncado: boolean
+  duracionMs: number
+  resumen: string
+  error: string
+}
+
+export interface AgenteTIHallazgo { fuente: string; referencia: string; descripcion: string }
+
+export interface AgenteTISimulacionRespuesta {
+  sesionNumero: number
+  accionCodigo: string
+  exito: boolean
+  filasAfectadas: number | null
+  resultadoJson: string
+  parametrosJson: string
+  mensaje: string
 }
 
 export interface AgenteTILiveTokenRespuesta {
@@ -181,6 +215,9 @@ export interface AgenteTILiveTokenRespuesta {
   modelo: string
   webSocketUrl: string
   instruccionSistema: string
+  /** Modelo, instrucción y funciones quedaron fijados en el token: el navegador solo abre la conexión. */
+  restringido: boolean
+  herramientas: unknown[] | null
   expiraEn: string | null
   mensaje: string
 }
@@ -312,6 +349,12 @@ export async function listarInvestigacionesTicketTI(incidenciaNumero: string) {
 export async function obtenerInformeTI(numero: number) {
   return procesar<{ informeMarkdown: string; incidenciaNumero: string }>(await enviar(`/api/asistente/ti/investigaciones/${numero}/informe`, 'GET'), 'No se pudo obtener el expediente.')
 }
+export async function invitarUsuarioReproduccionTI(numero: number) {
+  return procesar<{ usuarioInvitado: string; nombreInvitado: string; invitacionExpira: string }>(await enviar(`/api/asistente/ti/investigaciones/${numero}/invitacion`, 'POST'), 'No se pudo invitar al usuario.')
+}
+export async function cancelarInvitacionReproduccionTI(numero: number) {
+  await procesarSinContenido(await enviar(`/api/asistente/ti/investigaciones/${numero}/invitacion/cancelar`, 'POST'), 'No se pudo cancelar la invitación.')
+}
 export async function reasignarInvestigacionTI(numero: number, nuevoUsuario: string) {
   await procesarSinContenido(await enviar(`/api/asistente/ti/investigaciones/${numero}/reasignar`, 'POST', { nuevoUsuario }), 'No se pudo reasignar la investigación.')
 }
@@ -329,6 +372,9 @@ export async function buscarCodigoInvestigacionTI(numero: number) {
 }
 export async function validarSolucionInvestigacionTI(numero: number) {
   await procesarSinContenido(await enviar(`/api/asistente/ti/investigaciones/${numero}/validar-solucion`, 'POST', { confirmar: true }), 'No se pudo validar la solución.')
+}
+export async function simularCambioTI(numero: number) {
+  return procesar<AgenteTISimulacionRespuesta>(await enviar(`/api/asistente/ti/investigaciones/${numero}/simular-cambio`, 'POST'), 'No se pudo simular el cambio.')
 }
 export async function crearConocimientoInvestigacionTI(numero: number) {
   return procesar<{ conocimientoCodigo: string }>(await enviar(`/api/asistente/ti/investigaciones/${numero}/conocimiento`, 'POST'), 'No se pudo crear el borrador.')
