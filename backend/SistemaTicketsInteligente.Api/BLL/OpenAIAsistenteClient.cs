@@ -3,7 +3,7 @@
  * Objetivo: Consumir la Responses API de OpenAI desde el servidor.
  * Responsabilidad: Enviar únicamente el prompt y contexto previamente autorizados, y devolver texto sin exponer credenciales al navegador.
  * Dependencias: HttpClient, IConfiguration y System.Text.Json.
- * Flujo: AsistenteUsuarioBLL -> OpenAI Responses API -> texto de respuesta.
+ * Flujo: Asistente BLL -> OpenAI Responses API -> texto de respuesta.
  * Consideraciones: La clave se lee desde OPENAI_API_KEY o AsistenteIA:ApiKey; nunca se registra el contenido enviado.
  */
 
@@ -35,8 +35,8 @@ public sealed class OpenAIAsistenteClient
 
         var modelo = configuration["AsistenteIA:Modelo"]?.Trim();
         if (string.IsNullOrWhiteSpace(modelo)) modelo = "gpt-5-mini";
-        var maxTokens = configuration.GetValue<int?>("AsistenteIA:MaxTokens") ?? 700;
-        maxTokens = Math.Clamp(maxTokens, 200, 1200);
+        var maxTokens = configuration.GetValue<int?>("AsistenteIA:MaxTokens") ?? 1800;
+        maxTokens = Math.Clamp(maxTokens, 300, 3000);
 
         using var solicitud = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/responses");
         solicitud.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
@@ -93,6 +93,5 @@ public sealed class OpenAIAsistenteClient
         }
     }
 
-    private string? ObtenerApiKey() =>
-        Environment.GetEnvironmentVariable("OPENAI_API_KEY") ?? configuration["AsistenteIA:ApiKey"];
+    private string? ObtenerApiKey() => Environment.GetEnvironmentVariable("OPENAI_API_KEY") ?? configuration["AsistenteIA:ApiKey"];
 }
