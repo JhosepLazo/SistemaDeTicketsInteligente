@@ -29,11 +29,14 @@ builder.Services.AddResponseCompression(opciones =>
 builder.Services.Configure<BrotliCompressionProviderOptions>(opciones => opciones.Level = CompressionLevel.Fastest);
 builder.Services.Configure<GzipCompressionProviderOptions>(opciones => opciones.Level = CompressionLevel.Fastest);
 
+// La API usa los objetos TI_* integrados en GestionSistemas. Las conexiones con nombre
+// conservan las responsabilidades confirmadas de GestionSistemas, IntranetCalimod y Spring.
 var conexionesRequeridas = new[] { "CnnSistemaTickets", "CnnGestionTi", "CnnSeguridad", "CnnSpring" };
 foreach (var nombreConexion in conexionesRequeridas)
 {
     var valor = builder.Configuration.GetConnectionString(nombreConexion);
-    if (string.IsNullOrWhiteSpace(valor)) throw new InvalidOperationException($"No se configuró la conexión '{nombreConexion}'.");
+    if (string.IsNullOrWhiteSpace(valor))
+        throw new InvalidOperationException($"No se configuró la conexión '{nombreConexion}'.");
 
     if (builder.Environment.IsEnvironment("Empresa") &&
         (valor.Contains("SERVIDOR_EMPRESA", StringComparison.OrdinalIgnoreCase) ||
@@ -43,6 +46,8 @@ foreach (var nombreConexion in conexionesRequeridas)
 }
 
 var cadenaConexion = builder.Configuration.GetConnectionString("CnnSistemaTickets")!;
+
+// Mantiene las claves de cifrado de la cookie fuera del proyecto para que reiniciar la API no invalide una sesión vigente.
 var rutaClavesSesion = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SistemaTicketsInteligente", "DataProtectionKeys");
 Directory.CreateDirectory(rutaClavesSesion);
 
@@ -94,8 +99,16 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         opciones.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
         opciones.ExpireTimeSpan = TimeSpan.FromHours(8);
         opciones.SlidingExpiration = true;
-        opciones.Events.OnRedirectToLogin = contexto => { contexto.Response.StatusCode = StatusCodes.Status401Unauthorized; return Task.CompletedTask; };
-        opciones.Events.OnRedirectToAccessDenied = contexto => { contexto.Response.StatusCode = StatusCodes.Status403Forbidden; return Task.CompletedTask; };
+        opciones.Events.OnRedirectToLogin = contexto =>
+        {
+            contexto.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return Task.CompletedTask;
+        };
+        opciones.Events.OnRedirectToAccessDenied = contexto =>
+        {
+            contexto.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return Task.CompletedTask;
+        };
     });
 
 builder.Services.AddAuthorization();
@@ -105,7 +118,13 @@ builder.Services.AddRateLimiter(opciones =>
     opciones.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     opciones.AddPolicy("Login", contexto => RateLimitPartition.GetFixedWindowLimiter(
         contexto.Connection.RemoteIpAddress?.ToString() ?? "desconocido",
-        _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true }));
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 5,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        }));
     opciones.AddPolicy("Asistente", contexto => RateLimitPartition.GetTokenBucketLimiter(
         contexto.Connection.RemoteIpAddress?.ToString() ?? "desconocido",
         _ => new TokenBucketRateLimiterOptions
@@ -128,6 +147,7 @@ builder.Services.AddCors(opciones =>
 });
 
 var app = builder.Build();
+
 app.UseResponseCompression();
 
 app.UseExceptionHandler(aplicacionError =>
@@ -137,11 +157,19 @@ app.UseExceptionHandler(aplicacionError =>
         var excepcion = contexto.Features.Get<IExceptionHandlerFeature>()?.Error;
         var errorSqlFuncional = excepcion is SqlException sqlFuncional && sqlFuncional.Number is >= 50000 and <= 50999;
         var baseDatosNoDisponible = excepcion is SqlException && !errorSqlFuncional;
-        contexto.Response.StatusCode = errorSqlFuncional ? StatusCodes.Status409Conflict : baseDatosNoDisponible ? StatusCodes.Status503ServiceUnavailable : StatusCodes.Status500InternalServerError;
+        contexto.Response.StatusCode = errorSqlFuncional
+            ? StatusCodes.Status409Conflict
+            : baseDatosNoDisponible
+                ? StatusCodes.Status503ServiceUnavailable
+                : StatusCodes.Status500InternalServerError;
         contexto.Response.ContentType = "application/json";
         await contexto.Response.WriteAsJsonAsync(new
         {
-            mensaje = errorSqlFuncional ? excepcion!.Message : baseDatosNoDisponible ? "La base de datos no se encuentra disponible. Intenta nuevamente en unos momentos." : "Se produjo un error al procesar la solicitud.",
+            mensaje = errorSqlFuncional
+                ? excepcion!.Message
+                : baseDatosNoDisponible
+                    ? "La base de datos no se encuentra disponible. Intenta nuevamente en unos momentos."
+                    : "Se produjo un error al procesar la solicitud.",
             idSeguimiento = contexto.TraceIdentifier
         });
     });
@@ -163,7 +191,9 @@ app.MapGet("/api/salud", async (ConexionSqlServer conexion, CancellationToken ca
     }
     catch (SqlException)
     {
-        return Results.Json(new { estado = "degradado", baseDatos = "no disponible" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+        return Results.Json(
+            new { estado = "degradado", baseDatos = "no disponible" },
+            statusCode: StatusCodes.Status503ServiceUnavailable);
     }
 });
 
