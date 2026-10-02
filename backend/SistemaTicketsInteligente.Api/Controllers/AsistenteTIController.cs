@@ -19,7 +19,7 @@ namespace SistemaTicketsInteligente.Api.Controllers;
 
 [ApiController]
 [Authorize(Roles = "TEC,SUP,ADM")]
-[EnableRateLimiting("Asistente")]
+[EnableRateLimiting("Agente")]
 [Route("api/asistente/ti")]
 public sealed class AsistenteTIController : ControllerBase
 {
@@ -31,6 +31,7 @@ public sealed class AsistenteTIController : ControllerBase
     }
 
     [HttpPost("mensajes")]
+    [EnableRateLimiting("Asistente")]
     public Task<IActionResult> Responder(AsistenteTISolicitud solicitud, CancellationToken ct) =>
         Ejecutar(async identidad => Ok(await asistente.ResponderAsync(identidad.Usuario, solicitud, ct)));
 
@@ -47,6 +48,7 @@ public sealed class AsistenteTIController : ControllerBase
         Ejecutar(async identidad => Ok(await asistente.ObtenerInvestigacionAsync(identidad.Usuario, identidad.Area, sesionNumero, ct)));
 
     [HttpPost("investigaciones/{sesionNumero:long}/eventos")]
+    [EnableRateLimiting("AgenteEventos")]
     public Task<IActionResult> RegistrarEvento(long sesionNumero, RegistrarEventoAgenteTISolicitud solicitud, CancellationToken ct) =>
         Ejecutar(async identidad =>
         {
@@ -67,6 +69,7 @@ public sealed class AsistenteTIController : ControllerBase
         Ejecutar(async identidad => Ok(await asistente.CrearTokenLiveAsync(identidad.Usuario, identidad.Area, sesionNumero, ct)));
 
     [HttpPost("investigaciones/{sesionNumero:long}/analizar")]
+    [EnableRateLimiting("Asistente")]
     public Task<IActionResult> Investigar(long sesionNumero, CancellationToken ct) =>
         Ejecutar(async identidad => Ok(await asistente.InvestigarAsync(identidad.Usuario, identidad.Area, sesionNumero, ct)));
 
@@ -83,6 +86,27 @@ public sealed class AsistenteTIController : ControllerBase
     [HttpPost("investigaciones/{sesionNumero:long}/realizar-cambio")]
     public Task<IActionResult> RealizarCambio(long sesionNumero, RealizarCambioAgenteTISolicitud solicitud, CancellationToken ct) =>
         Ejecutar(async identidad => Ok(await asistente.RealizarCambioAsync(identidad.Usuario, identidad.Area, sesionNumero, solicitud, ct)));
+
+    [HttpGet("investigaciones")]
+    public Task<IActionResult> Listar(CancellationToken ct) => Ejecutar(async i => Ok(await asistente.ListarAsync(i.Usuario, i.Area, ct)));
+
+    [HttpPost("investigaciones/{sesionNumero:long}/cancelar")]
+    public Task<IActionResult> Cancelar(long sesionNumero, CancellationToken ct) => Ejecutar(async i => { await asistente.CancelarAsync(i.Usuario, i.Area, sesionNumero, ct); return NoContent(); });
+
+    [HttpPost("investigaciones/{sesionNumero:long}/vincular")]
+    public Task<IActionResult> Vincular(long sesionNumero, VincularIncidenciaTISolicitud solicitud, CancellationToken ct) => Ejecutar(async i => { await asistente.VincularAsync(i.Usuario, i.Area, sesionNumero, solicitud, ct); return NoContent(); });
+
+    [HttpGet("investigaciones/{sesionNumero:long}/dry-run")]
+    public Task<IActionResult> DryRun(long sesionNumero, CancellationToken ct) => Ejecutar(async i => Ok(await asistente.DryRunAsync(i.Usuario, i.Area, sesionNumero, ct)));
+
+    [HttpGet("investigaciones/{sesionNumero:long}/codigo")]
+    public Task<IActionResult> Codigo(long sesionNumero, CancellationToken ct) => Ejecutar(async i => Ok(await asistente.BuscarCodigoAsync(i.Usuario, i.Area, sesionNumero, ct)));
+
+    [HttpPost("investigaciones/{sesionNumero:long}/validar-solucion")]
+    public Task<IActionResult> ValidarSolucion(long sesionNumero, RealizarCambioAgenteTISolicitud solicitud, CancellationToken ct) => Ejecutar(async i => { await asistente.ValidarSolucionAsync(i.Usuario, i.Area, sesionNumero, solicitud, ct); return NoContent(); });
+
+    [HttpPost("investigaciones/{sesionNumero:long}/conocimiento")]
+    public Task<IActionResult> Conocimiento(long sesionNumero, CancellationToken ct) => Ejecutar(async i => Ok(new { conocimientoCodigo = await asistente.CrearBorradorAsync(i.Usuario, i.Area, sesionNumero, ct) }));
 
     private async Task<IActionResult> Ejecutar(Func<(string Usuario, string Area), Task<IActionResult>> accion)
     {

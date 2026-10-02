@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Data.SqlClient;
 using SistemaTicketsInteligente.Api.BLL;
 using SistemaTicketsInteligente.Api.DAO;
+using SistemaTicketsInteligente.Api.Observabilidad;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -43,6 +44,12 @@ foreach (var nombreConexion in conexionesRequeridas)
 }
 
 var cadenaConexion = builder.Configuration.GetConnectionString("CnnSistemaTickets")!;
+if (builder.Environment.IsEnvironment("Diagnostico"))
+{
+    foreach (var nombre in conexionesRequeridas)
+        if (!new SqlConnectionStringBuilder(builder.Configuration.GetConnectionString(nombre)).InitialCatalog.EndsWith("_TEST", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("El entorno Diagnostico solo admite bases terminadas en _TEST.");
+}
 var rutaClavesSesion = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SistemaTicketsInteligente", "DataProtectionKeys");
 Directory.CreateDirectory(rutaClavesSesion);
 
@@ -81,6 +88,8 @@ builder.Services.AddScoped<RecursosSoporteBLL>();
 builder.Services.AddScoped<AsistenteTIDAO>();
 builder.Services.AddScoped<AsistenteUsuarioBLL>();
 builder.Services.AddScoped<AsistenteTIBLL>();
+builder.Services.AddSingleton<AgenteCodigoClient>();
+builder.Services.AddHostedService<SqlTrazaListener>();
 builder.Services.AddHttpClient<OpenAIAsistenteClient>(cliente => cliente.Timeout = TimeSpan.FromSeconds(45));
 builder.Services.AddHttpClient<GeminiLiveClient>(cliente => cliente.Timeout = TimeSpan.FromSeconds(15));
 builder.Services.AddMemoryCache();
@@ -107,7 +116,7 @@ builder.Services.AddRateLimiter(opciones =>
         contexto.Connection.RemoteIpAddress?.ToString() ?? "desconocido",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true }));
     opciones.AddPolicy("Asistente", contexto => RateLimitPartition.GetTokenBucketLimiter(
-        contexto.Connection.RemoteIpAddress?.ToString() ?? "desconocido",
+        contexto.User.Identity?.Name ?? contexto.Connection.RemoteIpAddress?.ToString() ?? "desconocido",
         _ => new TokenBucketRateLimiterOptions
         {
             TokenLimit = 12,
@@ -116,6 +125,10 @@ builder.Services.AddRateLimiter(opciones =>
             QueueLimit = 0,
             AutoReplenishment = true
         }));
+    foreach (var (nombre, limite) in new[] { ("Agente", 100), ("AgenteEventos", 300) })
+        opciones.AddPolicy(nombre, contexto => RateLimitPartition.GetFixedWindowLimiter(
+            contexto.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? contexto.Connection.RemoteIpAddress?.ToString() ?? "desconocido",
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = limite, Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true }));
 });
 
 builder.Services.AddCors(opciones =>
@@ -149,9 +162,10 @@ app.UseExceptionHandler(aplicacionError =>
 
 app.UseRouting();
 app.UseCors("Frontend");
-app.UseRateLimiter();
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
+app.UseMiddleware<CorrelacionMiddleware>();
 
 app.MapControllers();
 app.MapGet("/api/salud", async (ConexionSqlServer conexion, CancellationToken cancellationToken) =>

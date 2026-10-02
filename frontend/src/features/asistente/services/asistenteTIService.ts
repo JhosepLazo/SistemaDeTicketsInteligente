@@ -42,6 +42,8 @@ export interface AccionTIConfirmada {
 }
 
 export interface AgenteTISesion {
+  solucionValidada: boolean
+  conocimientoCodigo: string
   sesionNumero: number
   incidenciaNumero: string
   idCorrelacion: string
@@ -81,6 +83,7 @@ export interface AgenteTITicketContexto {
 }
 
 export interface AgenteTIEvento {
+  origenServidor: boolean
   secuencia: number
   tipo: string
   fuente: string
@@ -264,4 +267,29 @@ export async function grabarInformacionTI(sesionNumero: number) {
 export async function realizarCambioTI(sesionNumero: number) {
   const respuesta = await enviar(`/api/asistente/ti/investigaciones/${sesionNumero}/realizar-cambio`, 'POST', { confirmar: true })
   return procesar<AgenteTIDecisionRespuesta>(respuesta, 'No fue posible procesar la decisión de cambio.')
+}
+
+export interface AgenteCodigoReferencia { archivo: string; linea: number; fragmento: string }
+export interface AgenteComprobacion { codigo: string; descripcion: string; resultado: 'OK' | 'ERROR' | 'PENDIENTE' | 'NO_DISPONIBLE' }
+
+export async function listarInvestigacionesTI() {
+  return procesar<AgenteTISesion[]>(await enviar('/api/asistente/ti/investigaciones', 'GET'), 'No se pudo cargar el historial de investigaciones.')
+}
+export async function cancelarInvestigacionTI(numero: number) {
+  await procesarSinContenido(await enviar(`/api/asistente/ti/investigaciones/${numero}/cancelar`, 'POST'), 'No se pudo cancelar la investigación.')
+}
+export async function vincularIncidenciaTI(numero: number, incidenciaNumero: string) {
+  await procesarSinContenido(await enviar(`/api/asistente/ti/investigaciones/${numero}/vincular`, 'POST', { incidenciaNumero }), 'No se pudo vincular el ticket.')
+}
+export async function comprobarInvestigacionTI(numero: number) {
+  return procesar<AgenteComprobacion[]>(await enviar(`/api/asistente/ti/investigaciones/${numero}/dry-run`, 'GET'), 'No se pudo ejecutar el diagnóstico sin cambios.')
+}
+export async function buscarCodigoInvestigacionTI(numero: number) {
+  return procesar<AgenteCodigoReferencia[]>(await enviar(`/api/asistente/ti/investigaciones/${numero}/codigo`, 'GET'), 'No se pudieron consultar las referencias de código.')
+}
+export async function validarSolucionInvestigacionTI(numero: number) {
+  await procesarSinContenido(await enviar(`/api/asistente/ti/investigaciones/${numero}/validar-solucion`, 'POST', { confirmar: true }), 'No se pudo validar la solución.')
+}
+export async function crearConocimientoInvestigacionTI(numero: number) {
+  return procesar<{ conocimientoCodigo: string }>(await enviar(`/api/asistente/ti/investigaciones/${numero}/conocimiento`, 'POST'), 'No se pudo crear el borrador.')
 }

@@ -86,6 +86,8 @@ public sealed class RealizarCambioAgenteTISolicitud
 
 public sealed class AgenteTISesion
 {
+    public bool SolucionValidada { get; set; }
+    public string ConocimientoCodigo { get; set; } = string.Empty;
     public long SesionNumero { get; set; }
     public string IncidenciaNumero { get; set; } = string.Empty;
     public Guid IdCorrelacion { get; set; }
@@ -177,6 +179,7 @@ public sealed class AgenteTIAuditoria
 
 public sealed class AgenteTIEvento
 {
+    public bool OrigenServidor { get; set; }
     public int Secuencia { get; set; }
     public string Tipo { get; set; } = string.Empty;
     public string Fuente { get; set; } = string.Empty;
@@ -216,6 +219,7 @@ public sealed class AgenteTIAccionPropuesta
 
 public sealed class AgenteTIDiagnosticoRespuesta
 {
+    public List<AgenteTICodigoReferencia> Codigo { get; set; } = [];
     public long SesionNumero { get; set; }
     public string Estado { get; set; } = string.Empty;
     public string Diagnostico { get; set; } = string.Empty;
@@ -227,6 +231,13 @@ public sealed class AgenteTIDiagnosticoRespuesta
     public AgenteTIAccionPropuesta? Accion { get; set; }
     public bool InformeDisponible { get; set; }
     public string Limitacion { get; set; } = string.Empty;
+}
+
+public sealed record AgenteTICodigoReferencia(string Archivo, int Linea, string Fragmento);
+public sealed record AgenteTIComprobacion(string Codigo, string Descripcion, string Resultado);
+public sealed class VincularIncidenciaTISolicitud
+{
+    public string IncidenciaNumero { get; set; } = string.Empty;
 }
 
 public sealed class AgenteTILiveTokenRespuesta
@@ -242,6 +253,7 @@ public sealed class AgenteTILiveTokenRespuesta
 
 public sealed class AgenteTIPreparacionCambio
 {
+    public int MaximoFilas { get; set; }
     public string Estado { get; set; } = string.Empty;
     public string Mensaje { get; set; } = string.Empty;
     public bool PuedeEjecutar { get; set; }

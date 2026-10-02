@@ -20,6 +20,7 @@ import type {
   SolicitudInicioSesion,
 } from '../types/autenticacion'
 import { EVENTO_SESION_EXPIRADA } from '../services/sesionExpirada'
+import { seleccionarSesionTraza } from '../../../shared/services/observabilidadAgente'
 
 interface ValorAutenticacion {
   estado: EstadoAutenticacion
@@ -58,6 +59,7 @@ export function AutenticacionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     function manejarSesionExpirada() {
+      seleccionarSesionTraza(null)
       setUsuario(null)
       setEstado('noAutenticado')
       setMensajeSesion('Tu sesión venció. Inicia sesión nuevamente para continuar.')
@@ -68,6 +70,7 @@ export function AutenticacionProvider({ children }: { children: ReactNode }) {
   }, [])
 
   async function iniciarSesion(solicitud: SolicitudInicioSesion) {
+    seleccionarSesionTraza(null)
     const sesion = await iniciarSesionServicio(solicitud)
     setUsuario(sesion)
     setEstado('autenticado')
@@ -82,6 +85,7 @@ export function AutenticacionProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       setMensajeSesion(error instanceof Error ? error.message : 'No fue posible cerrar la sesión correctamente.')
     } finally {
+      seleccionarSesionTraza(null)
       setUsuario(null)
       setEstado('noAutenticado')
     }

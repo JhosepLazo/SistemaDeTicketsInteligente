@@ -9,6 +9,7 @@
 
 import { createRoot } from 'react-dom/client'
 import App from './app/App'
+import { instalarObservabilidadAgente } from './shared/services/observabilidadAgente'
 import './styles/global.css'
 import './styles/professional-theme.css'
 
@@ -18,4 +19,5 @@ if (!contenedor) {
   throw new Error('No se encontró el elemento raíz de la aplicación.')
 }
 
+instalarObservabilidadAgente()
 createRoot(contenedor).render(<App />)

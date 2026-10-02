@@ -38,6 +38,7 @@ Begin
 		Decision					varchar(30)			Null,
 		UsuarioDecision			varchar(20)			Null,
 		SolicitudAprobacionSecuencia	int				Null,
+		EjecucionSecuencia int Null,
 		FechaInicio					datetime2(0)		Not Null,
 		FechaObservacionFin			datetime2(0)		Null,
 		FechaDiagnostico			datetime2(0)		Null,
@@ -57,6 +58,13 @@ Begin
 	Create Index IX_TI_AgenteSesion_UsuarioEstadoFecha on dbo.TI_AgenteSesion (UsuarioTI, Estado, FechaInicio Desc)
 	Create Index IX_TI_AgenteSesion_IncidenciaFecha on dbo.TI_AgenteSesion (IncidenciaNumero, FechaInicio Desc) Where IncidenciaNumero Is Not Null
 End
+Go
+
+If Col_Length('dbo.TI_AgenteSesion', 'EjecucionSecuencia') Is Null
+    Alter Table dbo.TI_AgenteSesion Add EjecucionSecuencia int Null
+Go
+If Col_Length('dbo.TI_AgenteSesion', 'SolucionValidada') Is Null
+    Alter Table dbo.TI_AgenteSesion Add SolucionValidada bit Not Null Constraint DF_TI_AgenteSesion_Validada Default 0, ConocimientoCodigo varchar(20) Null
 Go
 
 If Object_Id('dbo.TI_AgenteEvento', 'U') Is Null
@@ -92,6 +100,9 @@ Begin
 		Constraint CK_TI_AgenteAccionEjecutor_Procedimiento Check (Procedimiento Like 'dbo.Usp_TI_AgenteAccion[_]%')
 	)
 End
+Go
+If Col_Length('dbo.TI_AgenteEvento', 'OrigenServidor') Is Null
+    Alter Table dbo.TI_AgenteEvento Add OrigenServidor bit Not Null Constraint DF_TI_AgenteEvento_Origen Default 0
 Go
 
 Create Or Alter Procedure dbo.Usp_TI_Agente_CrearSesion
@@ -165,10 +176,14 @@ Begin
 	If Exists (Select 1 From dbo.TI_AgenteSesion Where SesionNumero = @nSesionNumero and Estado In ('INFORME_GRABADO','CAMBIO_VALIDADO','CANCELADO')) Throw 50504, 'La investigación ya se encuentra finalizada.', 1
 	If NullIf(LTrim(RTrim(@cTipo)), '') Is Null or NullIf(LTrim(RTrim(@cFuente)), '') Is Null or NullIf(LTrim(RTrim(@cContenido)), '') Is Null Throw 50505, 'El evento de investigación no contiene información suficiente.', 1
 	If @cDatosJson Is Not Null and IsJson(@cDatosJson) = 0 Throw 50506, 'Los datos técnicos del evento no tienen formato JSON válido.', 1
+	If Upper(@cFuente) Not In ('LIVE','USUARIO') or Upper(@cTipo) Not In ('INICIO_LIVE','TRANSCRIPCION_USUARIO','TRANSCRIPCION_AGENTE','ERROR_OBSERVADO','FIN_LIVE','NOTA_USUARIO')
+		Throw 50526, 'La evidencia del navegador no puede declararse telemetría o código del servidor.', 1
 
 	Declare @nSecuencia int, @dFecha datetime2(0) = SysDateTime()
 
 	Begin Transaction
+	If Not Exists (Select 1 From dbo.TI_AgenteSesion With (UpdLock, HoldLock) Where SesionNumero = @nSesionNumero and Estado In ('RECOPILANDO','OBSERVANDO','LISTO_INVESTIGAR'))
+		Throw 50527, 'La investigación ya no admite nuevas observaciones.', 1
 	Select @nSecuencia = IsNull(Max(Secuencia), 0) + 1 From dbo.TI_AgenteEvento With (UpdLock, HoldLock) Where SesionNumero = @nSesionNumero
 	Insert dbo.TI_AgenteEvento (SesionNumero, Secuencia, Tipo, Fuente, Contenido, DatosJson, Fecha)
 	Values (@nSesionNumero, @nSecuencia, Upper(LTrim(RTrim(@cTipo))), Upper(LTrim(RTrim(@cFuente))), @cContenido, @cDatosJson, @dFecha)
@@ -196,6 +211,7 @@ Comentario Cambios  : Separa explícitamente la reproducción humana de la inves
 As
 Begin
 	Set NoCount On
+	Set Xact_Abort On
 
 	If Not Exists (Select 1 From dbo.TI_AgenteSesion Where SesionNumero = @nSesionNumero and UsuarioTI = @cUsuario) Throw 50507, 'La sesión de investigación no existe o no pertenece al operador.', 1
 
@@ -205,7 +221,8 @@ Begin
 		ErrorObservado = NullIf(LTrim(RTrim(@cErrorObservado)), ''),
 		Estado = 'LISTO_INVESTIGAR',
 		FechaObservacionFin = SysDateTime()
-	Where SesionNumero = @nSesionNumero and Estado Not In ('INFORME_GRABADO','CAMBIO_VALIDADO','CANCELADO')
+	Where SesionNumero = @nSesionNumero and Estado In ('RECOPILANDO','OBSERVANDO','LISTO_INVESTIGAR')
+	If @@RowCount = 0 Throw 50527, 'La investigación ya no admite nuevas observaciones.', 1
 End
 Go
 
@@ -228,7 +245,7 @@ Begin
 	If Not Exists (Select 1 From dbo.TI_AgenteSesion Where SesionNumero = @nSesionNumero and UsuarioTI = @cUsuario) Throw 50509, 'La sesión de investigación no existe o no pertenece al operador.', 1
 
 	Select
-		s.SesionNumero, s.IncidenciaNumero, s.IdCorrelacion, s.DescripcionInicial, s.Estado, s.ResumenObservacion, s.ProcesoObservado, s.ErrorObservado,
+		s.SesionNumero, s.IncidenciaNumero, s.IdCorrelacion, s.DescripcionInicial, s.Estado, s.ResumenObservacion, s.ProcesoObservado, s.ErrorObservado, s.SolucionValidada, s.ConocimientoCodigo,
 		s.Diagnostico, s.CausaProbable, s.SolucionPropuesta, s.Confianza, s.AccionCodigo, s.NivelRiesgo, s.ParametrosJson, s.Decision,
 		s.SolicitudAprobacionSecuencia, s.FechaInicio, s.FechaDiagnostico, s.FechaDecision,
 		InformeDisponible = Convert(bit, Case When NullIf(s.InformeMarkdown, '') Is Null Then 0 Else 1 End),
@@ -279,7 +296,7 @@ Begin
 	Where s.SesionNumero = @nSesionNumero
 	Order By a.Fecha Desc, a.AuditoriaNumero Desc
 
-	Select Secuencia, Tipo, Fuente, Contenido, DatosJson, Fecha
+	Select Secuencia, Tipo, Fuente, Contenido, DatosJson, Fecha, OrigenServidor
 	From dbo.TI_AgenteEvento
 	Where SesionNumero = @nSesionNumero
 	Order By Secuencia
@@ -322,6 +339,8 @@ Begin
 
 	Begin Try
 		Begin Transaction
+		If Not Exists (Select 1 From dbo.TI_AgenteSesion With (UpdLock, HoldLock) Where SesionNumero = @nSesionNumero and Estado In ('RECOPILANDO','OBSERVANDO','LISTO_INVESTIGAR') and InformeMarkdown Is Null)
+			Throw 50528, 'Ya existe un diagnóstico o una decisión para esta investigación.', 1
 
 		If @cIncidenciaNumero Is Not Null
 		Begin
@@ -386,6 +405,17 @@ Begin
 	If Not Exists (Select 1 From dbo.TI_AgenteSesion Where SesionNumero = @nSesionNumero and InformeMarkdown Is Not Null) Throw 50516, 'La investigación todavía no tiene un informe técnico generado.', 1
 
 	Begin Transaction
+	If Not Exists (Select 1 From dbo.TI_AgenteSesion With (UpdLock, HoldLock) Where SesionNumero = @nSesionNumero and Estado In ('PENDIENTE_TI','PENDIENTE_APROBACION','SIN_EJECUTOR','INFORME_GRABADO'))
+		Throw 50529, 'No es posible cerrar una investigación en ejecución o con cambio validado.', 1
+	If Exists (Select 1 From dbo.TI_AgenteSesion Where SesionNumero = @nSesionNumero and Estado = 'INFORME_GRABADO')
+	Begin
+		Commit Transaction
+		Select InformeMarkdown From dbo.TI_AgenteSesion Where SesionNumero = @nSesionNumero
+		Return
+	End
+	Update a Set Estado = 'C', ComentarioRespuesta = N'Investigación cerrada sin ejecutar cambios.', FechaRespuesta = @dFecha
+	From dbo.TI_SolicitudAprobacion a Join dbo.TI_AgenteSesion s on s.IncidenciaNumero = a.IncidenciaNumero and s.SolicitudAprobacionSecuencia = a.Secuencia
+	Where s.SesionNumero = @nSesionNumero and a.Estado = 'P'
 	Update dbo.TI_AgenteSesion
 	Set Estado = 'INFORME_GRABADO', Decision = 'GRABAR_INFORMACION', UsuarioDecision = @cUsuario, FechaDecision = @dFecha, FechaCierre = @dFecha
 	Where SesionNumero = @nSesionNumero
@@ -417,24 +447,23 @@ Begin
 	Set Xact_Abort On
 
 	Declare @cIncidenciaNumero varchar(12), @cAccionCodigo varchar(50), @cParametrosJson nvarchar(max), @lRequiereAprobacion bit,
-		@nSolicitudSecuencia int, @cEstadoSolicitud char(1), @cProcedimiento varchar(200), @nEjecucionSecuencia int, @dFecha datetime2(0) = SysDateTime()
+		@nSolicitudSecuencia int, @cEstadoSolicitud char(1), @cProcedimiento varchar(200), @nMaximoFilas int, @nEjecucionSecuencia int, @dFecha datetime2(0) = SysDateTime()
 
 	If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Area = @cArea and Estado = 'A' and Perfil In ('TEC','SUP','ADM')) Throw 50517, 'El operador TI no se encuentra habilitado.', 1
-
-	Select @cIncidenciaNumero = s.IncidenciaNumero, @cAccionCodigo = s.AccionCodigo, @cParametrosJson = s.ParametrosJson
-	From dbo.TI_AgenteSesion s
-	Where s.SesionNumero = @nSesionNumero and s.UsuarioTI = @cUsuario and s.Estado In ('PENDIENTE_TI','PENDIENTE_APROBACION','LISTO_EJECUCION','SIN_EJECUTOR')
-
-	If @cAccionCodigo Is Null Throw 50518, 'El diagnóstico no contiene una acción correctiva catalogada.', 1
-	If @cIncidenciaNumero Is Null Throw 50519, 'Para ejecutar un cambio la investigación debe estar asociada a una incidencia.', 1
-
-	Select @lRequiereAprobacion = RequiereAprobacion From dbo.TI_Accion Where AccionCodigo = @cAccionCodigo and Tipo = 'E' and Estado = 'A'
-	If @lRequiereAprobacion Is Null Throw 50520, 'La acción propuesta no está habilitada para ejecución.', 1
 
 	Begin Try
 		Begin Transaction
 
-		Select @nSolicitudSecuencia = SolicitudAprobacionSecuencia From dbo.TI_AgenteSesion With (UpdLock, HoldLock) Where SesionNumero = @nSesionNumero
+		Select @cIncidenciaNumero = IncidenciaNumero, @cAccionCodigo = AccionCodigo, @cParametrosJson = ParametrosJson, @nSolicitudSecuencia = SolicitudAprobacionSecuencia
+		From dbo.TI_AgenteSesion With (UpdLock, HoldLock)
+		Where SesionNumero = @nSesionNumero and UsuarioTI = @cUsuario and AreaTI = @cArea and IdCorrelacion = @cIdCorrelacion
+			and Estado In ('PENDIENTE_TI','PENDIENTE_APROBACION','LISTO_EJECUCION','SIN_EJECUTOR')
+		If @@RowCount = 0 Throw 50523, 'La investigación ya fue procesada o no admite esta ejecución.', 1
+		If @cAccionCodigo Is Null Throw 50518, 'El diagnóstico no contiene una acción correctiva catalogada.', 1
+		If @cIncidenciaNumero Is Null Throw 50519, 'Para ejecutar un cambio la investigación debe estar asociada a una incidencia.', 1
+		If Not Exists (Select 1 From dbo.TI_Incidencia Where IncidenciaNumero = @cIncidenciaNumero and Estado Not In ('RS','CA','CF','NP')) Throw 50530, 'La incidencia ya está finalizada.', 1
+		Select @lRequiereAprobacion = RequiereAprobacion From dbo.TI_Accion With (HoldLock) Where AccionCodigo = @cAccionCodigo and Tipo = 'E' and Estado = 'A'
+		If @lRequiereAprobacion Is Null Throw 50520, 'La acción propuesta no está habilitada para ejecución.', 1
 
 		If @lRequiereAprobacion = 1
 		Begin
@@ -457,17 +486,19 @@ Begin
 				Return
 			End
 
-			Select @cEstadoSolicitud = Estado From dbo.TI_SolicitudAprobacion Where IncidenciaNumero = @cIncidenciaNumero and Secuencia = @nSolicitudSecuencia and AccionCodigo = @cAccionCodigo
+			Select @cEstadoSolicitud = Estado From dbo.TI_SolicitudAprobacion With (UpdLock, HoldLock)
+			Where IncidenciaNumero = @cIncidenciaNumero and Secuencia = @nSolicitudSecuencia and AccionCodigo = @cAccionCodigo
+				and IsNull(ParametrosJson, '{}') = IsNull(@cParametrosJson, '{}')
 			If @cEstadoSolicitud = 'P'
 			Begin
 				Commit Transaction
 				Select Estado = 'PENDIENTE_APROBACION', Mensaje = 'La acción todavía espera aprobación de TI.', PuedeEjecutar = Convert(bit, 0), ProcedimientoEjecutor = Convert(varchar(200), ''), EjecucionSecuencia = Convert(int, Null), SolicitudAprobacionSecuencia = @nSolicitudSecuencia, ParametrosJson = IsNull(@cParametrosJson, '{}')
 				Return
 			End
-			If @cEstadoSolicitud <> 'A' Throw 50521, 'La solicitud de cambio fue rechazada o cancelada y no puede ejecutarse.', 1
+			If IsNull(@cEstadoSolicitud, '') <> 'A' Throw 50521, 'No existe una aprobación válida para esta acción y sus parámetros.', 1
 		End
 
-		Select @cProcedimiento = Procedimiento From dbo.TI_AgenteAccionEjecutor Where AccionCodigo = @cAccionCodigo and Estado = 'A'
+		Select @cProcedimiento = Procedimiento, @nMaximoFilas = MaximoFilas From dbo.TI_AgenteAccionEjecutor With (HoldLock) Where AccionCodigo = @cAccionCodigo and Estado = 'A'
 		If @cProcedimiento Is Null
 		Begin
 			Update dbo.TI_AgenteSesion Set Estado = 'SIN_EJECUTOR' Where SesionNumero = @nSesionNumero
@@ -484,10 +515,10 @@ Begin
 		Insert dbo.TI_EjecucionAccion (IncidenciaNumero, Secuencia, AccionCodigo, SolicitudSecuencia, UsuarioEjecutor, ClaveIdempotencia, ParametrosJson, ResultadoJson, Estado, FilasAfectadas, FechaInicio, FechaFin, Error)
 		Values (@cIncidenciaNumero, @nEjecucionSecuencia, @cAccionCodigo, @nSolicitudSecuencia, @cUsuario, @cClaveIdempotencia, @cParametrosJson, Null, 'PR', Null, @dFecha, Null, Null)
 
-		Update dbo.TI_AgenteSesion Set Estado = 'EJECUTANDO', Decision = 'REALIZAR_CAMBIO', UsuarioDecision = @cUsuario, FechaDecision = @dFecha Where SesionNumero = @nSesionNumero
+		Update dbo.TI_AgenteSesion Set Estado = 'EJECUTANDO', Decision = 'REALIZAR_CAMBIO', UsuarioDecision = @cUsuario, FechaDecision = @dFecha, EjecucionSecuencia = @nEjecucionSecuencia Where SesionNumero = @nSesionNumero
 
 		Commit Transaction
-		Select Estado = 'LISTO_EJECUCION', Mensaje = 'La acción superó permisos, aprobación y catálogo de ejecutores.', PuedeEjecutar = Convert(bit, 1), ProcedimientoEjecutor = @cProcedimiento, EjecucionSecuencia = @nEjecucionSecuencia, SolicitudAprobacionSecuencia = @nSolicitudSecuencia, ParametrosJson = IsNull(@cParametrosJson, '{}')
+		Select Estado = 'LISTO_EJECUCION', Mensaje = 'La acción superó permisos, aprobación y catálogo de ejecutores.', PuedeEjecutar = Convert(bit, 1), ProcedimientoEjecutor = @cProcedimiento, EjecucionSecuencia = @nEjecucionSecuencia, SolicitudAprobacionSecuencia = @nSolicitudSecuencia, ParametrosJson = IsNull(@cParametrosJson, '{}'), MaximoFilas = @nMaximoFilas
 	End Try
 	Begin Catch
 		If Xact_State() <> 0 Rollback Transaction
@@ -522,9 +553,16 @@ Begin
 	If @cIncidenciaNumero Is Null Throw 50524, 'No se encontró la ejecución asociada a la investigación.', 1
 
 	Begin Transaction
+	If Not Exists (Select 1 From dbo.TI_AgenteSesion With (UpdLock, HoldLock) Where SesionNumero = @nSesionNumero and Estado = 'EJECUTANDO' and EjecucionSecuencia = @nEjecucionSecuencia and IdCorrelacion = @cIdCorrelacion)
+		Throw 50525, 'La ejecución no corresponde a la investigación activa.', 1
+	If @lExito = 1
+	Begin
+		If IsNull(IsJson(@cResultadoJson), 0) <> 1 Throw 50531, 'El resultado del ejecutor no es JSON valido.', 1
+		If IsNull(Json_Value(@cResultadoJson, '$.validacionPosterior'), '') <> 'true' Throw 50531, 'El ejecutor no confirmó la validación posterior.', 1
+	End
 	Update dbo.TI_EjecucionAccion
 	Set ResultadoJson = @cResultadoJson, Estado = Case When @lExito = 1 Then 'OK' Else 'ER' End, FilasAfectadas = @nFilasAfectadas, FechaFin = @dFecha, Error = @cError
-	Where IncidenciaNumero = @cIncidenciaNumero and Secuencia = @nEjecucionSecuencia and UsuarioEjecutor = @cUsuario
+	Where IncidenciaNumero = @cIncidenciaNumero and Secuencia = @nEjecucionSecuencia and UsuarioEjecutor = @cUsuario and Estado = 'PR'
 	If @@RowCount = 0 Throw 50525, 'No se encontró la ejecución controlada que debe finalizarse.', 1
 
 	Update dbo.TI_AgenteSesion
