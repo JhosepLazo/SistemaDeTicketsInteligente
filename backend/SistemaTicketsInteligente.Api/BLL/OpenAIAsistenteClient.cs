@@ -239,15 +239,25 @@ public sealed class OpenAIAsistenteClient
     private async Task<JsonNode?> EnviarAsync(Proveedor proveedor, JsonObject cuerpo, CancellationToken ct)
     {
         var ruta = proveedor.BaseUrl + (proveedor.UsaResponses ? "/responses" : "/chat/completions");
-        // Los niveles gratuitos limitan solicitudes por minuto: ante un 429 se espera lo que indique el proveedor y se reintenta una vez.
-        for (var intento = 0; intento < 2; intento++)
+        // Los niveles gratuitos limitan solicitudes por minuto (429) y a veces saturan un modelo (503):
+        // ante 429 se espera lo indicado y se reintenta; ante 503 se pasa una vez al modelo de respaldo.
+        var cambioModelo = false;
+        for (var intento = 0; intento < 3; intento++)
         {
             using var solicitud = new HttpRequestMessage(HttpMethod.Post, ruta);
             solicitud.Headers.Authorization = new AuthenticationHeaderValue("Bearer", proveedor.ApiKey);
             solicitud.Content = new StringContent(cuerpo.ToJsonString(), Encoding.UTF8, "application/json");
 
             using var respuesta = await httpClient.SendAsync(solicitud, HttpCompletionOption.ResponseHeadersRead, ct);
-            if (respuesta.StatusCode == HttpStatusCode.TooManyRequests && intento == 0)
+            if (respuesta.StatusCode == HttpStatusCode.ServiceUnavailable && !cambioModelo && !string.IsNullOrWhiteSpace(proveedor.ModeloRespaldo)
+                && cuerpo["model"]?.GetValue<string>() != proveedor.ModeloRespaldo)
+            {
+                logger.LogInformation("El modelo {Modelo} de {Proveedor} está saturado; se usa {Respaldo}.", cuerpo["model"]?.GetValue<string>(), proveedor.Nombre, proveedor.ModeloRespaldo);
+                cuerpo["model"] = proveedor.ModeloRespaldo;
+                cambioModelo = true;
+                continue;
+            }
+            if (respuesta.StatusCode == HttpStatusCode.TooManyRequests && intento < 2)
             {
                 var espera = respuesta.Headers.RetryAfter?.Delta ?? TimeSpan.FromSeconds(10);
                 logger.LogInformation("El proveedor de IA {Proveedor} limitó la frecuencia; se reintenta en {Segundos} s.", proveedor.Nombre, (int)espera.TotalSeconds);
@@ -305,9 +315,9 @@ public sealed class OpenAIAsistenteClient
 
         return elegido?.ToUpperInvariant() switch
         {
-            "OPENAI" when !string.IsNullOrWhiteSpace(openAI) => new Proveedor("OpenAI", "https://api.openai.com/v1", openAI, Modelo("Modelo", "gpt-5-mini"), true, true),
-            "GEMINI" when !string.IsNullOrWhiteSpace(gemini) => new Proveedor("Gemini", "https://generativelanguage.googleapis.com/v1beta/openai", gemini, Modelo("ModeloGemini", "gemini-3.8-flash"), false, false),
-            "GROQ" when !string.IsNullOrWhiteSpace(groq) => new Proveedor("Groq", "https://api.groq.com/openai/v1", groq, Modelo("ModeloGroq", "openai/gpt-oss-120b"), true, false),
+            "OPENAI" when !string.IsNullOrWhiteSpace(openAI) => new Proveedor("OpenAI", "https://api.openai.com/v1", openAI, Modelo("Modelo", "gpt-5-mini"), true, true, null),
+            "GEMINI" when !string.IsNullOrWhiteSpace(gemini) => new Proveedor("Gemini", "https://generativelanguage.googleapis.com/v1beta/openai", gemini, Modelo("ModeloGemini", "gemini-3.5-flash"), false, false, Modelo("ModeloGeminiRespaldo", "gemini-3.1-flash-lite")),
+            "GROQ" when !string.IsNullOrWhiteSpace(groq) => new Proveedor("Groq", "https://api.groq.com/openai/v1", groq, Modelo("ModeloGroq", "openai/gpt-oss-120b"), true, false, null),
             _ => null
         };
     }
@@ -320,7 +330,8 @@ public sealed class OpenAIAsistenteClient
 
     /// <param name="UsaResponses">true: Responses API (OpenAI, Groq); false: Chat Completions (Gemini).</param>
     /// <param name="SoportaEstado">Acepta store/include (solo OpenAI).</param>
-    private sealed record Proveedor(string Nombre, string BaseUrl, string ApiKey, string Modelo, bool UsaResponses, bool SoportaEstado);
+    /// <param name="ModeloRespaldo">Modelo alterno cuando el principal está saturado (503), habitual en niveles gratuitos.</param>
+    private sealed record Proveedor(string Nombre, string BaseUrl, string ApiKey, string Modelo, bool UsaResponses, bool SoportaEstado, string? ModeloRespaldo);
 }
 
 public sealed record HerramientaIA(string Nombre, string Descripcion, string EsquemaParametrosJson);

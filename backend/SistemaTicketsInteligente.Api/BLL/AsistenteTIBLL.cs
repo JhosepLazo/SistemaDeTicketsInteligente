@@ -434,7 +434,7 @@ public sealed class AsistenteTIBLL
                 Diagnostico = LeerTextoJson(raiz, "diagnostico", "La evidencia disponible no permite establecer un diagnóstico concluyente."),
                 CausaProbable = LeerTextoJson(raiz, "causaProbable", "No determinada con la evidencia disponible."),
                 SolucionPropuesta = LeerTextoJson(raiz, "solucionPropuesta", "Escalar a revisión técnica con el expediente recopilado."),
-                Confianza = LeerDecimalJson(raiz, "confianza", 20m)
+                Confianza = InvestigadorAgenteTI.NormalizarConfianza(LeerDecimalJson(raiz, "confianza", 20m))
             };
 
             var accionCodigo = LeerTextoJson(raiz, "accionCodigo", string.Empty);

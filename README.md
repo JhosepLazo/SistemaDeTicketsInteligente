@@ -91,7 +91,7 @@ Para pruebas sin costo puede usarse **Gemini en su nivel gratuito** (sin tarjeta
 $env:GEMINI_API_KEY = "TU_CLAVE_DE_AI_STUDIO"
 # Opcional: fijar proveedor y modelo (por defecto se usa el primero con clave: OpenAI, Gemini, Groq)
 $env:AsistenteIA__Proveedor = "Gemini"
-$env:AsistenteIA__ModeloGemini = "gemini-3.8-flash"
+$env:AsistenteIA__ModeloGemini = "gemini-3.5-flash"
 ```
 
 Después de definir la variable, se debe reiniciar la API. Si la clave no existe o el proveedor no está disponible, el sistema vuelve automáticamente al modo de conocimiento local. Nunca se debe colocar la clave en React ni en un archivo versionado.

@@ -102,7 +102,7 @@ public sealed class InvestigadorAgenteTI
                 Diagnostico = Texto(raiz, "diagnostico"),
                 CausaProbable = Texto(raiz, "causaProbable"),
                 SolucionPropuesta = Texto(raiz, "solucionPropuesta"),
-                Confianza = raiz.TryGetProperty("confianza", out var confianza) && confianza.TryGetDecimal(out var valor) ? Math.Clamp(valor, 0m, 100m) : 20m,
+                Confianza = raiz.TryGetProperty("confianza", out var confianza) && confianza.TryGetDecimal(out var valor) ? NormalizarConfianza(valor) : 20m,
                 EvidenciaSuficiente = raiz.TryGetProperty("evidenciaSuficiente", out var suficiente) && suficiente.ValueKind == JsonValueKind.True
             };
 
@@ -394,7 +394,7 @@ public sealed class InvestigadorAgenteTI
                 ["diagnostico"] = Cadena("Qué ocurre, explicado con la evidencia."),
                 ["causaProbable"] = Cadena("Causa más probable; 'No determinada' si la evidencia no alcanza."),
                 ["solucionPropuesta"] = Cadena("Pasos de solución para TI."),
-                ["confianza"] = new JsonObject { ["type"] = "number", ["description"] = "Calidad del diagnóstico de 0 a 100." },
+                ["confianza"] = new JsonObject { ["type"] = "number", ["description"] = "Calidad del diagnóstico en porcentaje, de 0 a 100 (por ejemplo 85)." },
                 ["evidenciaSuficiente"] = new JsonObject { ["type"] = "boolean", ["description"] = "true solo si la evidencia verificada sostiene la causa." },
                 ["accionCodigo"] = new JsonObject { ["type"] = new JsonArray("string", "null"), ["description"] = "Código exacto de ACCIONES AUTORIZADAS o null." },
                 ["parametros"] = new JsonObject
@@ -425,6 +425,9 @@ public sealed class InvestigadorAgenteTI
             }
         };
     }
+
+    /// <summary>Algunos modelos expresan la confianza de 0 a 1 aunque se pida en porcentaje.</summary>
+    public static decimal NormalizarConfianza(decimal valor) => Math.Clamp(valor is > 0m and <= 1m ? valor * 100m : valor, 0m, 100m);
 
     private static string Texto(JsonElement elemento, string propiedad) =>
         elemento.ValueKind == JsonValueKind.Object && elemento.TryGetProperty(propiedad, out var valor) && valor.ValueKind == JsonValueKind.String
