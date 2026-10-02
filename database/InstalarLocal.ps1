@@ -87,7 +87,9 @@ $scriptsAplicacion = @(
     '23_SincronizarDatosLegado.sql',
     '24_OptimizacionRendimiento.sql',
     '25_AsistenteIngenieriaAutonomo.sql',
-    '26_AgenteDiagnosticoSeguro.sql'
+    '26_AgenteDiagnosticoSeguro.sql',
+    '27_AgenteFase1Integracion.sql',
+    '28_AgenteFase2Integracion.sql'
 )
 
 foreach ($nombre in $scriptsAplicacion) {

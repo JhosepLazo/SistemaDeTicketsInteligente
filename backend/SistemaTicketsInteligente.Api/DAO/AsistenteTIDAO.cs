@@ -115,7 +115,12 @@ public sealed class AsistenteTIDAO
                     FechaInicio = LeerFecha(lector, "FechaInicio"),
                     FechaDiagnostico = LeerFechaNullable(lector, "FechaDiagnostico"),
                     FechaDecision = LeerFechaNullable(lector, "FechaDecision"),
-                    InformeDisponible = LeerBooleano(lector, "InformeDisponible")
+                    InformeDisponible = LeerBooleano(lector, "InformeDisponible"),
+                    UsuarioTI = LeerCadena(lector, "UsuarioTI"),
+                    NombreOperador = LeerCadena(lector, "NombreOperador"),
+                    EsPropietario = LeerBooleano(lector, "EsPropietario"),
+                    EvidenciasJson = LeerCadena(lector, "EvidenciasJson"),
+                    InformeMarkdown = LeerCadena(lector, "InformeMarkdown")
                 },
                 Ticket = new AgenteTITicketContexto
                 {
@@ -164,7 +169,8 @@ public sealed class AsistenteTIDAO
                 contexto.Acciones.Add(new AgenteTIAccionDisponible
                 {
                     AccionCodigo = LeerCadena(lector, "AccionCodigo"), Nombre = LeerCadena(lector, "Nombre"), Descripcion = LeerCadena(lector, "Descripcion"),
-                    Tipo = LeerCadena(lector, "Tipo"), NivelRiesgo = LeerCadena(lector, "NivelRiesgo"), RequiereAprobacion = LeerBooleano(lector, "RequiereAprobacion")
+                    Tipo = LeerCadena(lector, "Tipo"), NivelRiesgo = LeerCadena(lector, "NivelRiesgo"), RequiereAprobacion = LeerBooleano(lector, "RequiereAprobacion"),
+                    TieneEjecutor = LeerBooleano(lector, "TieneEjecutor"), ParametrosDescripcion = LeerCadena(lector, "ParametrosDescripcion")
                 });
 
             await lector.NextResultAsync(ct);
@@ -289,9 +295,11 @@ public sealed class AsistenteTIDAO
             await transaccion.CommitAsync(ct);
             return resultado;
         }
-        catch
+        catch (Exception ex)
         {
             try { await transaccion.RollbackAsync(CancellationToken.None); } catch (Exception) { /* La conexion puede haberse cerrado. */ }
+            // El ejecutor rechaza precondiciones con errores funcionales; su mensaje explica a TI por qué no se aplicó el cambio.
+            if (ex is SqlException sql && sql.Number is >= 50500 and <= 50599) throw new InvalidOperationException(sql.Message, sql);
             throw;
         }
     }
@@ -340,22 +348,104 @@ public sealed class AsistenteTIDAO
             c.Parameters.Add("@cDatosJson", SqlDbType.NVarChar, -1).Value = json;
         }, ct);
 
-    public async Task<List<AgenteTISesion>> ListarAsync(string usuario, string area, CancellationToken ct)
+    public async Task<List<AgenteTISesion>> ListarAsync(string usuario, string area, bool todas, CancellationToken ct)
     {
         await using var conexion = conexionSqlServer.CrearConexion();
         await using var comando = new SqlCommand("dbo.Usp_TI_Agente_Listar", conexion) { CommandType = CommandType.StoredProcedure };
         AgregarIdentidad(comando, usuario, area);
+        comando.Parameters.Add("@lTodas", SqlDbType.Bit).Value = todas;
         await conexion.OpenAsync(ct);
-        await using var lector = await comando.ExecuteReaderAsync(ct);
-        var sesiones = new List<AgenteTISesion>();
-        while (await lector.ReadAsync(ct)) sesiones.Add(new AgenteTISesion
+        try
         {
-            SesionNumero = LeerLong(lector, "SesionNumero"), IncidenciaNumero = LeerCadena(lector, "IncidenciaNumero"),
-            IdCorrelacion = LeerGuid(lector, "IdCorrelacion"), Estado = LeerCadena(lector, "Estado"),
-            DescripcionInicial = LeerCadena(lector, "DescripcionInicial"), FechaInicio = LeerFecha(lector, "FechaInicio"),
-            SolucionValidada = LeerBooleano(lector, "SolucionValidada"), ConocimientoCodigo = LeerCadena(lector, "ConocimientoCodigo")
-        });
-        return sesiones;
+            await using var lector = await comando.ExecuteReaderAsync(ct);
+            var sesiones = new List<AgenteTISesion>();
+            while (await lector.ReadAsync(ct)) sesiones.Add(new AgenteTISesion
+            {
+                SesionNumero = LeerLong(lector, "SesionNumero"), IncidenciaNumero = LeerCadena(lector, "IncidenciaNumero"),
+                IdCorrelacion = LeerGuid(lector, "IdCorrelacion"), Estado = LeerCadena(lector, "Estado"),
+                DescripcionInicial = LeerCadena(lector, "DescripcionInicial"), FechaInicio = LeerFecha(lector, "FechaInicio"),
+                SolucionValidada = LeerBooleano(lector, "SolucionValidada"), ConocimientoCodigo = LeerCadena(lector, "ConocimientoCodigo"),
+                Confianza = LeerDecimalNullable(lector, "Confianza"), AccionCodigo = LeerCadena(lector, "AccionCodigo"),
+                UsuarioTI = LeerCadena(lector, "UsuarioTI"), NombreOperador = LeerCadena(lector, "NombreOperador"), EsPropietario = LeerBooleano(lector, "EsPropietario")
+            });
+            return sesiones;
+        }
+        catch (SqlException ex) when (EsErrorFuncional(ex))
+        {
+            throw new InvalidOperationException(ex.Message, ex);
+        }
+    }
+
+    public Task ReasignarAsync(string usuario, string area, long sesion, string nuevoUsuario, CancellationToken ct) =>
+        EjecutarAsync("dbo.Usp_TI_Agente_Reasignar", c =>
+        {
+            AgregarSesion(c, usuario, area, sesion);
+            c.Parameters.Add("@cNuevoUsuario", SqlDbType.VarChar, 20).Value = nuevoUsuario;
+        }, ct);
+
+    public async Task<AgenteTICatalogos> ObtenerCatalogosAsync(string usuario, string area, CancellationToken ct)
+    {
+        await using var conexion = conexionSqlServer.CrearConexion();
+        await using var comando = new SqlCommand("dbo.Usp_TI_Agente_Catalogos", conexion) { CommandType = CommandType.StoredProcedure };
+        AgregarIdentidad(comando, usuario, area);
+        await conexion.OpenAsync(ct);
+        try
+        {
+            await using var lector = await comando.ExecuteReaderAsync(ct);
+            var catalogos = new AgenteTICatalogos();
+            while (await lector.ReadAsync(ct)) catalogos.Areas.Add(new(LeerCadena(lector, "Codigo"), LeerCadena(lector, "Descripcion")));
+            await lector.NextResultAsync(ct);
+            while (await lector.ReadAsync(ct)) catalogos.Operadores.Add(new(LeerCadena(lector, "Codigo"), LeerCadena(lector, "Descripcion")));
+            return catalogos;
+        }
+        catch (SqlException ex) when (EsErrorFuncional(ex))
+        {
+            throw new InvalidOperationException(ex.Message, ex);
+        }
+    }
+
+    public async Task<List<AgenteTIInvestigacionTicket>> ListarPorTicketAsync(string usuario, string area, string incidenciaNumero, CancellationToken ct)
+    {
+        await using var conexion = conexionSqlServer.CrearConexion();
+        await using var comando = new SqlCommand("dbo.Usp_TI_Agente_ListarPorTicket", conexion) { CommandType = CommandType.StoredProcedure };
+        AgregarIdentidad(comando, usuario, area);
+        comando.Parameters.Add("@cIncidenciaNumero", SqlDbType.VarChar, 12).Value = incidenciaNumero;
+        await conexion.OpenAsync(ct);
+        try
+        {
+            await using var lector = await comando.ExecuteReaderAsync(ct);
+            var investigaciones = new List<AgenteTIInvestigacionTicket>();
+            while (await lector.ReadAsync(ct)) investigaciones.Add(new AgenteTIInvestigacionTicket
+            {
+                SesionNumero = LeerLong(lector, "SesionNumero"), Estado = LeerCadena(lector, "Estado"), FechaInicio = LeerFecha(lector, "FechaInicio"),
+                FechaDiagnostico = LeerFechaNullable(lector, "FechaDiagnostico"), Confianza = LeerDecimalNullable(lector, "Confianza"),
+                Diagnostico = LeerCadena(lector, "Diagnostico"), AccionCodigo = LeerCadena(lector, "AccionCodigo"), UsuarioTI = LeerCadena(lector, "UsuarioTI"),
+                NombreOperador = LeerCadena(lector, "NombreOperador"), InformeDisponible = LeerBooleano(lector, "InformeDisponible"), PuedeAbrir = LeerBooleano(lector, "PuedeAbrir")
+            });
+            return investigaciones;
+        }
+        catch (SqlException ex) when (EsErrorFuncional(ex))
+        {
+            throw new InvalidOperationException(ex.Message, ex);
+        }
+    }
+
+    public async Task<AgenteTIInforme> ObtenerInformeAsync(string usuario, string area, long sesion, CancellationToken ct)
+    {
+        await using var conexion = conexionSqlServer.CrearConexion();
+        await using var comando = new SqlCommand("dbo.Usp_TI_Agente_ObtenerInforme", conexion) { CommandType = CommandType.StoredProcedure };
+        AgregarSesion(comando, usuario, area, sesion);
+        await conexion.OpenAsync(ct);
+        try
+        {
+            await using var lector = await comando.ExecuteReaderAsync(ct);
+            if (!await lector.ReadAsync(ct)) throw new KeyNotFoundException("La investigación no tiene un expediente disponible.");
+            return new AgenteTIInforme(LeerCadena(lector, "InformeMarkdown"), LeerCadena(lector, "IncidenciaNumero"));
+        }
+        catch (SqlException ex) when (EsErrorFuncional(ex))
+        {
+            throw new InvalidOperationException(ex.Message, ex);
+        }
     }
 
     public async Task<List<AgenteTIComprobacion>> DryRunAsync(string usuario, string area, long sesion, CancellationToken ct)

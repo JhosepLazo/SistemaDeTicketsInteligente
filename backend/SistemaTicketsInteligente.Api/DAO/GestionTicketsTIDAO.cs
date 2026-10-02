@@ -288,7 +288,8 @@ public sealed class GestionTicketsTIDAO
                     UsuarioAprobador = LeerCadena(lector, "UsuarioAprobador"),
                     Aprobador = LeerCadena(lector, "Aprobador"),
                     FechaSolicitud = LeerFecha(lector, "FechaSolicitud"),
-                    FechaRespuesta = LeerFechaNullable(lector, "FechaRespuesta")
+                    FechaRespuesta = LeerFechaNullable(lector, "FechaRespuesta"),
+                    ParametrosJson = LeerCadena(lector, "ParametrosJson")
                 });
             }
 

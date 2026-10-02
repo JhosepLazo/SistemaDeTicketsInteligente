@@ -130,6 +130,7 @@ export interface GestionTicketTIDocumento {
 
 export interface GestionTicketTIAprobacion {
   secuencia: number
+  parametrosJson: string
   accionCodigo: string
   accionNombre: string
   nivelRiesgo: string

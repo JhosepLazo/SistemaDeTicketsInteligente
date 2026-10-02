@@ -73,6 +73,10 @@ public sealed class AsistenteTIController : ControllerBase
     public Task<IActionResult> Investigar(long sesionNumero, CancellationToken ct) =>
         Ejecutar(async identidad => Ok(await asistente.InvestigarAsync(identidad.Usuario, identidad.Area, sesionNumero, ct)));
 
+    [HttpGet("investigaciones/{sesionNumero:long}/diagnostico")]
+    public Task<IActionResult> ObtenerDiagnostico(long sesionNumero, CancellationToken ct) =>
+        Ejecutar(async identidad => Ok(await asistente.ObtenerDiagnosticoAsync(identidad.Usuario, identidad.Area, sesionNumero, ct)));
+
     [HttpPost("investigaciones/{sesionNumero:long}/grabar-informacion")]
     public Task<IActionResult> GrabarInformacion(long sesionNumero, CancellationToken ct) =>
         Ejecutar(async identidad =>
@@ -88,7 +92,23 @@ public sealed class AsistenteTIController : ControllerBase
         Ejecutar(async identidad => Ok(await asistente.RealizarCambioAsync(identidad.Usuario, identidad.Area, sesionNumero, solicitud, ct)));
 
     [HttpGet("investigaciones")]
-    public Task<IActionResult> Listar(CancellationToken ct) => Ejecutar(async i => Ok(await asistente.ListarAsync(i.Usuario, i.Area, ct)));
+    public Task<IActionResult> Listar([FromQuery] string? alcance, CancellationToken ct) =>
+        Ejecutar(async i => Ok(await asistente.ListarAsync(i.Usuario, i.Area, string.Equals(alcance, "todas", StringComparison.OrdinalIgnoreCase), ct)));
+
+    [HttpGet("catalogos")]
+    public Task<IActionResult> Catalogos(CancellationToken ct) => Ejecutar(async i => Ok(await asistente.ObtenerCatalogosAsync(i.Usuario, i.Area, ct)));
+
+    [HttpGet("tickets/{incidenciaNumero}/investigaciones")]
+    public Task<IActionResult> ListarPorTicket(string incidenciaNumero, CancellationToken ct) =>
+        Ejecutar(async i => Ok(await asistente.ListarPorTicketAsync(i.Usuario, i.Area, incidenciaNumero, ct)));
+
+    [HttpGet("investigaciones/{sesionNumero:long}/informe")]
+    public Task<IActionResult> Informe(long sesionNumero, CancellationToken ct) =>
+        Ejecutar(async i => Ok(await asistente.ObtenerInformeAsync(i.Usuario, i.Area, sesionNumero, ct)));
+
+    [HttpPost("investigaciones/{sesionNumero:long}/reasignar")]
+    public Task<IActionResult> Reasignar(long sesionNumero, ReasignarInvestigacionTISolicitud solicitud, CancellationToken ct) =>
+        Ejecutar(async i => { await asistente.ReasignarAsync(i.Usuario, i.Area, sesionNumero, solicitud, ct); return NoContent(); });
 
     [HttpPost("investigaciones/{sesionNumero:long}/cancelar")]
     public Task<IActionResult> Cancelar(long sesionNumero, CancellationToken ct) => Ejecutar(async i => { await asistente.CancelarAsync(i.Usuario, i.Area, sesionNumero, ct); return NoContent(); });

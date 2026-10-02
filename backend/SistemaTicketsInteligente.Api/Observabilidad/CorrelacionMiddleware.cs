@@ -39,7 +39,9 @@ public sealed class CorrelacionMiddleware(RequestDelegate next)
             var resultado = excepcion is null ? contexto.Response.StatusCode.ToString() : excepcion;
             traza.Pasos.Enqueue($"RESULTADO {resultado} | {duracion:0.0} ms");
             logger.LogInformation("API {Metodo} {Ruta} {Resultado} {Duracion} ms Correlacion {Correlacion}", contexto.Request.Method, ruta, resultado, duracion, traza.Correlacion);
-            if (sesion.HasValue && usuario is not null && !ruta.StartsWith("/api/asistente/", StringComparison.Ordinal) && !ruta.StartsWith("/api/autenticacion", StringComparison.Ordinal))
+            // Las consultas periódicas de la campana no forman parte del proceso reproducido y solo agregarían ruido a la traza.
+            if (sesion.HasValue && usuario is not null && !ruta.StartsWith("/api/asistente/", StringComparison.Ordinal) && !ruta.StartsWith("/api/autenticacion", StringComparison.Ordinal)
+                && !ruta.StartsWith("/api/notificaciones", StringComparison.Ordinal))
             {
                 using var limite = new CancellationTokenSource(TimeSpan.FromSeconds(3));
                 try { await dao.RegistrarTelemetriaAsync(usuario, sesion.Value, string.Join("\n", traza.Pasos), JsonSerializer.Serialize(new { correlacion = traza.Correlacion, requestId = contexto.TraceIdentifier, duracionMs = duracion, resultado }), limite.Token); }

@@ -6,7 +6,8 @@ export function instalarObservabilidadAgente() {
   const original = window.fetch.bind(window)
   window.fetch = (entrada, opciones) => {
     const url = new URL(entrada instanceof Request ? entrada.url : String(entrada), window.location.href)
-    if (url.origin !== window.location.origin || !url.pathname.startsWith('/api/') || url.pathname.startsWith('/api/autenticacion')) return original(entrada, opciones)
+    // La campana consulta en segundo plano; no forma parte del proceso que se está reproduciendo.
+    if (url.origin !== window.location.origin || !url.pathname.startsWith('/api/') || url.pathname.startsWith('/api/autenticacion') || url.pathname.startsWith('/api/notificaciones')) return original(entrada, opciones)
     let numero: string | null = null
     try { numero = sessionStorage.getItem(clave) } catch { }
     if (!numero || !/^\d+$/.test(numero)) return original(entrada, opciones)

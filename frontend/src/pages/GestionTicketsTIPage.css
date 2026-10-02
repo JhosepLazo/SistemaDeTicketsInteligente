@@ -1171,3 +1171,87 @@
   .gestion-ti-modal-fondo { padding: 10px; }
   .gestion-ti-proceso { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
 }
+
+.gestion-ti-aprobaciones__parametros {
+	display: block;
+	margin-top: 6px;
+	padding: 6px 8px;
+	border-radius: 6px;
+	background: #f2eee3;
+	color: #5c615e;
+	font-size: 11px;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.gestion-ti-agente {
+	display: grid;
+	gap: 8px;
+}
+
+.gestion-ti-agente article {
+	display: grid;
+	gap: 6px;
+	padding: 10px 12px;
+	border: 1px solid #dbe6e8;
+	border-radius: 8px;
+	background: #fbfdfd;
+}
+
+.gestion-ti-agente header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 8px;
+}
+
+.gestion-ti-agente header strong {
+	color: #0a766e;
+}
+
+.gestion-ti-agente header span {
+	padding: 2px 6px;
+	border-radius: 5px;
+	background: #e9f6f2;
+	color: #137269;
+	font-size: 11px;
+	font-weight: 700;
+}
+
+.gestion-ti-agente header small {
+	color: #7b8f93;
+}
+
+.gestion-ti-agente p {
+	margin: 0;
+	color: #4f6a70;
+	line-height: 1.5;
+}
+
+.gestion-ti-agente__acciones {
+	display: flex;
+	gap: 8px;
+}
+
+.gestion-ti-agente__acciones button {
+	padding: 6px 10px;
+	border: 1px solid #cfdcdf;
+	border-radius: 7px;
+	background: #fff;
+	color: #3a5d63;
+	font-weight: 700;
+	cursor: pointer;
+}
+
+.gestion-ti-agente pre {
+	max-height: 360px;
+	overflow: auto;
+	margin: 0;
+	padding: 10px;
+	border-radius: 7px;
+	background: #f2f6f7;
+	color: #2f4c52;
+	font-size: 12px;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}

@@ -211,6 +211,7 @@ public sealed class GestionTicketTIAprobacion
     public string Aprobador { get; set; } = string.Empty;
     public DateTime FechaSolicitud { get; set; }
     public DateTime? FechaRespuesta { get; set; }
+    public string ParametrosJson { get; set; } = string.Empty;
 }
 
 public sealed class GestionTicketTIArchivo

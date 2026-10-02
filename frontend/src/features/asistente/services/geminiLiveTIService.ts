@@ -12,6 +12,8 @@ export interface GeminiLiveCallbacks {
   onTranscripcion?: (rol: 'usuario' | 'agente', texto: string) => void
   onError?: (mensaje: string) => void
   onPantallaFinalizada?: () => void
+  /** El proveedor cerró la conexión (límite de sesión o red); la captura local se detiene. */
+  onDesconexion?: () => void
 }
 
 export class GeminiLiveSesion {
@@ -26,6 +28,9 @@ export class GeminiLiveSesion {
   private listo = false
   private siguienteAudio = 0
   private deteniendo = false
+  // Gemini transcribe por fragmentos; se acumulan y se entregan completos al cerrar cada turno.
+  private turnoUsuario = ''
+  private turnoAgente = ''
 
   constructor(private readonly callbacks: GeminiLiveCallbacks = {}) {}
 
@@ -59,9 +64,19 @@ export class GeminiLiveSesion {
     this.socket.send(JSON.stringify({ realtimeInput: { text: contenido } }))
   }
 
+  silenciarMicrofono(silenciado: boolean) {
+    this.microfono?.getAudioTracks().forEach(track => { track.enabled = !silenciado })
+  }
+
+  get tieneMicrofono() {
+    return !!this.microfono
+  }
+
   async detener() {
     this.deteniendo = true
     this.listo = false
+    this.cerrarTurno('usuario')
+    this.cerrarTurno('agente')
     if (this.intervaloVideo !== null) window.clearInterval(this.intervaloVideo)
     this.intervaloVideo = null
     this.procesador?.disconnect()
@@ -124,7 +139,16 @@ export class GeminiLiveSesion {
         window.clearTimeout(timeout)
         reject(new Error('Se produjo un error en la conexión con Gemini Live.'))
       }
-      this.socket.onclose = () => { this.listo = false }
+      this.socket.onclose = () => {
+        window.clearTimeout(timeout)
+        const estabaListo = this.listo
+        this.listo = false
+        if (!estabaListo) reject(new Error('Gemini Live cerró la conexión antes de iniciar la observación.'))
+        else if (!this.deteniendo) {
+          this.callbacks.onDesconexion?.()
+          void this.detener()
+        }
+      }
     })
   }
 
@@ -170,16 +194,33 @@ export class GeminiLiveSesion {
   private procesarRespuesta(respuesta: RespuestaLive) {
     const contenido = respuesta.serverContent
     if (!contenido) return
-    const textoUsuario = contenido.inputTranscription?.text?.trim()
-    const textoAgente = contenido.outputTranscription?.text?.trim()
-    if (textoUsuario) this.callbacks.onTranscripcion?.('usuario', textoUsuario)
-    if (textoAgente) this.callbacks.onTranscripcion?.('agente', textoAgente)
+    const textoUsuario = contenido.inputTranscription?.text
+    const textoAgente = contenido.outputTranscription?.text
+    if (textoUsuario) {
+      this.cerrarTurno('agente')
+      this.turnoUsuario += textoUsuario
+    }
+    if (textoAgente) {
+      this.cerrarTurno('usuario')
+      this.turnoAgente += textoAgente
+    }
+    if (contenido.turnComplete || contenido.interrupted) {
+      this.cerrarTurno('usuario')
+      this.cerrarTurno('agente')
+    }
 
     for (const parte of contenido.modelTurn?.parts ?? []) {
       if (!parte.inlineData?.data) continue
       const frecuencia = Number(parte.inlineData.mimeType?.match(/rate=(\d+)/)?.[1] ?? 24000)
       this.reproducirPcm(parte.inlineData.data, frecuencia)
     }
+  }
+
+  private cerrarTurno(rol: 'usuario' | 'agente') {
+    const texto = (rol === 'usuario' ? this.turnoUsuario : this.turnoAgente).replace(/\s+/g, ' ').trim()
+    if (rol === 'usuario') this.turnoUsuario = ''
+    else this.turnoAgente = ''
+    if (texto) this.callbacks.onTranscripcion?.(rol, texto)
   }
 
   private reproducirPcm(base64: string, frecuencia: number) {
@@ -206,6 +247,8 @@ interface RespuestaLive {
   serverContent?: {
     inputTranscription?: { text?: string }
     outputTranscription?: { text?: string }
+    turnComplete?: boolean
+    interrupted?: boolean
     modelTurn?: { parts?: Array<{ inlineData?: { data?: string; mimeType?: string } }> }
   }
 }

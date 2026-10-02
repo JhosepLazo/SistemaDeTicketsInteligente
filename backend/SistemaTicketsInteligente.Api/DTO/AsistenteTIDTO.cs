@@ -7,6 +7,8 @@
  * Consideraciones: El archivo no contiene reglas de negocio ni permite transportar SQL libre para ejecución.
  */
 
+using System.Text.Json.Serialization;
+
 namespace SistemaTicketsInteligente.Api.DTO;
 
 public sealed class AsistenteTISolicitud
@@ -109,6 +111,11 @@ public sealed class AgenteTISesion
     public DateTime? FechaDiagnostico { get; set; }
     public DateTime? FechaDecision { get; set; }
     public bool InformeDisponible { get; set; }
+    public string UsuarioTI { get; set; } = string.Empty;
+    public string NombreOperador { get; set; } = string.Empty;
+    public bool EsPropietario { get; set; }
+    [JsonIgnore] public string EvidenciasJson { get; set; } = string.Empty;
+    [JsonIgnore] public string InformeMarkdown { get; set; } = string.Empty;
 }
 
 public sealed class AgenteTITicketContexto
@@ -164,6 +171,8 @@ public sealed class AgenteTIAccionDisponible
     public string Tipo { get; set; } = string.Empty;
     public string NivelRiesgo { get; set; } = string.Empty;
     public bool RequiereAprobacion { get; set; }
+    public bool TieneEjecutor { get; set; }
+    public string ParametrosDescripcion { get; set; } = string.Empty;
 }
 
 public sealed class AgenteTIAuditoria
@@ -230,7 +239,38 @@ public sealed class AgenteTIDiagnosticoRespuesta
     public List<string> TrazaTecnica { get; set; } = [];
     public AgenteTIAccionPropuesta? Accion { get; set; }
     public bool InformeDisponible { get; set; }
+    public string InformeMarkdown { get; set; } = string.Empty;
     public string Limitacion { get; set; } = string.Empty;
+}
+
+public sealed class AgenteTIInvestigacionTicket
+{
+    public long SesionNumero { get; set; }
+    public string Estado { get; set; } = string.Empty;
+    public DateTime FechaInicio { get; set; }
+    public DateTime? FechaDiagnostico { get; set; }
+    public decimal? Confianza { get; set; }
+    public string Diagnostico { get; set; } = string.Empty;
+    public string AccionCodigo { get; set; } = string.Empty;
+    public string UsuarioTI { get; set; } = string.Empty;
+    public string NombreOperador { get; set; } = string.Empty;
+    public bool InformeDisponible { get; set; }
+    public bool PuedeAbrir { get; set; }
+}
+
+public sealed record AgenteTICatalogoItem(string Codigo, string Descripcion);
+
+public sealed class AgenteTICatalogos
+{
+    public List<AgenteTICatalogoItem> Areas { get; set; } = [];
+    public List<AgenteTICatalogoItem> Operadores { get; set; } = [];
+}
+
+public sealed record AgenteTIInforme(string InformeMarkdown, string IncidenciaNumero);
+
+public sealed class ReasignarInvestigacionTISolicitud
+{
+    public string NuevoUsuario { get; set; } = string.Empty;
 }
 
 public sealed record AgenteTICodigoReferencia(string Archivo, int Linea, string Fragmento);

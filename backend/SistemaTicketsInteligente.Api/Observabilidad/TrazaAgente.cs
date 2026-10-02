@@ -35,7 +35,7 @@ public sealed class SqlTrazaListener : IHostedService, IObserver<DiagnosticListe
         {
             traza.Comandos[operacion] = Stopwatch.GetTimestamp();
             var metodos = new StackTrace().GetFrames().Select(f => f.GetMethod()).Where(m => m?.DeclaringType?.Namespace is string ns && (ns.EndsWith(".BLL") || ns.EndsWith(".DAO")))
-                .Select(m => $"{m!.DeclaringType!.Name}.{m.Name}").Distinct().Take(4);
+                .Select(m => NombreMetodo(m!)).Distinct().Take(4);
             foreach (var metodo in metodos) traza.Pasos.Enqueue("METODO " + metodo);
         }
         else if (traza.Comandos.TryRemove(operacion, out var inicio))
@@ -44,6 +44,18 @@ public sealed class SqlTrazaListener : IHostedService, IObserver<DiagnosticListe
             traza.Pasos.Enqueue($"SP {comando.CommandText} | {Stopwatch.GetElapsedTime(inicio).TotalMilliseconds:0.0} ms | {resultado}");
         }
     }
+    // Los métodos async se compilan como <Metodo>d__N.MoveNext dentro de una clase anidada; se recupera el nombre real.
+    private static string NombreMetodo(System.Reflection.MethodBase metodo)
+    {
+        var tipo = metodo.DeclaringType!;
+        if (tipo.Name.StartsWith('<') && tipo.DeclaringType is not null)
+        {
+            var fin = tipo.Name.IndexOf('>');
+            return $"{tipo.DeclaringType.Name}.{(fin > 1 ? tipo.Name[1..fin] : metodo.Name)}";
+        }
+        return $"{tipo.Name}.{metodo.Name}";
+    }
+
     public void OnCompleted() { }
     public void OnError(Exception error) { }
 }

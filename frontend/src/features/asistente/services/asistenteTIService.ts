@@ -65,6 +65,9 @@ export interface AgenteTISesion {
   fechaDiagnostico: string | null
   fechaDecision: string | null
   informeDisponible: boolean
+  usuarioTI: string
+  nombreOperador: string
+  esPropietario: boolean
 }
 
 export interface AgenteTITicketContexto {
@@ -117,6 +120,8 @@ export interface AgenteTIAccionDisponible {
   tipo: string
   nivelRiesgo: string
   requiereAprobacion: boolean
+  tieneEjecutor: boolean
+  parametrosDescripcion: string
 }
 
 export interface AgenteTIAuditoria {
@@ -166,6 +171,7 @@ export interface AgenteTIDiagnosticoRespuesta {
   trazaTecnica: string[]
   accion: AgenteTIAccionPropuesta | null
   informeDisponible: boolean
+  informeMarkdown: string
   limitacion: string
 }
 
@@ -256,6 +262,11 @@ export async function analizarInvestigacionTI(sesionNumero: number) {
   return procesar<AgenteTIDiagnosticoRespuesta>(respuesta, 'No fue posible completar el diagnóstico.')
 }
 
+export async function obtenerDiagnosticoTI(sesionNumero: number) {
+  const respuesta = await enviar(`/api/asistente/ti/investigaciones/${sesionNumero}/diagnostico`, 'GET')
+  return procesar<AgenteTIDiagnosticoRespuesta>(respuesta, 'No fue posible recuperar el diagnóstico.')
+}
+
 export async function grabarInformacionTI(sesionNumero: number) {
   const respuesta = await enviar(`/api/asistente/ti/investigaciones/${sesionNumero}/grabar-informacion`, 'POST')
   if (respuesta.ok) return respuesta.blob()
@@ -272,8 +283,37 @@ export async function realizarCambioTI(sesionNumero: number) {
 export interface AgenteCodigoReferencia { archivo: string; linea: number; fragmento: string }
 export interface AgenteComprobacion { codigo: string; descripcion: string; resultado: 'OK' | 'ERROR' | 'PENDIENTE' | 'NO_DISPONIBLE' }
 
-export async function listarInvestigacionesTI() {
-  return procesar<AgenteTISesion[]>(await enviar('/api/asistente/ti/investigaciones', 'GET'), 'No se pudo cargar el historial de investigaciones.')
+export async function listarInvestigacionesTI(todas = false) {
+  return procesar<AgenteTISesion[]>(await enviar(`/api/asistente/ti/investigaciones${todas ? '?alcance=todas' : ''}`, 'GET'), 'No se pudo cargar el historial de investigaciones.')
+}
+
+export interface AgenteTICatalogoItem { codigo: string; descripcion: string }
+export interface AgenteTICatalogos { areas: AgenteTICatalogoItem[]; operadores: AgenteTICatalogoItem[] }
+export interface AgenteTIInvestigacionTicket {
+  sesionNumero: number
+  estado: string
+  fechaInicio: string
+  fechaDiagnostico: string | null
+  confianza: number | null
+  diagnostico: string
+  accionCodigo: string
+  usuarioTI: string
+  nombreOperador: string
+  informeDisponible: boolean
+  puedeAbrir: boolean
+}
+
+export async function obtenerCatalogosAgenteTI() {
+  return procesar<AgenteTICatalogos>(await enviar('/api/asistente/ti/catalogos', 'GET'), 'No se pudieron cargar los catálogos del agente.')
+}
+export async function listarInvestigacionesTicketTI(incidenciaNumero: string) {
+  return procesar<AgenteTIInvestigacionTicket[]>(await enviar(`/api/asistente/ti/tickets/${encodeURIComponent(incidenciaNumero)}/investigaciones`, 'GET'), 'No se pudieron cargar las investigaciones del ticket.')
+}
+export async function obtenerInformeTI(numero: number) {
+  return procesar<{ informeMarkdown: string; incidenciaNumero: string }>(await enviar(`/api/asistente/ti/investigaciones/${numero}/informe`, 'GET'), 'No se pudo obtener el expediente.')
+}
+export async function reasignarInvestigacionTI(numero: number, nuevoUsuario: string) {
+  await procesarSinContenido(await enviar(`/api/asistente/ti/investigaciones/${numero}/reasignar`, 'POST', { nuevoUsuario }), 'No se pudo reasignar la investigación.')
 }
 export async function cancelarInvestigacionTI(numero: number) {
   await procesarSinContenido(await enviar(`/api/asistente/ti/investigaciones/${numero}/cancelar`, 'POST'), 'No se pudo cancelar la investigación.')
