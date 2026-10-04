@@ -1,10 +1,11 @@
 <!--
     Archivo: SistemaTicketsInteligente.Api.csproj
     Objetivo: Definir la configuración y dependencias del único proyecto backend ASP.NET Core.
-    Responsabilidad: Compilar API, BLL, DAO y DTO dentro del mismo proyecto para mantener una estructura simple y mantenible.
-    Dependencias: SDK .NET y Microsoft.Data.SqlClient.
+    Responsabilidad: Compilar Controllers, BLL, DTO y Comun dentro del mismo proyecto para mantener una estructura simple y mantenible.
+    Dependencias: SDK .NET 10, Microsoft.Data.SqlClient y ScriptDom (validación de consultas de solo lectura del agente).
     Flujo: Restauración de dependencias -> compilación -> ejecución de la API.
     Consideraciones: No utiliza proyectos separados por capa; la separación se mantiene mediante carpetas y responsabilidades.
+      Los espacios de nombres propios se importan una sola vez aquí (using globales) para no repetirlos en cada archivo.
 -->
 
 <Project Sdk="Microsoft.NET.Sdk.Web">
@@ -17,5 +18,15 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.2" />
     <PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="180.117.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="System.Data" />
+    <Using Include="Microsoft.Data.SqlClient" />
+    <Using Include="SistemaTicketsInteligente.Api.BLL" />
+    <Using Include="SistemaTicketsInteligente.Api.BLL.Agente" />
+    <Using Include="SistemaTicketsInteligente.Api.BLL.IA" />
+    <Using Include="SistemaTicketsInteligente.Api.Comun" />
+    <Using Include="SistemaTicketsInteligente.Api.DTO" />
   </ItemGroup>
 </Project>

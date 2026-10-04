@@ -1,41 +1,38 @@
-/*
+/**
  * Archivo: RecursosSoporteBLL.cs
- * Objetivo: Aplicar validaciones mínimas al acceso de formatos y artículos publicados.
- * Responsabilidad: Consultar recursos y resolver descargas únicamente dentro de la carpeta controlada uploads/formatos.
- * Dependencias: RecursosSoporteDAO y RecursosSoporteDTO.
- * Flujo: RecursosSoporteController -> RecursosSoporteBLL -> RecursosSoporteDAO -> SQL Server.
- * Consideraciones: El cliente nunca recibe rutas físicas; las descargas se resuelven por código autorizado.
+ * Objetivo: Ofrecer al colaborador formatos descargables y artículos de ayuda publicados mientras registra su ticket.
+ * Responsabilidad: Consultar el autoservicio vigente y entregar un formato solo desde la carpeta autorizada.
+ * Dependencias: BaseDatos (Usp_TI_Obtener_RecursosSoporteUsuario y Usp_TI_Obtener_FormatoSoporteUsuario) y Archivos.
+ * Flujo: NuevoTicketPage -> RecursosSoporteController -> RecursosSoporteBLL -> Stored Procedures / uploads/formatos.
+ * Consideraciones: Solo se expone contenido marcado como visible y vigente; el frontend nunca conoce rutas físicas.
  */
-
-using SistemaTicketsInteligente.Api.DAO;
-using SistemaTicketsInteligente.Api.DTO;
 
 namespace SistemaTicketsInteligente.Api.BLL;
 
-public sealed class RecursosSoporteBLL
+public sealed class RecursosSoporteBLL(BaseDatos baseDatos)
 {
-    private readonly RecursosSoporteDAO recursosSoporteDAO;
+    public Task<RecursosSoporteRespuesta> ObtenerAsync(CancellationToken ct) =>
+        baseDatos.LeerAsync("dbo.Usp_TI_Obtener_RecursosSoporteUsuario", _ => { }, async lector =>
+        {
+            var respuesta = new RecursosSoporteRespuesta();
+            respuesta.Formatos = await lector.ListaAsync(f => new RecursoFormato
+            {
+                FormatoCodigo = f.Texto("FormatoCodigo"), Titulo = f.Texto("Titulo"), Descripcion = f.Texto("Descripcion"),
+                NombreOriginal = f.Texto("NombreOriginal"), TipoMime = f.Texto("TipoMime"), TipoTicket = f.Texto("TipoTicket")
+            }, ct);
+            respuesta.Articulos = await lector.ListaAsync(f => new RecursoArticulo
+            {
+                ConocimientoCodigo = f.Texto("ConocimientoCodigo"), Titulo = f.Texto("Titulo"), Problema = f.Texto("Problema"),
+                Sintomas = f.Texto("Sintomas"), Solucion = f.Texto("Solucion"), Procedimiento = f.Texto("Procedimiento"), Tipo = f.Texto("Tipo")
+            }, ct);
+            return respuesta;
+        }, ct);
 
-    public RecursosSoporteBLL(RecursosSoporteDAO recursosSoporteDAO)
+    public async Task<ArchivoDescarga> ObtenerArchivoAsync(string formatoCodigo, CancellationToken ct)
     {
-        this.recursosSoporteDAO = recursosSoporteDAO;
-    }
-
-    public Task<RecursosSoporteRespuesta> ObtenerAsync(CancellationToken ct = default) => recursosSoporteDAO.ObtenerAsync(ct);
-
-    public async Task<RecursoArchivo> ObtenerArchivoAsync(string formatoCodigo, CancellationToken ct = default)
-    {
-        var codigo = formatoCodigo.Trim().ToUpperInvariant();
-        if (codigo.Length == 0 || codigo.Length > 20) throw new ArgumentException("El formato indicado no es válido.");
-
-        var archivo = await recursosSoporteDAO.ObtenerArchivoAsync(codigo, ct) ?? throw new KeyNotFoundException("El formato ya no se encuentra disponible.");
-        var raiz = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "uploads", "formatos"));
-        var ruta = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), archivo.RutaArchivo.Replace('/', Path.DirectorySeparatorChar)));
-
-        if (!ruta.StartsWith(raiz + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("La ruta del formato no es válida.");
-        if (!File.Exists(ruta)) throw new FileNotFoundException("El archivo del formato no se encuentra disponible.");
-
-        archivo.RutaArchivo = ruta;
-        return archivo;
+        var codigo = Validacion.Codigo(formatoCodigo, 20, "El formato indicado no es válido.");
+        return await baseDatos.LeerAsync("dbo.Usp_TI_Obtener_FormatoSoporteUsuario", p => p.Add("@cFormatoCodigo", SqlDbType.VarChar, 20).Value = codigo,
+            lector => lector.FilaAsync(f => Archivos.Descarga(f, Archivos.Formatos, "La ruta del formato no es válida.", "El archivo del formato no se encuentra disponible."), ct), ct)
+            ?? throw new KeyNotFoundException("El formato ya no se encuentra disponible.");
     }
 }

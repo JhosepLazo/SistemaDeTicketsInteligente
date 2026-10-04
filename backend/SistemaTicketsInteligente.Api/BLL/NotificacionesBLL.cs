@@ -1,39 +1,41 @@
-/*
+/**
  * Archivo: NotificacionesBLL.cs
- * Objetivo: Aplicar validaciones mínimas al flujo de notificaciones del usuario autenticado.
- * Responsabilidad: Validar identidad y delegar consulta/marcado de lectura al DAO.
- * Dependencias: NotificacionesDAO y NotificacionesDTO.
- * Flujo: NotificacionesController -> NotificacionesBLL -> NotificacionesDAO -> SQL Server.
- * Consideraciones: No decide permisos del módulo destino; cada endpoint continúa aplicando su propia autorización.
+ * Objetivo: Entregar al usuario autenticado sus avisos recientes y registrar los que ya leyó.
+ * Responsabilidad: Validar la identidad y el aviso, y consultar o actualizar las notificaciones persistidas.
+ * Dependencias: BaseDatos (Usp_TI_Obtener_Notificaciones y Usp_TI_Marcar_NotificacionLeida).
+ * Flujo: NotificacionesController -> NotificacionesBLL -> Stored Procedures.
+ * Consideraciones: El usuario siempre sale de la cookie: nadie puede leer ni marcar avisos de otra persona.
  */
-
-using SistemaTicketsInteligente.Api.DAO;
-using SistemaTicketsInteligente.Api.DTO;
 
 namespace SistemaTicketsInteligente.Api.BLL;
 
-public sealed class NotificacionesBLL
+public sealed class NotificacionesBLL(BaseDatos baseDatos)
 {
-    private readonly NotificacionesDAO notificacionesDAO;
-
-    public NotificacionesBLL(NotificacionesDAO notificacionesDAO)
+    public Task<NotificacionesRespuesta> ObtenerAsync(string usuario, CancellationToken ct)
     {
-        this.notificacionesDAO = notificacionesDAO;
+        var usuarioValido = Validacion.Usuario(usuario);
+        return baseDatos.LeerAsync("dbo.Usp_TI_Obtener_Notificaciones", p => p.Add("@cUsuario", SqlDbType.VarChar, 20).Value = usuarioValido, async lector =>
+        {
+            var respuesta = new NotificacionesRespuesta();
+            if (await lector.ReadAsync(ct)) respuesta.NoLeidas = lector.Entero("NoLeidas");
+            await lector.NextResultAsync(ct);
+            respuesta.Notificaciones = await lector.ListaAsync(f => new NotificacionItem
+            {
+                NotificacionNumero = f.Largo("NotificacionNumero"), IncidenciaNumero = f.Texto("IncidenciaNumero"), Tipo = f.Texto("Tipo"),
+                Titulo = f.Texto("Titulo"), Mensaje = f.Texto("Mensaje"), Ruta = f.Texto("Ruta"), Leida = f.Booleano("Leida"), Fecha = f.Fecha("Fecha")
+            }, ct);
+            return respuesta;
+        }, ct);
     }
 
-    public Task<NotificacionesRespuesta> ObtenerAsync(string usuario, CancellationToken cancellationToken = default) =>
-        notificacionesDAO.ObtenerAsync(ValidarUsuario(usuario), cancellationToken);
-
-    public Task MarcarLeidaAsync(string usuario, long notificacionNumero, CancellationToken cancellationToken = default)
+    public Task MarcarLeidaAsync(string usuario, long notificacionNumero, CancellationToken ct)
     {
+        var usuarioValido = Validacion.Usuario(usuario);
         if (notificacionNumero <= 0) throw new ArgumentException("La notificación indicada no es válida.");
-        return notificacionesDAO.MarcarLeidaAsync(ValidarUsuario(usuario), notificacionNumero, cancellationToken);
-    }
-
-    private static string ValidarUsuario(string usuario)
-    {
-        var valor = usuario.Trim();
-        if (valor.Length == 0 || valor.Length > 20) throw new ArgumentException("El usuario autenticado no es válido.");
-        return valor;
+        return baseDatos.EjecutarAsync("dbo.Usp_TI_Marcar_NotificacionLeida", p =>
+        {
+            p.Add("@cUsuario", SqlDbType.VarChar, 20).Value = usuarioValido;
+            p.Add("@nNotificacionNumero", SqlDbType.BigInt).Value = notificacionNumero;
+        }, ct);
     }
 }

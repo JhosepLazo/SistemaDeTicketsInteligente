@@ -1,148 +1,50 @@
 /**
  * Archivo: MisTicketsUsuarioController.cs
- * Objetivo: Exponer los endpoints protegidos utilizados por el módulo Mis Tickets del usuario.
- * Responsabilidad: Obtener la identidad desde la sesión, consultar tickets/detalle y recibir las acciones que corresponden al usuario solicitante.
- * Dependencias: MisTicketsUsuarioBLL, MisTicketsUsuarioDTO, autenticación por cookie y claims de ASP.NET Core.
- * Flujo: Frontend -> MisTicketsUsuarioController -> MisTicketsUsuarioBLL -> MisTicketsUsuarioDAO -> SQL Server.
- * Consideraciones: Nunca recibe un usuario como parámetro confiable; todas las operaciones utilizan el NameIdentifier de la sesión y vuelven a validar propiedad en SQL Server.
+ * Objetivo: Exponer al colaborador el seguimiento de sus propios tickets.
+ * Responsabilidad: Delegar consulta, respuesta a TI, validación de la solución, calificación, descarga de adjuntos y edición temprana.
+ * Dependencias: MisTicketsUsuarioBLL y la autenticación por cookie.
+ * Flujo: MisTicketsUsuarioPage -> MisTicketsUsuarioController -> MisTicketsUsuarioBLL.
+ * Consideraciones: El usuario siempre sale de la cookie; los procedimientos rechazan tickets ajenos.
  */
 
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using SistemaTicketsInteligente.Api.BLL;
-using SistemaTicketsInteligente.Api.DTO;
 
 namespace SistemaTicketsInteligente.Api.Controllers;
 
 [ApiController]
 [Authorize(Roles = "USR")]
 [Route("api/mis-tickets")]
-public sealed class MisTicketsUsuarioController : ControllerBase
+public sealed class MisTicketsUsuarioController(MisTicketsUsuarioBLL misTickets) : ControladorBase
 {
-    private readonly MisTicketsUsuarioBLL misTicketsUsuarioBLL;
-
-    public MisTicketsUsuarioController(MisTicketsUsuarioBLL misTicketsUsuarioBLL)
-    {
-        this.misTicketsUsuarioBLL = misTicketsUsuarioBLL;
-    }
-
     [HttpGet]
-    public async Task<ActionResult<MisTicketsUsuarioRespuesta>> Obtener(CancellationToken cancellationToken)
-    {
-        var usuario = ObtenerUsuario();
-        if (usuario is null) return Unauthorized();
-        return Ok(await misTicketsUsuarioBLL.ObtenerAsync(usuario, cancellationToken));
-    }
+    public Task<IActionResult> Obtener(CancellationToken ct) => Responder(async () => Ok(await misTickets.ObtenerAsync(Usuario, ct)));
 
     [HttpGet("{incidenciaNumero}")]
-    public async Task<ActionResult<MisTicketsUsuarioDetalle>> ObtenerDetalle(string incidenciaNumero, CancellationToken cancellationToken)
-    {
-        var usuario = ObtenerUsuario();
-        if (usuario is null) return Unauthorized();
-
-        try
-        {
-            return Ok(await misTicketsUsuarioBLL.ObtenerDetalleAsync(usuario, incidenciaNumero, cancellationToken));
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { mensaje = ex.Message });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { mensaje = ex.Message });
-        }
-    }
+    public Task<IActionResult> ObtenerDetalle(string incidenciaNumero, CancellationToken ct) =>
+        Responder(async () => Ok(await misTickets.ObtenerDetalleAsync(Usuario, incidenciaNumero, ct)));
 
     [HttpPost("{incidenciaNumero}/responder-observacion")]
     [RequestSizeLimit(55 * 1024 * 1024)]
-    public async Task<IActionResult> ResponderObservacion(string incidenciaNumero, [FromForm] ResponderObservacionSolicitud solicitud, CancellationToken cancellationToken)
-    {
-        var usuario = ObtenerUsuario();
-        if (usuario is null) return Unauthorized();
-
-        try
-        {
-            await misTicketsUsuarioBLL.ResponderObservacionAsync(usuario, incidenciaNumero, solicitud, cancellationToken);
-            return NoContent();
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { mensaje = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Conflict(new { mensaje = ex.Message });
-        }
-    }
+    public Task<IActionResult> ResponderObservacion(string incidenciaNumero, [FromForm] ResponderObservacionSolicitud solicitud, CancellationToken ct) =>
+        Ejecutar(() => misTickets.ResponderObservacionAsync(Usuario, incidenciaNumero, solicitud, ct));
 
     [HttpPost("{incidenciaNumero}/validar-solucion")]
-    public async Task<IActionResult> ValidarSolucion(string incidenciaNumero, ValidarSolucionSolicitud solicitud, CancellationToken cancellationToken)
-    {
-        var usuario = ObtenerUsuario();
-        if (usuario is null) return Unauthorized();
-
-        try
-        {
-            await misTicketsUsuarioBLL.ValidarSolucionAsync(usuario, incidenciaNumero, solicitud, cancellationToken);
-            return NoContent();
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { mensaje = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Conflict(new { mensaje = ex.Message });
-        }
-    }
+    public Task<IActionResult> ValidarSolucion(string incidenciaNumero, ValidarSolucionSolicitud solicitud, CancellationToken ct) =>
+        Ejecutar(() => misTickets.ValidarSolucionAsync(Usuario, incidenciaNumero, solicitud, ct));
 
     [HttpPost("{incidenciaNumero}/calificar")]
-    public async Task<IActionResult> Calificar(string incidenciaNumero, CalificarTicketSolicitud solicitud, CancellationToken cancellationToken)
-    {
-        var usuario = ObtenerUsuario();
-        if (usuario is null) return Unauthorized();
-
-        try
-        {
-            await misTicketsUsuarioBLL.CalificarAsync(usuario, incidenciaNumero, solicitud, cancellationToken);
-            return NoContent();
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { mensaje = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Conflict(new { mensaje = ex.Message });
-        }
-    }
+    public Task<IActionResult> Calificar(string incidenciaNumero, CalificarTicketSolicitud solicitud, CancellationToken ct) =>
+        Ejecutar(() => misTickets.CalificarAsync(Usuario, incidenciaNumero, solicitud, ct));
 
     [HttpGet("{incidenciaNumero}/adjuntos/{secuencia:int}")]
-    public async Task<IActionResult> DescargarAdjunto(string incidenciaNumero, int secuencia, CancellationToken cancellationToken)
+    public Task<IActionResult> DescargarAdjunto(string incidenciaNumero, int secuencia, CancellationToken ct) => Responder(async () =>
     {
-        var usuario = ObtenerUsuario();
-        if (usuario is null) return Unauthorized();
+        var archivo = await misTickets.ObtenerArchivoAsync(Usuario, incidenciaNumero, secuencia, ct);
+        return Archivo(archivo.RutaFisica, archivo.TipoMime, archivo.NombreOriginal);
+    });
 
-        try
-        {
-            var archivo = await misTicketsUsuarioBLL.ObtenerArchivoAsync(usuario, incidenciaNumero, secuencia, cancellationToken);
-            return PhysicalFile(archivo.RutaArchivo, archivo.TipoMime, archivo.NombreOriginal, enableRangeProcessing: true);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { mensaje = ex.Message });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { mensaje = ex.Message });
-        }
-        catch (FileNotFoundException ex)
-        {
-            return NotFound(new { mensaje = ex.Message });
-        }
-    }
-
-    private string? ObtenerUsuario() => User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    [HttpPost("{incidenciaNumero}/editar")]
+    public Task<IActionResult> Editar(string incidenciaNumero, EditarTicketUsuarioSolicitud solicitud, CancellationToken ct) =>
+        Ejecutar(() => misTickets.EditarAsync(Usuario, incidenciaNumero, solicitud, ct));
 }

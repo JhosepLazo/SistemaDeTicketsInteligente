@@ -1,13 +1,11 @@
 /**
  * Archivo: NuevoTicketDTO.cs
- * Objetivo: Definir los contratos utilizados por el módulo Nuevo Ticket entre Controller, BLL, DAO y frontend.
+ * Objetivo: Definir los contratos utilizados por el módulo Nuevo Ticket entre Controller, BLL y frontend.
  * Responsabilidad: Transportar identidad visible, catálogos del formulario, datos ingresados por el usuario, adjuntos y resultado del registro.
  * Dependencias: ASP.NET Core IFormFile.
- * Flujo: Frontend -> NuevoTicketController -> NuevoTicketBLL -> NuevoTicketDAO -> SQL Server.
+ * Flujo: Frontend -> NuevoTicketController -> NuevoTicketBLL -> SQL Server.
  * Consideraciones: No contiene reglas de negocio ni acceso a datos; los campos técnicos que no corresponden al usuario no forman parte de la solicitud.
  */
-
-using Microsoft.AspNetCore.Http;
 
 namespace SistemaTicketsInteligente.Api.DTO;
 
@@ -37,15 +35,6 @@ public sealed class CrearNuevoTicketSolicitud
     public List<IFormFile> Adjuntos { get; set; } = [];
     /// <summary>Evidencia que el colaborador mostró en pantalla al Asistente TI (pasos, error, conversación); activa la investigación automática.</summary>
     public string? EvidenciaAsistenteJson { get; set; }
-}
-
-public sealed class NuevoTicketAdjuntoRegistro
-{
-    public string NombreOriginal { get; set; } = string.Empty;
-    public string NombreArchivo { get; set; } = string.Empty;
-    public string RutaArchivo { get; set; } = string.Empty;
-    public string TipoMime { get; set; } = string.Empty;
-    public long TamanoBytes { get; set; }
 }
 
 public sealed class NuevoTicketCreadoRespuesta

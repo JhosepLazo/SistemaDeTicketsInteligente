@@ -1,0 +1,13 @@
+# Fin de línea normalizado: el repositorio guarda LF y los archivos se escriben con LF también en el disco,
+# sin depender de la configuración de Git de cada equipo (VS Code, Visual Studio, PowerShell y sqlcmd leen LF sin problema).
+* text=auto eol=lf
+
+# Binarios: nunca se convierten ni se comparan como texto.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.webm binary
+*.mp4 binary

@@ -3,7 +3,7 @@
  * Objetivo: Definir los contratos del Asistente TI y del Agente de Ingeniería Autónomo.
  * Responsabilidad: Transportar conversación, sesiones Live, evidencia, diagnóstico, informe técnico y decisiones controladas de TI.
  * Dependencias: AsistenteUsuarioMensaje para conservar el historial conversacional existente.
- * Flujo: Frontend <-> AsistenteTIController <-> AsistenteTIBLL <-> AsistenteTIDAO.
+ * Flujo: Frontend <-> AsistenteTIController <-> AsistenteTIBLL <-> Stored Procedures del agente.
  * Consideraciones: El archivo no contiene reglas de negocio ni permite transportar SQL libre para ejecución.
  */
 

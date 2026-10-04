@@ -1,10 +1,10 @@
 /**
  * Archivo: AutenticacionController.cs
- * Objetivo: Exponer los endpoints HTTP necesarios para iniciar, consultar y cerrar la sesión del usuario.
- * Responsabilidad: Recibir solicitudes, delegar la autenticación a BLL y administrar la identidad web mediante cookie segura y persistente durante su vigencia.
- * Dependencias: AutenticacionBLL, DTO de autenticación y autenticación de ASP.NET Core.
- * Flujo: Frontend -> AutenticacionController -> AutenticacionBLL -> identidad corporativa/local -> SQL Server.
- * Consideraciones: No contiene SQL ni valida hashes; informa de forma controlada cuando un usuario corporativo aún no posee área/perfil local o el origen de identidad no está disponible.
+ * Objetivo: Iniciar, consultar y cerrar la sesión web del usuario.
+ * Responsabilidad: Traducir el resultado del inicio de sesión a HTTP, crear la cookie con los claims mínimos y cerrarla.
+ * Dependencias: AutenticacionBLL, Cookie Authentication y el rate limiting "Login".
+ * Flujo: LoginPage -> AutenticacionController -> AutenticacionBLL -> cookie HttpOnly.
+ * Consideraciones: Las respuestas de error son genéricas para no revelar si un usuario existe; la contraseña nunca se registra.
  */
 
 using System.Security.Claims;
@@ -13,30 +13,20 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using SistemaTicketsInteligente.Api.BLL;
-using SistemaTicketsInteligente.Api.DTO.Autenticacion;
 
 namespace SistemaTicketsInteligente.Api.Controllers;
 
 [ApiController]
 [Route("api/autenticacion")]
-public sealed class AutenticacionController : ControllerBase
+public sealed class AutenticacionController(AutenticacionBLL autenticacion) : ControladorBase
 {
-    private readonly AutenticacionBLL autenticacionBLL;
-
-    public AutenticacionController(AutenticacionBLL autenticacionBLL)
-    {
-        this.autenticacionBLL = autenticacionBLL;
-    }
-
     [AllowAnonymous]
     [EnableRateLimiting("Login")]
     [HttpPost("iniciar-sesion")]
-    public async Task<IActionResult> IniciarSesion(SolicitudInicioSesion solicitud, CancellationToken cancellationToken)
+    public async Task<IActionResult> IniciarSesion(SolicitudInicioSesion solicitud, CancellationToken ct)
     {
-        var (resultado, respuesta) = await autenticacionBLL.IniciarSesionAsync(solicitud, cancellationToken);
-
-        if (resultado != ResultadoInicioSesion.Correcto)
+        var (resultado, sesion) = await autenticacion.IniciarSesionAsync(solicitud, ct);
+        if (resultado != ResultadoInicioSesion.Correcto || sesion is null)
         {
             return resultado switch
             {
@@ -50,58 +40,40 @@ public sealed class AutenticacionController : ControllerBase
             };
         }
 
-        var usuario = respuesta!;
-        var claims = new[]
-        {
-            new Claim(ClaimTypes.NameIdentifier, usuario.Usuario),
-            new Claim(ClaimTypes.Name, usuario.NombreCompleto),
-            new Claim("Area", usuario.Area),
-            new Claim(ClaimTypes.Role, usuario.Perfil)
-        };
-
-        var identidad = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-        var propiedades = new AuthenticationProperties { IsPersistent = true, AllowRefresh = true };
-
-        await HttpContext.SignInAsync(
-            CookieAuthenticationDefaults.AuthenticationScheme,
-            new ClaimsPrincipal(identidad),
-            propiedades);
-
-        return Ok(usuario);
+        Claim[] claims =
+        [
+            new(ClaimTypes.NameIdentifier, sesion.Usuario),
+            new(ClaimTypes.Name, sesion.NombreCompleto),
+            new("Area", sesion.Area),
+            new(ClaimTypes.Role, sesion.Perfil)
+        ];
+        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
+            new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme)),
+            new AuthenticationProperties { IsPersistent = true, AllowRefresh = true });
+        return Ok(sesion);
     }
 
     [Authorize]
     [HttpGet("sesion")]
-    public ActionResult<RespuestaInicioSesion> Sesion()
+    public IActionResult Sesion()
     {
-        var usuario = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrWhiteSpace(usuario)) return Unauthorized();
-
+        if (string.IsNullOrWhiteSpace(Usuario)) return Unauthorized();
         return Ok(new RespuestaInicioSesion
         {
-            Usuario = usuario,
+            Usuario = Usuario,
             NombreCompleto = User.FindFirst(ClaimTypes.Name)?.Value ?? string.Empty,
-            Area = User.FindFirst("Area")?.Value ?? string.Empty,
+            Area = Area,
             Perfil = User.FindFirst(ClaimTypes.Role)?.Value ?? string.Empty
         });
     }
 
     [Authorize]
     [HttpPost("cerrar-sesion")]
-    public async Task<IActionResult> CerrarSesion(CancellationToken cancellationToken)
+    public async Task<IActionResult> CerrarSesion(CancellationToken ct)
     {
-        var usuario = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrWhiteSpace(usuario)) return Unauthorized();
-
-        try
-        {
-            await autenticacionBLL.CerrarSesionAsync(usuario, cancellationToken);
-        }
-        finally
-        {
-            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-        }
-
+        if (string.IsNullOrWhiteSpace(Usuario)) return Unauthorized();
+        try { await autenticacion.CerrarSesionAsync(Usuario, ct); }
+        finally { await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme); }
         return NoContent();
     }
 }

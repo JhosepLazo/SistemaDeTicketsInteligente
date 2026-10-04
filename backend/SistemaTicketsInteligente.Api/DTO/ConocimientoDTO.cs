@@ -3,7 +3,7 @@
  * Objetivo: Definir los contratos de la búsqueda semántica de conocimiento.
  * Responsabilidad: Transportar el corpus autorizado con su vector y los resultados ordenados por similitud.
  * Dependencias: Ninguna.
- * Flujo: ConocimientoDAO -> ConocimientoSemanticoBLL -> asistentes (TI y colaborador).
+ * Flujo: Usp_TI_Conocimiento_Corpus -> ConocimientoSemanticoBLL -> asistentes (TI y colaborador).
  * Consideraciones: El texto del corpus nunca se devuelve completo al navegador; solo títulos, códigos y extractos.
  */
 

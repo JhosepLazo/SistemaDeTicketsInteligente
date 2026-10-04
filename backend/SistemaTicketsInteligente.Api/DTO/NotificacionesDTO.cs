@@ -1,9 +1,9 @@
-/*
+/**
  * Archivo: NotificacionesDTO.cs
  * Objetivo: Definir los contratos de la campana de notificaciones operativas.
  * Responsabilidad: Transportar el contador de pendientes y las notificaciones recientes del usuario autenticado.
  * Dependencias: Ninguna dependencia funcional fuera de .NET.
- * Flujo: SQL Server -> NotificacionesDAO -> NotificacionesBLL -> NotificacionesController -> Frontend.
+ * Flujo: SQL Server -> NotificacionesBLL -> NotificacionesController -> Frontend.
  * Consideraciones: Una notificación puede enlazar a un módulo interno, pero nunca concede permisos ni reemplaza las validaciones del destino.
  */
 

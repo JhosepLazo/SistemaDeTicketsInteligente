@@ -1,9 +1,9 @@
-/*
+/**
  * Archivo: GestionTicketsTIDTO.cs
  * Objetivo: Definir los contratos utilizados por el módulo Gestión de Tickets para operadores TI.
- * Responsabilidad: Transportar resumen, bandeja, catálogos, detalle técnico y solicitudes de acciones operativas entre Controller, BLL, DAO y frontend.
+ * Responsabilidad: Transportar resumen, bandeja, catálogos, detalle técnico y solicitudes de acciones operativas entre Controller, BLL y frontend.
  * Dependencias: Ninguna dependencia funcional fuera de .NET.
- * Flujo: Frontend <-> GestionTicketsTIController <-> GestionTicketsTIBLL <-> GestionTicketsTIDAO <-> SQL Server.
+ * Flujo: Frontend <-> GestionTicketsTIController <-> GestionTicketsTIBLL <-> SQL Server.
  * Consideraciones: No contiene reglas de negocio ni acceso a datos; la identidad, área y perfil del operador se obtienen exclusivamente desde la sesión autenticada.
  */
 
@@ -214,13 +214,6 @@ public sealed class GestionTicketTIAprobacion
     public string ParametrosJson { get; set; } = string.Empty;
 }
 
-public sealed class GestionTicketTIArchivo
-{
-    public string NombreOriginal { get; set; } = string.Empty;
-    public string RutaArchivo { get; set; } = string.Empty;
-    public string TipoMime { get; set; } = string.Empty;
-}
-
 public sealed class ClasificarTicketTISolicitud
 {
     public string Linea { get; set; } = string.Empty;
@@ -237,12 +230,6 @@ public sealed class ClasificarTicketTISolicitud
 public sealed class AsignarTicketTISolicitud
 {
     public string UsuarioTI { get; set; } = string.Empty;
-}
-
-public sealed class RegistrarAvanceTISolicitud
-{
-    public string Detalle { get; set; } = string.Empty;
-    public bool VisibleUsuario { get; set; }
 }
 
 public sealed class SolicitarInformacionTISolicitud

@@ -6,19 +6,18 @@ Modernización del sistema corporativo de incidencias con backend ASP.NET Core, 
 
 ```text
 SistemaTicketsInteligente/
-├── SistemaTicketsInteligente.sln
-├── backend/
-│   └── SistemaTicketsInteligente.Api/
-│       ├── Controllers/     Entrada HTTP
-│       ├── BLL/             Reglas y coordinación del negocio
-│       ├── DAO/             Acceso a SQL Server
-│       └── DTO/             Contratos y modelos
-├── frontend/                Aplicación React
-├── database/                Scripts SQL Server
-└── docs/                    Documentación funcional y técnica
+├── SistemaTicketsInteligente.slnx
+├── backend/SistemaTicketsInteligente.Api/
+│   ├── Controllers/     Entrada HTTP (un controlador por módulo)
+│   ├── BLL/             Reglas de cada módulo; llaman a sus Stored Procedures (Agente/ e IA/ aparte)
+│   ├── Comun/           BaseDatos, lectura de resultados, validaciones, archivos y controlador base
+│   └── DTO/             Contratos de cada módulo
+├── frontend/src/        features/ (pantallas por módulo), components/ (compartidos) y services/ (API)
+├── database/            Scripts SQL Server
+└── docs/                Documentación funcional y técnica
 ```
 
-La solución mantiene la separación Controller -> BLL -> DAO -> Stored Procedures sin dividir cada responsabilidad en un proyecto independiente.
+El flujo es Controller -> BLL -> Stored Procedures, en un solo proyecto y sin una capa DAO intermedia: cada BLL valida y llama a sus procedimientos mediante `Comun/BaseDatos`. El detalle está en [docs/03_EstructuraSolucion.md](docs/03_EstructuraSolucion.md) y las reglas del proyecto en [CLAUDE.md](CLAUDE.md).
 
 ## Bases de datos
 
@@ -69,6 +68,8 @@ dotnet run --project backend/SistemaTicketsInteligente.Api
 
 Las variables de entorno tienen prioridad sobre los archivos. Las credenciales reales no deben reemplazar los marcadores dentro de un archivo versionado.
 
+El perfil `Diagnostico` (`appsettings.Diagnostico.json`) sirve para probar el agente contra copias de prueba: solo arranca si las cuatro bases terminan en `_TEST` y deshabilita la ejecución de cambios (`AgenteTI:SoloDiagnostico`).
+
 ## Asistentes IA
 
 El asistente de colaboradores funciona en dos modos sin cambiar la interfaz:
@@ -109,7 +110,7 @@ El Agente de Ingeniería puede buscar el mensaje de error en el código fuente y
   "OperadorAutomatico": "SUP001",
   "Sistemas": [
     { "Codigo": "ERP_SPRING", "Nombre": "ERP Spring", "Lineas": ["115"], "ConexionLectura": "CnnSpringLectura",
-      "RutaCodigo": "D:\Fuentes\Spring", "ConsultasLibres": true, "ColumnasSensibles": ["Sueldo", "Cuenta", "Clave"] }
+      "RutaCodigo": "D:\\Fuentes\\Spring", "ConsultasLibres": true, "ColumnasSensibles": ["Sueldo", "Cuenta", "Clave"] }
   ]
 }
 ```
@@ -153,8 +154,8 @@ Verifica que SQL Server esté encendido y que no haya otra API en el puerto 5000
 ## Backend
 
 ```powershell
-dotnet restore SistemaTicketsInteligente.sln
-dotnet build SistemaTicketsInteligente.sln
+dotnet restore SistemaTicketsInteligente.slnx
+dotnet build SistemaTicketsInteligente.slnx
 dotnet run --project backend/SistemaTicketsInteligente.Api
 ```
 
@@ -172,4 +173,10 @@ npm install
 npm run dev
 ```
 
-La aplicación consulta la sesión al abrirse, muestra el Login cuando no existe una cookie válida y protege temporalmente la ruta `/inicio`.
+La aplicación consulta la sesión al abrirse, muestra el Login cuando no existe una cookie válida y protege cada ruta según el perfil (la autorización definitiva la hace cada endpoint). Antes de cerrar un cambio: `npm run typecheck`, `npm run build` y `npx prettier@3 --check "src/**/*.{ts,tsx,css}"`.
+
+## Pendientes
+
+- **Funciones con API pero sin pantalla:** edición temprana del ticket por el colaborador (`POST /api/mis-tickets/{n}/editar`), carga de formatos de soporte (`POST /api/configuracion-ti/formatos`) y visibilidad de artículos para el usuario (`POST /api/configuracion-ti/conocimiento/{codigo}/visibilidad`). Mientras no exista esa pantalla, un artículo solo se publica para colaboradores por API o en la base.
+- **Live:** si el modelo de Gemini Live se satura, no hay un modelo de respaldo para la sesión de voz y pantalla.
+- **Pruebas automatizadas:** el proyecto todavía no tiene un proyecto de pruebas (`tests/`).

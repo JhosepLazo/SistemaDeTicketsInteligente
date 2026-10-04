@@ -2,7 +2,8 @@
  * Archivo: AsistenteUsuarioBLL.cs
  * Objetivo: Orientar al colaborador usando conocimiento publicado, sus propios tickets y un proveedor IA opcional.
  * Responsabilidad: Validar la conversación, seleccionar contexto mínimo, impedir respuestas inventadas y degradar a búsqueda local cuando no exista API key.
- * Dependencias: RecursosSoporteDAO, MisTicketsUsuarioDAO, ConocimientoSemanticoBLL, OpenAIAsistenteClient, GeminiLiveClient y DTO del asistente.
+ * Dependencias: RecursosSoporteBLL (artículos publicados), MisTicketsUsuarioBLL (tickets propios), ConocimientoSemanticoBLL,
+ *   OpenAIAsistenteClient y GeminiLiveClient.
  * Flujo: Controller -> selección de contexto autorizado -> OpenAI opcional o respuesta local -> fuentes y siguiente acción.
  * Consideraciones: No persiste conversaciones y nunca entrega al proveedor detalles completos, adjuntos ni tickets de otros usuarios.
  */
@@ -12,12 +13,11 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Caching.Memory;
-using SistemaTicketsInteligente.Api.DAO;
-using SistemaTicketsInteligente.Api.DTO;
 
 namespace SistemaTicketsInteligente.Api.BLL;
 
-public sealed class AsistenteUsuarioBLL
+public sealed class AsistenteUsuarioBLL(RecursosSoporteBLL recursosSoporte, MisTicketsUsuarioBLL misTickets, OpenAIAsistenteClient openAI,
+    ConocimientoSemanticoBLL conocimiento, GeminiLiveClient geminiLive, IMemoryCache cache)
 {
     private static readonly HashSet<string> PalabrasVacias = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -26,24 +26,6 @@ public sealed class AsistenteUsuarioBLL
     };
 
     private const int MaximoSesionesLivePorHora = 6;
-
-    private readonly RecursosSoporteDAO recursosSoporteDAO;
-    private readonly MisTicketsUsuarioDAO misTicketsUsuarioDAO;
-    private readonly OpenAIAsistenteClient openAI;
-    private readonly ConocimientoSemanticoBLL conocimiento;
-    private readonly GeminiLiveClient geminiLive;
-    private readonly IMemoryCache cache;
-
-    public AsistenteUsuarioBLL(RecursosSoporteDAO recursosSoporteDAO, MisTicketsUsuarioDAO misTicketsUsuarioDAO, OpenAIAsistenteClient openAI,
-        ConocimientoSemanticoBLL conocimiento, GeminiLiveClient geminiLive, IMemoryCache cache)
-    {
-        this.recursosSoporteDAO = recursosSoporteDAO;
-        this.misTicketsUsuarioDAO = misTicketsUsuarioDAO;
-        this.openAI = openAI;
-        this.conocimiento = conocimiento;
-        this.geminiLive = geminiLive;
-        this.cache = cache;
-    }
 
     public async Task<AgenteTILiveTokenRespuesta> CrearTokenLiveAsync(string usuario, LiveUsuarioSolicitud solicitud, CancellationToken ct)
     {
@@ -161,9 +143,9 @@ public sealed class AsistenteUsuarioBLL
         if (solicitud.Historial.Any(x => string.IsNullOrWhiteSpace(x.Contenido) || x.Contenido.Length > 1600 || (x.Rol != "usuario" && x.Rol != "asistente")))
             throw new ArgumentException("El historial de la conversación no es válido.");
 
-        var recursosTask = recursosSoporteDAO.ObtenerAsync(ct);
+        var recursosTask = recursosSoporte.ObtenerAsync(ct);
         var consultaTickets = EsConsultaDeTickets(mensaje);
-        var ticketsTask = consultaTickets ? misTicketsUsuarioDAO.ObtenerAsync(usuario, ct) : null;
+        var ticketsTask = consultaTickets ? misTickets.ObtenerAsync(usuario, ct) : null;
 
         var recursos = await recursosTask;
         var ticketsUsuario = ticketsTask is null ? [] : (await ticketsTask).Tickets;

@@ -3,7 +3,7 @@
  * Objetivo: Definir los contratos utilizados por el módulo Base de Conocimiento del operador TI.
  * Responsabilidad: Transportar resumen, artículos, catálogos, tickets candidatos y solicitudes de mantenimiento sin incorporar acceso a datos ni reglas de negocio.
  * Dependencias: Ninguna capa de infraestructura; solo tipos base de .NET.
- * Flujo: Controller <-> BLL <-> DAO <-> Stored Procedures del módulo Base de Conocimiento TI.
+ * Flujo: Controller <-> BLL <-> Stored Procedures del módulo Base de Conocimiento TI.
  * Consideraciones: Los estados manejados por el módulo son A Publicado, B Borrador, P Pendiente de validación e I Inactivo.
  */
 

@@ -88,84 +88,7 @@ Go
 
 /* ============================== CONTEXTO Y DIAGNÓSTICO ============================== */
 
-Create Or Alter Procedure dbo.Usp_TI_Agente_ObtenerContexto
-/*================================================================================
-Objetivo            : Recuperar únicamente el contexto autorizado necesario para investigar una sesión.
-Creado Por          : Jhosep S. Lazo
-Fecha Creación      : 01/10/2026
-SP Anterior         : dbo.Usp_TI_Agente_ObtenerContexto (25_AsistenteIngenieriaAutonomo.sql)
-Comentario Cambios  : 02/10/2026 Devuelve evidencias persistidas, informe y el contrato de parámetros/ejecutor de cada acción.
-================================================================================*/
-	@cUsuario varchar(20),
-	@cArea char(3),
-	@nSesionNumero bigint
-As
-Begin
-	Set NoCount On
-
-	If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Area = @cArea and Estado = 'A' and Perfil In ('TEC','SUP','ADM')) Throw 50508, 'El operador TI no se encuentra habilitado.', 1
-	If Not Exists (Select 1 From dbo.TI_AgenteSesion Where SesionNumero = @nSesionNumero and UsuarioTI = @cUsuario) Throw 50509, 'La sesión de investigación no existe o no pertenece al operador.', 1
-
-	Select
-		s.SesionNumero, s.IncidenciaNumero, s.IdCorrelacion, s.DescripcionInicial, s.Estado, s.ResumenObservacion, s.ProcesoObservado, s.ErrorObservado, s.SolucionValidada, s.ConocimientoCodigo,
-		s.Diagnostico, s.CausaProbable, s.SolucionPropuesta, s.Confianza, s.AccionCodigo, s.NivelRiesgo, s.ParametrosJson, s.Decision,
-		s.SolicitudAprobacionSecuencia, s.FechaInicio, s.FechaDiagnostico, s.FechaDecision, s.EvidenciasJson, s.InformeMarkdown,
-		InformeDisponible = Convert(bit, Case When NullIf(s.InformeMarkdown, '') Is Null Then 0 Else 1 End),
-		i.Titulo, i.Detalle, i.MensajeError, i.Estado as EstadoIncidencia, i.Linea, i.Item, i.Tipo, i.SubTipo, i.Categoria, i.UsuarioSolicitante, i.FechaRegistro
-	From dbo.TI_AgenteSesion s
-	Left Join dbo.TI_Incidencia i on i.IncidenciaNumero = s.IncidenciaNumero
-	Where s.SesionNumero = @nSesionNumero
-
-	Select d.CompaniaSocio, d.TipoDocumento, d.NumeroDocumento, d.Descripcion
-	From dbo.TI_IncidenciaDocumento d
-	Inner Join dbo.TI_AgenteSesion s on s.IncidenciaNumero = d.IncidenciaNumero
-	Where s.SesionNumero = @nSesionNumero
-	Order By d.Secuencia
-
-	Select Top (30) m.TipoAutor, Autor = IsNull(u.NombreCompleto, m.UsuarioAutor), m.Contenido, m.FechaMensaje, m.EsInterno
-	From dbo.TI_IncidenciaMensaje m
-	Inner Join dbo.TI_AgenteSesion s on s.IncidenciaNumero = m.IncidenciaNumero
-	Left Join dbo.TI_Usuario u on u.Usuario = m.UsuarioAutor
-	Where s.SesionNumero = @nSesionNumero
-	Order By m.Secuencia Desc
-
-	;With Contexto as (
-		Select i.Linea, i.Item, i.Tipo, i.Categoria
-		From dbo.TI_AgenteSesion s
-		Left Join dbo.TI_Incidencia i on i.IncidenciaNumero = s.IncidenciaNumero
-		Where s.SesionNumero = @nSesionNumero
-	)
-	Select Top (10) k.ConocimientoCodigo, k.Titulo, k.Problema, k.Sintomas, k.Causa, k.Solucion, k.Procedimiento,
-		PuntajeContextual =
-			Case When k.Item Is Not Null and k.Item = c.Item Then 5 Else 0 End +
-			Case When k.Linea Is Not Null and k.Linea = c.Linea Then 3 Else 0 End +
-			Case When k.Categoria Is Not Null and k.Categoria = c.Categoria Then 2 Else 0 End +
-			Case When k.Tipo Is Not Null and k.Tipo = c.Tipo Then 1 Else 0 End
-	From dbo.TI_BaseConocimiento k
-	Cross Join Contexto c
-	Where k.Estado = 'A'
-		and (c.Linea Is Null or k.Linea Is Null or k.Linea = c.Linea)
-	Order By PuntajeContextual Desc, k.FechaValidacion Desc, k.FechaCreacion Desc
-
-	Select a.AccionCodigo, a.Nombre, a.Descripcion, a.Tipo, a.NivelRiesgo, a.RequiereAprobacion,
-		TieneEjecutor = Convert(bit, Case When x.AccionCodigo Is Null Then 0 Else 1 End),
-		ParametrosDescripcion = IsNull(x.ParametrosDescripcion, N'')
-	From dbo.TI_Accion a
-	Left Join dbo.TI_AgenteAccionEjecutor x on x.AccionCodigo = a.AccionCodigo and x.Estado = 'A'
-	Where a.Estado = 'A'
-	Order By a.Tipo, a.NivelRiesgo, a.Nombre
-
-	Select Top (50) a.Entidad, a.Registro, a.Evento, a.Resultado, a.DetalleJson, a.IdCorrelacion, a.Fecha
-	From dbo.TI_Auditoria a
-	Inner Join dbo.TI_AgenteSesion s on s.IncidenciaNumero = a.IncidenciaNumero
-	Where s.SesionNumero = @nSesionNumero
-	Order By a.Fecha Desc, a.AuditoriaNumero Desc
-
-	Select Secuencia, Tipo, Fuente, Contenido, DatosJson, Fecha, OrigenServidor
-	From dbo.TI_AgenteEvento
-	Where SesionNumero = @nSesionNumero
-	Order By Secuencia
-End
+-- dbo.Usp_TI_Agente_ObtenerContexto: la versión vigente está en 33_AgenteFase6Mejoras.sql (aquí había una versión anterior que ese script reemplaza).
 Go
 
 Create Or Alter Procedure dbo.Usp_TI_Agente_GuardarDiagnostico
@@ -536,67 +459,7 @@ Go
 
 /* ============================== APROBACIONES (GESTIÓN DE TICKETS) ============================== */
 
-Create Or Alter Procedure dbo.Usp_TI_Responder_AprobacionTicket
-/*================================================================================
-Objetivo            : Aprobar o rechazar una solicitud pendiente y desbloquear el flujo operativo.
-Creado Por          : Jhosep S. Lazo
-Fecha Creación      : 13/09/2026
-SP Anterior         : dbo.Usp_TI_Responder_AprobacionTicket (19_MejorasFuncionalesSinIA.sql)
-Comentario Cambios  : 02/10/2026 Impide que el solicitante responda su propia aprobación (segregación de funciones) y,
-					  si la solicitud pertenece al agente, dirige la notificación a la investigación correspondiente.
-================================================================================*/
-	@cUsuario varchar(20), @cArea char(3), @cIncidenciaNumero varchar(12), @nSecuencia int, @lAprobar bit, @cComentario nvarchar(1000), @cIdCorrelacion uniqueidentifier
-As
-Begin
-	Set NoCount On
-	Set Xact_Abort On
-
-	Begin Try
-		Begin Transaction
-		Declare @nEstado int, @cSolicitante varchar(20), @cMensajeNotificacion nvarchar(500), @cRuta varchar(250) = '/gestion-tickets', @nSesionAgente bigint, @dFecha datetime2(0) = SysDateTime()
-
-		If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Estado = 'A' and Perfil In ('TEC','SUP','ADM')) Throw 50230, 'Solo un operador TI activo puede responder esta aprobación.', 1
-		Select @cSolicitante = UsuarioSolicitante From dbo.TI_SolicitudAprobacion With (UpdLock, HoldLock) Where IncidenciaNumero = @cIncidenciaNumero and Secuencia = @nSecuencia and Estado = 'P'
-		If @cSolicitante Is Null Throw 50231, 'La solicitud de aprobación ya no se encuentra pendiente.', 1
-		If @cSolicitante = @cUsuario Throw 50242, 'No puedes responder una aprobación que tú mismo solicitaste. Debe resolverla otro operador TI.', 1
-		If @lAprobar = 0 and NullIf(LTrim(RTrim(@cComentario)), '') Is Null Throw 50232, 'Indica el motivo del rechazo.', 1
-
-		Update dbo.TI_SolicitudAprobacion
-		Set Estado = Case When @lAprobar = 1 Then 'A' Else 'R' End, UsuarioAprobador = @cUsuario,
-			ComentarioRespuesta = NullIf(LTrim(RTrim(@cComentario)), ''), FechaRespuesta = @dFecha
-		Where IncidenciaNumero = @cIncidenciaNumero and Secuencia = @nSecuencia and Estado = 'P'
-
-		Update dbo.TI_Incidencia Set Estado = 'DG', UltimoUsuario = @cUsuario, UltimaFechaModif = @dFecha Where IncidenciaNumero = @cIncidenciaNumero and Estado = 'PA'
-		Select @nEstado = IsNull(Max(Secuencia), 0) + 1 From dbo.TI_IncidenciaEstado With (UpdLock, HoldLock) Where IncidenciaNumero = @cIncidenciaNumero
-		Insert dbo.TI_IncidenciaEstado (IncidenciaNumero, Secuencia, Estado, UsuarioCambio, FechaCambio, Observacion)
-		Values (@cIncidenciaNumero, @nEstado, 'DG', @cUsuario, @dFecha, Case When @lAprobar = 1 Then N'La aprobación fue concedida; el ticket puede continuar.' Else N'La aprobación fue rechazada; el ticket vuelve a diagnóstico.' End)
-
-		Select @nSesionAgente = SesionNumero From dbo.TI_AgenteSesion
-		Where IncidenciaNumero = @cIncidenciaNumero and SolicitudAprobacionSecuencia = @nSecuencia and Estado = 'PENDIENTE_APROBACION'
-		If @nSesionAgente Is Not Null Set @cRuta = Concat('/asistente-ti?sesion=', @nSesionAgente)
-
-		Set @cMensajeNotificacion = Case
-			When @nSesionAgente Is Not Null and @lAprobar = 1 Then N'La acción del agente fue aprobada. Abre la investigación para ejecutarla.'
-			When @lAprobar = 1 Then N'La solicitud fue aprobada y el ticket puede continuar.'
-			Else N'La solicitud fue rechazada. Revisa el comentario registrado.' End
-		Exec dbo.Usp_TI_Registrar_Notificacion
-			@cUsuario = @cSolicitante,
-			@cIncidenciaNumero = @cIncidenciaNumero,
-			@cTipo = 'APROBACION_RESPUESTA',
-			@cTitulo = N'Respuesta de aprobación',
-			@cMensaje = @cMensajeNotificacion,
-			@cRuta = @cRuta
-
-		Insert dbo.TI_Auditoria (IncidenciaNumero, Usuario, TipoActor, Entidad, Registro, Evento, Resultado, DetalleJson, IdCorrelacion, Fecha)
-		Values (@cIncidenciaNumero, @cUsuario, 'T', 'TI_SolicitudAprobacion', Concat(@cIncidenciaNumero, '-', @nSecuencia), Case When @lAprobar = 1 Then 'APROBAR_ACCION' Else 'RECHAZAR_ACCION' End, 'EXITOSO', Null, @cIdCorrelacion, @dFecha)
-
-		Commit Transaction
-	End Try
-	Begin Catch
-		If Xact_State() <> 0 Rollback Transaction
-		;Throw
-	End Catch
-End
+-- dbo.Usp_TI_Responder_AprobacionTicket: la versión vigente está en 28_AgenteFase2Integracion.sql (aquí había una versión anterior que ese script reemplaza).
 Go
 
 Create Or Alter Procedure dbo.Usp_TI_Obtener_DetalleGestionTicketTI

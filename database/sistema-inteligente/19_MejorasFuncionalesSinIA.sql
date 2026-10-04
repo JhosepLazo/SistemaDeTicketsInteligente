@@ -222,38 +222,7 @@ Go
 
 /* ============================== IDENTIDAD CORPORATIVA ============================== */
 
-Create Or Alter Procedure dbo.Usp_TI_Sincronizar_UsuarioCorporativo
-/*================================================================================
-Objetivo            : Sincronizar únicamente metadata segura de un usuario corporativo en la tabla local.
-Creado Por          : Jhosep S. Lazo
-Fecha Creación      : 13/09/2026
-SP Anterior         : Ninguno
-Comentario Cambios  : Nunca recibe ni almacena la contraseña corporativa; conserva área y perfil como autorización local.
-================================================================================*/
-    @cUsuario varchar(20),
-    @cNombreCompleto varchar(255),
-    @cCargo char(3) = Null,
-    @cDocumento varchar(20) = Null,
-    @cEstadoCorporativo varchar(20) = Null,
-    @cUsuarioModifica varchar(20) = Null
-As
-Begin
-    Set NoCount On
-
-    If Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario)
-    Begin
-        Update dbo.TI_Usuario
-        Set NombreCompleto = @cNombreCompleto,
-            Cargo = Coalesce(@cCargo, Cargo),
-            Documento = NullIf(LTrim(RTrim(@cDocumento)), ''),
-            FuenteIdentidad = 'SPRING',
-            EstadoCorporativo = NullIf(LTrim(RTrim(@cEstadoCorporativo)), ''),
-            UltimaSincronizacion = SysDateTime(),
-            UltimoUsuario = Coalesce(@cUsuarioModifica, @cUsuario),
-            UltimaFechaModif = SysDateTime()
-        Where Usuario = @cUsuario
-    End
-End
+-- dbo.Usp_TI_Sincronizar_UsuarioCorporativo: la versión vigente está en 21_CorreccionesCompatibilidadSinIA.sql (aquí había una versión anterior que ese script reemplaza).
 Go
 
 Create Or Alter Procedure dbo.Usp_TI_Registrar_UsuarioCorporativo
@@ -538,68 +507,7 @@ Begin
 End
 Go
 
-Create Or Alter Procedure dbo.Usp_TI_Registrar_AvanceTicket
-/*================================================================================
-Objetivo            : Registrar un avance técnico con esfuerzo efectivo y área causante obligatorios.
-Creado Por          : Jhosep S. Lazo
-Fecha Creación      : 13/09/2026
-SP Anterior         : dbo.Usp_TI_Registrar_AvanceTicket
-Comentario Cambios  : El avance almacena minutos reales y causa estructurada; no usa porcentaje subjetivo.
-================================================================================*/
-    @cUsuario varchar(20), @cArea char(3), @cIncidenciaNumero varchar(12), @cDetalle nvarchar(max), @lVisibleUsuario bit = 0,
-    @nTiempoUtilizado decimal(8,2), @cAreaCausante char(3), @cIdCorrelacion uniqueidentifier
-As
-Begin
-    Set NoCount On
-    Set Xact_Abort On
-
-    Begin Try
-        Begin Transaction
-
-        Declare @nAvance int, @nMensaje int, @nEstado int, @cEstado char(2), @dFecha datetime2(0) = SysDateTime()
-
-        If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Area = @cArea and Estado = 'A' and Perfil In ('TEC','SUP','ADM')) Throw 50216, 'El operador TI no es válido.', 1
-        If NullIf(LTrim(RTrim(@cDetalle)), '') Is Null Throw 50217, 'El detalle del avance no puede estar vacío.', 1
-        If @nTiempoUtilizado Is Null or @nTiempoUtilizado <= 0 or @nTiempoUtilizado > 1440 Throw 50234, 'El tiempo efectivo debe ser mayor a 0 y no superar 1440 minutos por avance.', 1
-        If Not Exists (Select 1 From dbo.TI_Area Where Area = @cAreaCausante and Estado = 'A') Throw 50235, 'Selecciona un área causante válida.', 1
-
-        Select @cEstado = Estado From dbo.TI_Incidencia With (UpdLock, HoldLock) Where IncidenciaNumero = @cIncidenciaNumero
-        If @cEstado Is Null or @cEstado In ('RS','CA','PA') Throw 50218, 'El ticket no existe, está cerrado o espera una aprobación.', 1
-
-        Select @nAvance = IsNull(Max(Secuencia), 0) + 1 From dbo.TI_IncidenciaAvance With (UpdLock, HoldLock) Where IncidenciaNumero = @cIncidenciaNumero
-        Insert dbo.TI_IncidenciaAvance (IncidenciaNumero, Secuencia, UsuarioTI, FechaAvance, Detalle, TiempoUtilizado, PorcentajeAvance, AreaCausante)
-        Values (@cIncidenciaNumero, @nAvance, @cUsuario, @dFecha, LTrim(RTrim(@cDetalle)), @nTiempoUtilizado, Null, @cAreaCausante)
-
-        If @lVisibleUsuario = 1
-        Begin
-            Select @nMensaje = IsNull(Max(Secuencia), 0) + 1 From dbo.TI_IncidenciaMensaje With (UpdLock, HoldLock) Where IncidenciaNumero = @cIncidenciaNumero
-            Insert dbo.TI_IncidenciaMensaje (IncidenciaNumero, Secuencia, UsuarioAutor, TipoAutor, Contenido, FechaMensaje, EsInterno)
-            Values (@cIncidenciaNumero, @nMensaje, @cUsuario, 'T', LTrim(RTrim(@cDetalle)), @dFecha, 0)
-        End
-
-        Update dbo.TI_Incidencia
-        Set AreaCausante = @cAreaCausante, FechaAtencion = IsNull(FechaAtencion, @dFecha),
-            Estado = Case When @cEstado In ('NV','RA','ES') Then 'DG' Else Estado End,
-            UltimoUsuario = @cUsuario, UltimaFechaModif = @dFecha
-        Where IncidenciaNumero = @cIncidenciaNumero
-
-        If @cEstado In ('NV','RA','ES')
-        Begin
-            Select @nEstado = IsNull(Max(Secuencia), 0) + 1 From dbo.TI_IncidenciaEstado With (UpdLock, HoldLock) Where IncidenciaNumero = @cIncidenciaNumero
-            Insert dbo.TI_IncidenciaEstado (IncidenciaNumero, Secuencia, Estado, UsuarioCambio, FechaCambio, Observacion)
-            Values (@cIncidenciaNumero, @nEstado, 'DG', @cUsuario, @dFecha, N'Se inició o retomó la atención técnica del ticket.')
-        End
-
-        Insert dbo.TI_Auditoria (IncidenciaNumero, Usuario, TipoActor, Entidad, Registro, Evento, Resultado, DetalleJson, IdCorrelacion, Fecha)
-        Values (@cIncidenciaNumero, @cUsuario, 'T', 'TI_IncidenciaAvance', Concat(@cIncidenciaNumero, '-', @nAvance), 'REGISTRAR_AVANCE', 'EXITOSO', Concat('{"minutos":', Convert(varchar(30), @nTiempoUtilizado), ',"areaCausante":"', @cAreaCausante, '"}'), @cIdCorrelacion, @dFecha)
-
-        Commit Transaction
-    End Try
-    Begin Catch
-        If Xact_State() <> 0 Rollback Transaction
-        ;Throw
-    End Catch
-End
+-- dbo.Usp_TI_Registrar_AvanceTicket: la versión vigente está en 22_CierreMejorasFuncionalesSinIA.sql (aquí había una versión anterior que ese script reemplaza).
 Go
 
 Create Or Alter Procedure dbo.Usp_TI_Solicitar_AprobacionTicket
@@ -653,58 +561,7 @@ Begin
 End
 Go
 
-Create Or Alter Procedure dbo.Usp_TI_Responder_AprobacionTicket
-/*================================================================================
-Objetivo            : Aprobar o rechazar una solicitud pendiente y desbloquear el flujo operativo.
-Creado Por          : Jhosep S. Lazo
-Fecha Creación      : 13/09/2026
-SP Anterior         : dbo.Usp_TI_Responder_AprobacionTicket
-Comentario Cambios  : La aprobación deja de ser informativa; mientras está pendiente el ticket permanece bloqueado.
-================================================================================*/
-    @cUsuario varchar(20), @cArea char(3), @cIncidenciaNumero varchar(12), @nSecuencia int, @lAprobar bit, @cComentario nvarchar(1000), @cIdCorrelacion uniqueidentifier
-As
-Begin
-    Set NoCount On
-    Set Xact_Abort On
-
-    Begin Try
-        Begin Transaction
-        Declare @nEstado int, @cSolicitante varchar(20), @cMensajeNotificacion nvarchar(500), @dFecha datetime2(0) = SysDateTime()
-
-        If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Estado = 'A' and Perfil In ('TEC','SUP','ADM')) Throw 50230, 'Solo un operador TI activo puede responder esta aprobación.', 1
-        Select @cSolicitante = UsuarioSolicitante From dbo.TI_SolicitudAprobacion Where IncidenciaNumero = @cIncidenciaNumero and Secuencia = @nSecuencia and Estado = 'P'
-        If @cSolicitante Is Null Throw 50231, 'La solicitud de aprobación ya no se encuentra pendiente.', 1
-        If @lAprobar = 0 and NullIf(LTrim(RTrim(@cComentario)), '') Is Null Throw 50232, 'Indica el motivo del rechazo.', 1
-
-        Update dbo.TI_SolicitudAprobacion
-        Set Estado = Case When @lAprobar = 1 Then 'A' Else 'R' End, UsuarioAprobador = @cUsuario,
-            ComentarioRespuesta = NullIf(LTrim(RTrim(@cComentario)), ''), FechaRespuesta = @dFecha
-        Where IncidenciaNumero = @cIncidenciaNumero and Secuencia = @nSecuencia and Estado = 'P'
-
-        Update dbo.TI_Incidencia Set Estado = 'DG', UltimoUsuario = @cUsuario, UltimaFechaModif = @dFecha Where IncidenciaNumero = @cIncidenciaNumero and Estado = 'PA'
-        Select @nEstado = IsNull(Max(Secuencia), 0) + 1 From dbo.TI_IncidenciaEstado With (UpdLock, HoldLock) Where IncidenciaNumero = @cIncidenciaNumero
-        Insert dbo.TI_IncidenciaEstado (IncidenciaNumero, Secuencia, Estado, UsuarioCambio, FechaCambio, Observacion)
-        Values (@cIncidenciaNumero, @nEstado, 'DG', @cUsuario, @dFecha, Case When @lAprobar = 1 Then N'La aprobación fue concedida; el ticket puede continuar.' Else N'La aprobación fue rechazada; el ticket vuelve a diagnóstico.' End)
-
-        Set @cMensajeNotificacion = Case When @lAprobar = 1 Then N'La solicitud fue aprobada y el ticket puede continuar.' Else N'La solicitud fue rechazada. Revisa el comentario registrado.' End
-        Exec dbo.Usp_TI_Registrar_Notificacion
-            @cUsuario = @cSolicitante,
-            @cIncidenciaNumero = @cIncidenciaNumero,
-            @cTipo = 'APROBACION_RESPUESTA',
-            @cTitulo = N'Respuesta de aprobación',
-            @cMensaje = @cMensajeNotificacion,
-            @cRuta = '/gestion-tickets'
-
-        Insert dbo.TI_Auditoria (IncidenciaNumero, Usuario, TipoActor, Entidad, Registro, Evento, Resultado, DetalleJson, IdCorrelacion, Fecha)
-        Values (@cIncidenciaNumero, @cUsuario, 'T', 'TI_SolicitudAprobacion', Concat(@cIncidenciaNumero, '-', @nSecuencia), Case When @lAprobar = 1 Then 'APROBAR_ACCION' Else 'RECHAZAR_ACCION' End, 'EXITOSO', Null, @cIdCorrelacion, @dFecha)
-
-        Commit Transaction
-    End Try
-    Begin Catch
-        If Xact_State() <> 0 Rollback Transaction
-        ;Throw
-    End Catch
-End
+-- dbo.Usp_TI_Responder_AprobacionTicket: la versión vigente está en 28_AgenteFase2Integracion.sql (aquí había una versión anterior que ese script reemplaza).
 Go
 
 /* ============================== USUARIO: EDICIÓN Y RECURSOS ============================== */

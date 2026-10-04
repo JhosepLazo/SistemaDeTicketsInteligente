@@ -1,86 +1,101 @@
-/*
+/**
  * Archivo: GestionOperativaTIBLL.cs
- * Objetivo: Aplicar reglas claras a las mejoras operativas de Gestión de Tickets.
- * Responsabilidad: Validar esfuerzo, área causante, solicitudes de aprobación y tickets creados por mesa de ayuda antes de persistirlos.
- * Dependencias: GestionOperativaTIDAO y GestionOperativaTIDTO.
- * Flujo: GestionOperativaTIController -> GestionOperativaTIBLL -> GestionOperativaTIDAO -> SQL Server.
- * Consideraciones: No ejecuta acciones automáticas ni IA; una aprobación solo controla el flujo y un ticket por otro usuario conserva su autor de registro.
+ * Objetivo: Registrar el trabajo operativo del TI: avances con esfuerzo, solicitudes de aprobación y tickets por mesa de ayuda.
+ * Responsabilidad: Validar cada operación con la identidad y el área del operador y ejecutar el procedimiento correspondiente.
+ * Dependencias: BaseDatos (Usp_TI_Obtener_DatosGestionOperativaTI, Usp_TI_Registrar_AvanceTicket, Usp_TI_Solicitar_AprobacionTicket,
+ *   Usp_TI_Crear_TicketPorUsuario).
+ * Flujo: GestionOperativaTIController -> GestionOperativaTIBLL -> Stored Procedures.
+ * Consideraciones: Cada avance exige minutos reales (1 a 1440) y el área causante; el ticket por mesa de ayuda conserva por
+ *   separado al solicitante y al operador que lo registró.
  */
-
-using SistemaTicketsInteligente.Api.DAO;
-using SistemaTicketsInteligente.Api.DTO;
 
 namespace SistemaTicketsInteligente.Api.BLL;
 
-public sealed class GestionOperativaTIBLL
+public sealed class GestionOperativaTIBLL(BaseDatos baseDatos)
 {
-    private readonly GestionOperativaTIDAO gestionOperativaTIDAO;
-
-    public GestionOperativaTIBLL(GestionOperativaTIDAO gestionOperativaTIDAO)
+    public Task<GestionOperativaTIDatos> ObtenerDatosAsync(string usuario, string area, CancellationToken ct)
     {
-        this.gestionOperativaTIDAO = gestionOperativaTIDAO;
+        var (usuarioValido, areaValida) = (Validacion.Usuario(usuario), Validacion.Area(area));
+        return baseDatos.LeerAsync("dbo.Usp_TI_Obtener_DatosGestionOperativaTI", p =>
+        {
+            p.Add("@cUsuario", SqlDbType.VarChar, 20).Value = usuarioValido;
+            p.Add("@cArea", SqlDbType.Char, 3).Value = areaValida;
+        }, async lector =>
+        {
+            var datos = new GestionOperativaTIDatos();
+            datos.Usuarios = await lector.ListaAsync(f => new GestionOperativaUsuario { Codigo = f.Texto("Codigo"), Descripcion = f.Texto("Descripcion"), Area = f.Texto("Area") }, ct);
+            datos.AccionesAprobacion = await lector.ListaAsync(f => new GestionOperativaAccion { AccionCodigo = f.Texto("AccionCodigo"), Nombre = f.Texto("Nombre"), NivelRiesgo = f.Texto("NivelRiesgo") }, ct);
+            datos.Lineas = await lector.ListaAsync(Catalogo, ct);
+            datos.Tipos = await lector.ListaAsync(Catalogo, ct);
+            return datos;
+        }, ct);
     }
 
-    public Task<GestionOperativaTIDatos> ObtenerDatosAsync(string usuario, string area, CancellationToken ct = default) =>
-        gestionOperativaTIDAO.ObtenerDatosAsync(Usuario(usuario), Area(area), ct);
-
-    public Task RegistrarAvanceAsync(string usuario, string area, string incidenciaNumero, RegistrarAvanceDetalladoSolicitud s, CancellationToken ct = default)
+    public Task RegistrarAvanceAsync(string usuario, string area, string incidenciaNumero, RegistrarAvanceDetalladoSolicitud s, CancellationToken ct)
     {
-        s.Detalle = Texto(s.Detalle, 5, 4000, "detalle del avance");
-        s.AreaCausante = Area(s.AreaCausante);
-        if (s.TiempoUtilizadoMinutos <= 0 || s.TiempoUtilizadoMinutos > 1440) throw new ArgumentException("El tiempo efectivo debe estar entre 1 y 1440 minutos.");
-        return gestionOperativaTIDAO.RegistrarAvanceAsync(Usuario(usuario), Area(area), Incidencia(incidenciaNumero), s, Guid.NewGuid(), ct);
+        var detalle = Validacion.Texto(s.Detalle, 5, 4000, "El detalle del avance");
+        var areaCausante = Validacion.CodigoExacto(s.AreaCausante, 3, "El código de área debe tener 3 caracteres.");
+        if (s.TiempoUtilizadoMinutos is <= 0 or > 1440) throw new ArgumentException("El tiempo efectivo debe estar entre 1 y 1440 minutos.");
+        return EjecutarAccionAsync("dbo.Usp_TI_Registrar_AvanceTicket", usuario, area, incidenciaNumero, p =>
+        {
+            p.Add("@cDetalle", SqlDbType.NVarChar, -1).Value = detalle;
+            p.Add("@lVisibleUsuario", SqlDbType.Bit).Value = s.VisibleUsuario;
+            var minutos = p.Add("@nTiempoUtilizado", SqlDbType.Decimal);
+            minutos.Precision = 8;
+            minutos.Scale = 2;
+            minutos.Value = s.TiempoUtilizadoMinutos;
+            p.Add("@cAreaCausante", SqlDbType.Char, 3).Value = areaCausante;
+        }, ct);
     }
 
-    public Task SolicitarAprobacionAsync(string usuario, string area, string incidenciaNumero, SolicitarAprobacionOperativaSolicitud s, CancellationToken ct = default)
+    public Task SolicitarAprobacionAsync(string usuario, string area, string incidenciaNumero, SolicitarAprobacionOperativaSolicitud s, CancellationToken ct)
     {
-        s.AccionCodigo = Codigo(s.AccionCodigo, 50, "acción");
-        s.Justificacion = Texto(s.Justificacion, 10, 1000, "justificación");
-        return gestionOperativaTIDAO.SolicitarAprobacionAsync(Usuario(usuario), Area(area), Incidencia(incidenciaNumero), s, Guid.NewGuid(), ct);
+        var accion = Validacion.Codigo(s.AccionCodigo, 50, "La acción no es válida.");
+        var justificacion = Validacion.Texto(s.Justificacion, 10, 1000, "La justificación");
+        return EjecutarAccionAsync("dbo.Usp_TI_Solicitar_AprobacionTicket", usuario, area, incidenciaNumero, p =>
+        {
+            p.Add("@cAccionCodigo", SqlDbType.VarChar, 50).Value = accion;
+            p.Add("@cJustificacion", SqlDbType.NVarChar, 1000).Value = justificacion;
+        }, ct);
     }
 
-    public Task<TicketMesaAyudaCreado> CrearTicketPorUsuarioAsync(string usuario, string area, CrearTicketMesaAyudaSolicitud s, CancellationToken ct = default)
+    /// <summary>TI registra un ticket a nombre de un colaborador (mesa de ayuda).</summary>
+    public async Task<TicketMesaAyudaCreado> CrearTicketPorUsuarioAsync(string usuario, string area, CrearTicketMesaAyudaSolicitud s, CancellationToken ct)
     {
-        s.UsuarioSolicitante = Codigo(s.UsuarioSolicitante, 20, "usuario solicitante");
-        s.Linea = CodigoExacto(s.Linea, 3, "línea");
-        s.Tipo = CodigoExacto(s.Tipo, 3, "tipo");
-        s.Titulo = Texto(s.Titulo, 5, 250, "título");
-        s.Detalle = Texto(s.Detalle, 20, 4000, "detalle");
-        s.MensajeError = Opcional(s.MensajeError, 1000, "mensaje de error");
-        return gestionOperativaTIDAO.CrearTicketPorUsuarioAsync(Usuario(usuario), Area(area), s, Guid.NewGuid(), ct);
+        var solicitante = Validacion.Codigo(s.UsuarioSolicitante, 20, "El usuario solicitante no es válido.");
+        var linea = Validacion.CodigoExacto(s.Linea, 3, "El código de línea debe tener 3 caracteres.");
+        var tipo = Validacion.CodigoExacto(s.Tipo, 3, "El código de tipo debe tener 3 caracteres.");
+        var titulo = Validacion.Texto(s.Titulo, 5, 250, "El título");
+        var detalle = Validacion.Texto(s.Detalle, 20, 4000, "El detalle");
+        var mensajeError = Validacion.Opcional(s.MensajeError, 1000, "El mensaje de error");
+        var (usuarioValido, areaValida) = (Validacion.Usuario(usuario), Validacion.Area(area));
+        return await baseDatos.LeerAsync("dbo.Usp_TI_Crear_TicketPorUsuario", p =>
+        {
+            p.Add("@cUsuarioTI", SqlDbType.VarChar, 20).Value = usuarioValido;
+            p.Add("@cAreaTI", SqlDbType.Char, 3).Value = areaValida;
+            p.Add("@cUsuarioSolicitante", SqlDbType.VarChar, 20).Value = solicitante;
+            p.Add("@cLinea", SqlDbType.Char, 3).Value = linea;
+            p.Add("@cTipo", SqlDbType.Char, 3).Value = tipo;
+            p.Add("@cTitulo", SqlDbType.NVarChar, 250).Value = titulo;
+            p.Add("@cDetalle", SqlDbType.NVarChar, -1).Value = detalle;
+            p.Add("@cMensajeError", SqlDbType.NVarChar, 1000).Value = BaseDatos.Opcional(mensajeError);
+            p.Add("@cIdCorrelacion", SqlDbType.UniqueIdentifier).Value = Guid.NewGuid();
+        }, lector => lector.FilaAsync(f => new TicketMesaAyudaCreado { IncidenciaNumero = f.Texto("IncidenciaNumero"), FechaRegistro = f.Fecha("FechaRegistro") }, ct), ct)
+            ?? throw new InvalidOperationException("No se obtuvo el ticket creado por mesa de ayuda.");
     }
 
-    private static string Usuario(string valor) => Codigo(valor, 20, "usuario autenticado");
-    private static string Area(string valor) => CodigoExacto(valor, 3, "área");
-    private static string Incidencia(string valor)
+    private Task EjecutarAccionAsync(string procedimiento, string usuario, string area, string incidenciaNumero, Action<SqlParameterCollection> parametros, CancellationToken ct)
     {
-        var numero = valor.Trim().ToUpperInvariant();
-        if (numero.Length is < 8 or > 12) throw new ArgumentException("El número de ticket no es válido.");
-        return numero;
+        var (usuarioValido, areaValida, incidencia) = (Validacion.Usuario(usuario), Validacion.Area(area), Validacion.Incidencia(incidenciaNumero, minimo: 8));
+        return baseDatos.EjecutarAsync(procedimiento, p =>
+        {
+            p.Add("@cUsuario", SqlDbType.VarChar, 20).Value = usuarioValido;
+            p.Add("@cArea", SqlDbType.Char, 3).Value = areaValida;
+            p.Add("@cIncidenciaNumero", SqlDbType.VarChar, 12).Value = incidencia;
+            parametros(p);
+            p.Add("@cIdCorrelacion", SqlDbType.UniqueIdentifier).Value = Guid.NewGuid();
+        }, ct);
     }
-    private static string CodigoExacto(string valor, int longitud, string nombre)
-    {
-        var codigo = valor.Trim().ToUpperInvariant();
-        if (codigo.Length != longitud) throw new ArgumentException($"El código de {nombre} debe tener {longitud} caracteres.");
-        return codigo;
-    }
-    private static string Codigo(string valor, int maximo, string nombre)
-    {
-        var codigo = valor.Trim().ToUpperInvariant();
-        if (codigo.Length == 0 || codigo.Length > maximo) throw new ArgumentException($"El {nombre} no es válido.");
-        return codigo;
-    }
-    private static string Texto(string valor, int minimo, int maximo, string nombre)
-    {
-        var texto = valor.Trim();
-        if (texto.Length < minimo || texto.Length > maximo) throw new ArgumentException($"El {nombre} debe contener entre {minimo} y {maximo} caracteres.");
-        return texto;
-    }
-    private static string? Opcional(string? valor, int maximo, string nombre)
-    {
-        var texto = valor?.Trim();
-        if (string.IsNullOrEmpty(texto)) return null;
-        if (texto.Length > maximo) throw new ArgumentException($"El {nombre} no puede superar {maximo} caracteres.");
-        return texto;
-    }
+
+    private static GestionTicketsTICatalogoItem Catalogo(SqlDataReader f) => new() { Codigo = f.Texto("Codigo"), Descripcion = f.Texto("Descripcion") };
 }

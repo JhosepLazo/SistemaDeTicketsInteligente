@@ -17,7 +17,11 @@ Los datos son muestras parciales y las credenciales aparecen redactadas como `[R
 4. Ejecutar `09_InsertDeDatos.sql` hasta `33_AgenteFase6Mejoras.sql` en el orden definido por `InstalarLocal.ps1`.
 5. `08_Validacion.sql` conserva su posición de validación histórica dentro del instalador; sus registros de prueba se revierten mediante `Rollback`.
 
-`herramientas/GenerarLegadoDesdeMarkdown.ps1` regenera los scripts de `legado/` desde los tres documentos originales y aplica únicamente las normalizaciones necesarias para que el SQL exportado sea ejecutable.
+Los scripts de `legado/` se generaron una sola vez a partir de los documentos de análisis originales, que no forman parte del repositorio; no se regeneran.
+
+Cada procedimiento tiene una sola definición vigente en `sistema-inteligente/`: cuando un script posterior lo reemplaza (`Create Or Alter`), el anterior solo conserva una línea que indica dónde está la versión vigente. Por eso los scripts se ejecutan completos y en orden, como lo hace `InstalarLocal.ps1`, siempre con `sqlcmd -f 65001` para leerlos como UTF-8.
+
+`GenerarHash.cs` genera el hash de una contraseña de desarrollo compatible con ASP.NET Core Identity (`dotnet run database/GenerarHash.cs`). Solo hace falta para crear o cambiar una contraseña local distinta de las que ya prepara `13_CredencialesDesarrollo.sql`.
 
 `sistema-inteligente/23_SincronizarDatosLegado.sql` conserva los accesos locales de desarrollo y reemplaza la transacción demostrativa visible por los tickets y avances reconstruidos desde `Inc20Incidencia` e `Inc21Avance`.
 Para comprobar la vista de usuario normal, la copia local habilita `YPENALOZA` con la contraseña temporal de desarrollo `123456`; no modifica la clave redactada de `Inc03Usuario`.

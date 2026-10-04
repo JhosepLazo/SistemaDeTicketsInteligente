@@ -23,89 +23,7 @@ Go
 
 /* ============================== CONSULTA Y SUPERVISIÓN ============================== */
 
-Create Or Alter Procedure dbo.Usp_TI_Agente_ObtenerContexto
-/*================================================================================
-Objetivo            : Recuperar únicamente el contexto autorizado necesario para investigar una sesión.
-Creado Por          : Jhosep S. Lazo
-Fecha Creación      : 01/10/2026
-SP Anterior         : dbo.Usp_TI_Agente_ObtenerContexto (27_AgenteFase1Integracion.sql)
-Comentario Cambios  : 02/10/2026 SUP/ADM pueden consultar investigaciones de otros operadores en modo lectura (EsPropietario = 0).
-================================================================================*/
-	@cUsuario varchar(20),
-	@cArea char(3),
-	@nSesionNumero bigint
-As
-Begin
-	Set NoCount On
-
-	Declare @cPerfil char(3)
-	Select @cPerfil = Perfil From dbo.TI_Usuario Where Usuario = @cUsuario and Area = @cArea and Estado = 'A' and Perfil In ('TEC','SUP','ADM')
-	If @cPerfil Is Null Throw 50508, 'El operador TI no se encuentra habilitado.', 1
-	If Not Exists (Select 1 From dbo.TI_AgenteSesion Where SesionNumero = @nSesionNumero and (UsuarioTI = @cUsuario or @cPerfil In ('SUP','ADM')))
-		Throw 50509, 'La sesión de investigación no existe o no pertenece al operador.', 1
-
-	Select
-		s.SesionNumero, s.IncidenciaNumero, s.IdCorrelacion, s.DescripcionInicial, s.Estado, s.ResumenObservacion, s.ProcesoObservado, s.ErrorObservado, s.SolucionValidada, s.ConocimientoCodigo,
-		s.Diagnostico, s.CausaProbable, s.SolucionPropuesta, s.Confianza, s.AccionCodigo, s.NivelRiesgo, s.ParametrosJson, s.Decision,
-		s.SolicitudAprobacionSecuencia, s.FechaInicio, s.FechaDiagnostico, s.FechaDecision, s.EvidenciasJson, s.InformeMarkdown,
-		InformeDisponible = Convert(bit, Case When NullIf(s.InformeMarkdown, '') Is Null Then 0 Else 1 End),
-		s.UsuarioTI, NombreOperador = op.NombreCompleto, EsPropietario = Convert(bit, Case When s.UsuarioTI = @cUsuario Then 1 Else 0 End),
-		i.Titulo, i.Detalle, i.MensajeError, i.Estado as EstadoIncidencia, i.Linea, i.Item, i.Tipo, i.SubTipo, i.Categoria, i.UsuarioSolicitante, i.FechaRegistro
-	From dbo.TI_AgenteSesion s
-	Inner Join dbo.TI_Usuario op on op.Usuario = s.UsuarioTI
-	Left Join dbo.TI_Incidencia i on i.IncidenciaNumero = s.IncidenciaNumero
-	Where s.SesionNumero = @nSesionNumero
-
-	Select d.CompaniaSocio, d.TipoDocumento, d.NumeroDocumento, d.Descripcion
-	From dbo.TI_IncidenciaDocumento d
-	Inner Join dbo.TI_AgenteSesion s on s.IncidenciaNumero = d.IncidenciaNumero
-	Where s.SesionNumero = @nSesionNumero
-	Order By d.Secuencia
-
-	Select Top (30) m.TipoAutor, Autor = IsNull(u.NombreCompleto, m.UsuarioAutor), m.Contenido, m.FechaMensaje, m.EsInterno
-	From dbo.TI_IncidenciaMensaje m
-	Inner Join dbo.TI_AgenteSesion s on s.IncidenciaNumero = m.IncidenciaNumero
-	Left Join dbo.TI_Usuario u on u.Usuario = m.UsuarioAutor
-	Where s.SesionNumero = @nSesionNumero
-	Order By m.Secuencia Desc
-
-	;With Contexto as (
-		Select i.Linea, i.Item, i.Tipo, i.Categoria
-		From dbo.TI_AgenteSesion s
-		Left Join dbo.TI_Incidencia i on i.IncidenciaNumero = s.IncidenciaNumero
-		Where s.SesionNumero = @nSesionNumero
-	)
-	Select Top (10) k.ConocimientoCodigo, k.Titulo, k.Problema, k.Sintomas, k.Causa, k.Solucion, k.Procedimiento,
-		PuntajeContextual =
-			Case When k.Item Is Not Null and k.Item = c.Item Then 5 Else 0 End +
-			Case When k.Linea Is Not Null and k.Linea = c.Linea Then 3 Else 0 End +
-			Case When k.Categoria Is Not Null and k.Categoria = c.Categoria Then 2 Else 0 End +
-			Case When k.Tipo Is Not Null and k.Tipo = c.Tipo Then 1 Else 0 End
-	From dbo.TI_BaseConocimiento k
-	Cross Join Contexto c
-	Where k.Estado = 'A'
-		and (c.Linea Is Null or k.Linea Is Null or k.Linea = c.Linea)
-	Order By PuntajeContextual Desc, k.FechaValidacion Desc, k.FechaCreacion Desc
-
-	Select a.AccionCodigo, a.Nombre, a.Descripcion, a.Tipo, a.NivelRiesgo, a.RequiereAprobacion,
-		TieneEjecutor = Convert(bit, Case When x.AccionCodigo Is Null Then 0 Else 1 End),
-		ParametrosDescripcion = IsNull(x.ParametrosDescripcion, N'')
-	From dbo.TI_Accion a
-	Left Join dbo.TI_AgenteAccionEjecutor x on x.AccionCodigo = a.AccionCodigo and x.Estado = 'A'
-	Where a.Estado = 'A'
-	Order By a.Tipo, a.NivelRiesgo, a.Nombre
-
-	Select Top (50) a.Entidad, a.Registro, a.Evento, a.Resultado, a.DetalleJson, a.IdCorrelacion, a.Fecha
-	From dbo.TI_Auditoria a
-	Inner Join dbo.TI_AgenteSesion s on s.IncidenciaNumero = a.IncidenciaNumero
-	Where s.SesionNumero = @nSesionNumero
-	Order By a.Fecha Desc, a.AuditoriaNumero Desc
-
-	Select Secuencia, Tipo, Fuente, Contenido, DatosJson, Fecha, OrigenServidor
-	From dbo.TI_AgenteEvento
-	Where SesionNumero = @nSesionNumero
-	Order By Secuencia
-End
+-- dbo.Usp_TI_Agente_ObtenerContexto: la versión vigente está en 33_AgenteFase6Mejoras.sql (aquí había una versión anterior que ese script reemplaza).
 Go
 
 Create Or Alter Procedure dbo.Usp_TI_Agente_Listar
@@ -138,59 +56,7 @@ Begin
 End
 Go
 
-Create Or Alter Procedure dbo.Usp_TI_Agente_Reasignar
-/*================================================================================
-Objetivo            : Transferir una investigación activa a otro operador TI (o tomarla) por decisión de un supervisor.
-Creado Por          : Jhosep S. Lazo
-Fecha Creación      : 02/10/2026
-SP Anterior         : Ninguno
-Comentario Cambios  : No permite reasignar sesiones cerradas o en ejecución; notifica al nuevo responsable y deja auditoría.
-================================================================================*/
-	@cUsuario varchar(20),
-	@cArea char(3),
-	@nSesionNumero bigint,
-	@cNuevoUsuario varchar(20)
-As
-Begin
-	Set NoCount On
-	Set Xact_Abort On
-
-	Declare @cNuevaArea char(3), @cAnterior varchar(20), @cIncidencia varchar(12), @cCorrelacion uniqueidentifier,
-		@cRuta varchar(250) = Concat('/asistente-ti?sesion=', @nSesionNumero), @dFecha datetime2(0) = SysDateTime()
-
-	If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Area = @cArea and Estado = 'A' and Perfil In ('SUP','ADM'))
-		Throw 50549, 'Solo un supervisor o administrador puede reasignar investigaciones.', 1
-	Select @cNuevaArea = Area From dbo.TI_Usuario Where Usuario = @cNuevoUsuario and Estado = 'A' and Perfil In ('TEC','SUP','ADM')
-	If @cNuevaArea Is Null Throw 50550, 'El nuevo responsable debe ser un operador TI activo.', 1
-
-	Begin Try
-		Begin Transaction
-		Select @cAnterior = UsuarioTI, @cIncidencia = IncidenciaNumero, @cCorrelacion = IdCorrelacion
-		From dbo.TI_AgenteSesion With (UpdLock, HoldLock)
-		Where SesionNumero = @nSesionNumero and Estado In ('RECOPILANDO','OBSERVANDO','LISTO_INVESTIGAR','PENDIENTE_TI','PENDIENTE_APROBACION','SIN_EJECUTOR','ERROR_EJECUCION')
-		If @@RowCount = 0 Throw 50551, 'La investigación no existe o su estado actual no permite reasignarla.', 1
-		If @cAnterior = @cNuevoUsuario Throw 50552, 'La investigación ya pertenece a ese operador.', 1
-
-		Update dbo.TI_AgenteSesion Set UsuarioTI = @cNuevoUsuario, AreaTI = @cNuevaArea Where SesionNumero = @nSesionNumero
-
-		Exec dbo.Usp_TI_Registrar_Notificacion
-			@cUsuario = @cNuevoUsuario,
-			@cIncidenciaNumero = @cIncidencia,
-			@cTipo = 'AGENTE_REASIGNADO',
-			@cTitulo = N'Investigación asignada',
-			@cMensaje = N'Un supervisor te asignó una investigación del Agente de Ingeniería.',
-			@cRuta = @cRuta
-
-		Insert dbo.TI_Auditoria (IncidenciaNumero, Usuario, TipoActor, Entidad, Registro, Evento, Resultado, DetalleJson, IdCorrelacion, Fecha)
-		Values (@cIncidencia, @cUsuario, 'T', 'TI_AgenteSesion', Convert(varchar(30), @nSesionNumero), 'REASIGNAR_INVESTIGACION', 'EXITOSO',
-			Concat('{"anterior":"', @cAnterior, '","nuevo":"', @cNuevoUsuario, '"}'), @cCorrelacion, @dFecha)
-		Commit Transaction
-	End Try
-	Begin Catch
-		If Xact_State() <> 0 Rollback Transaction
-		;Throw
-	End Catch
-End
+-- dbo.Usp_TI_Agente_Reasignar: la versión vigente está en 33_AgenteFase6Mejoras.sql (aquí había una versión anterior que ese script reemplaza).
 Go
 
 Create Or Alter Procedure dbo.Usp_TI_Agente_Catalogos
@@ -216,34 +82,7 @@ Go
 
 /* ============================== EXPEDIENTES DESDE EL TICKET ============================== */
 
-Create Or Alter Procedure dbo.Usp_TI_Agente_ListarPorTicket
-/*================================================================================
-Objetivo            : Listar las investigaciones del agente asociadas a un ticket para mostrarlas en Gestión de Tickets.
-Creado Por          : Jhosep S. Lazo
-Fecha Creación      : 02/10/2026
-SP Anterior         : Ninguno
-Comentario Cambios  : Cualquier operador TI activo puede consultar el resumen; abrir la sesión sigue sujeto a propiedad o supervisión.
-================================================================================*/
-	@cUsuario varchar(20),
-	@cArea char(3),
-	@cIncidenciaNumero varchar(12)
-As
-Begin
-	Set NoCount On
-
-	Declare @cPerfil char(3)
-	Select @cPerfil = Perfil From dbo.TI_Usuario Where Usuario = @cUsuario and Area = @cArea and Estado = 'A' and Perfil In ('TEC','SUP','ADM')
-	If @cPerfil Is Null Throw 50500, 'El operador TI no se encuentra habilitado.', 1
-
-	Select s.SesionNumero, s.Estado, s.FechaInicio, s.FechaDiagnostico, s.Confianza, Diagnostico = Left(IsNull(s.Diagnostico, N''), 500),
-		AccionCodigo = IsNull(s.AccionCodigo, ''), s.UsuarioTI, NombreOperador = op.NombreCompleto,
-		InformeDisponible = Convert(bit, Case When NullIf(s.InformeMarkdown, '') Is Null Then 0 Else 1 End),
-		PuedeAbrir = Convert(bit, Case When s.UsuarioTI = @cUsuario or @cPerfil In ('SUP','ADM') Then 1 Else 0 End)
-	From dbo.TI_AgenteSesion s
-	Inner Join dbo.TI_Usuario op on op.Usuario = s.UsuarioTI
-	Where s.IncidenciaNumero = @cIncidenciaNumero
-	Order By s.FechaInicio Desc
-End
+-- dbo.Usp_TI_Agente_ListarPorTicket: la versión vigente está en 33_AgenteFase6Mejoras.sql (aquí había una versión anterior que ese script reemplaza).
 Go
 
 Create Or Alter Procedure dbo.Usp_TI_Agente_ObtenerInforme

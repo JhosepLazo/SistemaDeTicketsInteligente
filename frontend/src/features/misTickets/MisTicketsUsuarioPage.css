@@ -1,0 +1,1460 @@
+/*
+ * Archivo: MisTicketsUsuarioPage.css
+ * Objetivo: Definir la presentación visual del módulo Mis Tickets para el usuario.
+ * Responsabilidad: Estilizar hero, métricas, bandeja, detalle rápido, actividad, estados, modales y comportamiento responsive respetando la identidad visual Calimod.
+ * Dependencias: InicioPage.css aporta shell, sidebar, topbar, tipografía base e iconografía compartida.
+ * Flujo: MisTicketsUsuarioPage.tsx -> clases mis-tickets-* -> presentación responsive.
+ * Consideraciones: Los estilos se encapsulan con el prefijo mis-tickets- para evitar afectar Inicio, Nuevo Ticket o futuros módulos.
+ */
+
+.mis-tickets-shell {
+  --mt-verde: #00a89c;
+  --mt-verde-oscuro: #006b68;
+  --mt-tinta: #0b2540;
+  --mt-texto: #4c6178;
+  --mt-borde: #dce8ef;
+  --mt-fondo: #f4f8fb;
+  --mt-sombra: 0 12px 30px rgba(20, 48, 72, 0.08);
+}
+
+.mis-tickets-contenido {
+  padding: 18px 22px 28px;
+  background: linear-gradient(180deg, #f6f9fb 0%, #eef4f7 100%);
+  min-height: calc(100vh - 72px);
+}
+
+.mis-tickets-hero {
+  position: relative;
+  min-height: 154px;
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 28px 34px;
+  color: #fff;
+  background:
+    linear-gradient(90deg, rgba(3, 39, 48, 0.96) 0%, rgba(2, 54, 65, 0.87) 44%, rgba(2, 59, 70, 0.52) 76%, rgba(2, 38, 48, 0.86) 100%),
+    url('/images/tarjeta-nombre.png') center / cover no-repeat;
+  box-shadow: 0 14px 30px rgba(0, 63, 72, 0.16);
+}
+
+.mis-tickets-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 0 55%, rgba(53, 236, 226, 0.09) 75%, transparent 92%);
+}
+
+.mis-tickets-hero__texto,
+.mis-tickets-nuevo,
+.mis-tickets-hero__firma {
+  position: relative;
+  z-index: 1;
+}
+
+.mis-tickets-hero h1 {
+  margin: 0;
+  font-size: clamp(30px, 2.2vw, 42px);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-weight: 750;
+}
+
+.mis-tickets-hero p {
+  margin: 9px 0 0;
+  max-width: 620px;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 15px;
+}
+
+.mis-tickets-hero__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 17px;
+}
+
+.mis-tickets-hero__chips span {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(4, 27, 37, 0.22);
+  backdrop-filter: blur(8px);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.mis-tickets-punto {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.08);
+}
+
+.mis-tickets-punto--verde {
+  background: #12d89f;
+}
+.mis-tickets-punto--azul {
+  background: #4f9dff;
+}
+.mis-tickets-punto--amarillo {
+  background: #ffbd26;
+}
+
+.mis-tickets-nuevo {
+  margin-left: auto;
+  margin-right: 185px;
+  min-width: 162px;
+  height: 50px;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(120, 255, 245, 0.7);
+  border-radius: 13px;
+  color: #fff;
+  background: linear-gradient(135deg, #00a89c, #007e78);
+  box-shadow: 0 8px 24px rgba(0, 181, 169, 0.24);
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.mis-tickets-nuevo:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(0, 181, 169, 0.32);
+}
+
+.mis-tickets-hero__firma {
+  position: absolute;
+  right: 28px;
+  bottom: 19px;
+  width: 130px;
+  text-align: right;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.mis-tickets-hero__firma span {
+  display: block;
+  font-family: Georgia, serif;
+  font-size: 17px;
+  font-style: italic;
+  line-height: 1.05;
+}
+
+.mis-tickets-hero__firma strong {
+  display: block;
+  margin-top: 10px;
+  font-size: 13px;
+  letter-spacing: 0.24em;
+  font-weight: 500;
+}
+
+.mis-tickets-alerta {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 14px;
+  border: 1px solid #bfe9df;
+  border-radius: 11px;
+  color: #0d6f63;
+  background: #effcf9;
+  font-size: 13px;
+}
+
+.mis-tickets-alerta--error {
+  justify-content: space-between;
+  border-color: #f2c8cb;
+  color: #a2323a;
+  background: #fff5f5;
+}
+
+.mis-tickets-alerta button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.mis-tickets-metricas {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.mis-tickets-metrica {
+  position: relative;
+  min-height: 98px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  border: 1px solid #e3ebf0;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: var(--mt-sombra);
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.mis-tickets-metrica:hover {
+  transform: translateY(-2px);
+  border-color: #c8dfe4;
+}
+
+.mis-tickets-metrica__icono {
+  flex: 0 0 54px;
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+}
+
+.mis-tickets-metrica__icono--turquesa {
+  color: #018d86;
+  background: #cff7f2;
+}
+.mis-tickets-metrica__icono--azul {
+  color: #2377e8;
+  background: #ddebff;
+}
+.mis-tickets-metrica__icono--rojo {
+  color: #dc2c35;
+  background: #ffe0e2;
+}
+.mis-tickets-metrica__icono--verde {
+  color: #138b58;
+  background: #dbf7e8;
+}
+
+.mis-tickets-metrica div {
+  display: grid;
+  gap: 2px;
+}
+
+.mis-tickets-metrica small {
+  color: var(--mt-tinta);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.mis-tickets-metrica strong {
+  color: #0b2036;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.mis-tickets-metrica span {
+  color: #7a8da0;
+  font-size: 12px;
+}
+
+.mis-tickets-sparkline {
+  position: absolute;
+  right: 18px;
+  bottom: 24px;
+  width: 56px;
+  height: 26px;
+  opacity: 0.55;
+  border-bottom: 2px solid currentColor;
+  border-radius: 60% 20% 0 0;
+  transform: skewY(-12deg);
+  color: #1baaa1;
+}
+
+.mis-tickets-sparkline::before,
+.mis-tickets-sparkline::after {
+  content: '';
+  position: absolute;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+}
+
+.mis-tickets-sparkline::before {
+  width: 28px;
+  height: 18px;
+  left: 1px;
+  bottom: 1px;
+  transform: rotate(-12deg);
+}
+.mis-tickets-sparkline::after {
+  width: 32px;
+  height: 24px;
+  right: 0;
+  bottom: 3px;
+  transform: rotate(18deg);
+}
+
+.mis-tickets-cargando {
+  min-height: 250px;
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px solid var(--mt-borde);
+  border-radius: 14px;
+  background: #fff;
+  color: #63788c;
+}
+
+.mis-tickets-cargando--detalle {
+  min-height: 300px;
+  margin: 0;
+  border: 0;
+  box-shadow: none;
+}
+
+.mis-tickets-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(340px, 0.95fr);
+  gap: 14px;
+  margin-top: 14px;
+  align-items: start;
+}
+
+.mis-tickets-panel {
+  border: 1px solid #e1e9ee;
+  border-radius: 15px;
+  background: #fff;
+  box-shadow: var(--mt-sombra);
+  overflow: hidden;
+}
+
+.mis-tickets-panel__titulo {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 13px 16px;
+  border-bottom: 1px solid #e8eef2;
+}
+
+.mis-tickets-panel__titulo > span,
+.mis-tickets-mini-panel > header > span {
+  width: 31px;
+  height: 31px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #008d87;
+  background: #d9f7f4;
+}
+
+.mis-tickets-panel__titulo h2 {
+  margin: 0;
+  color: #10263e;
+  font-size: 17px;
+}
+
+.mis-tickets-panel__titulo p {
+  margin: 3px 0 0;
+  color: #7a8b9b;
+  font-size: 11px;
+}
+
+.mis-tickets-herramientas {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto minmax(180px, auto);
+  gap: 10px;
+  align-items: center;
+  padding: 13px 14px;
+}
+
+.mis-tickets-busqueda {
+  height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 11px;
+  border: 1px solid #d9e4eb;
+  border-radius: 9px;
+  color: #537087;
+  background: #fbfdfe;
+}
+
+.mis-tickets-busqueda input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  color: #18324b;
+  background: transparent;
+  font-size: 12px;
+}
+
+.mis-tickets-filtros {
+  display: flex;
+  gap: 5px;
+}
+
+.mis-tickets-filtros button {
+  height: 36px;
+  padding: 0 13px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: #52677b;
+  background: #f3f7f9;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.mis-tickets-filtros button.activo {
+  border-color: #25b4aa;
+  color: #006b65;
+  background: #e7faf7;
+}
+
+.mis-tickets-orden {
+  height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 9px;
+  border: 1px solid #dce6ec;
+  border-radius: 9px;
+  color: #49657d;
+  background: #fff;
+}
+
+.mis-tickets-orden select {
+  max-width: 160px;
+  border: 0;
+  outline: 0;
+  color: #39546b;
+  background: transparent;
+  font-size: 11px;
+}
+
+.mis-tickets-tabla-wrap {
+  padding: 0 12px 14px;
+  overflow-x: auto;
+}
+
+.mis-tickets-tabla {
+  width: 100%;
+  min-width: 780px;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: #3d5369;
+  font-size: 11px;
+}
+
+.mis-tickets-tabla thead th {
+  padding: 11px 10px;
+  color: #496277;
+  background: #f1f6f9;
+  font-weight: 700;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.mis-tickets-tabla thead th:first-child {
+  border-radius: 8px 0 0 0;
+}
+.mis-tickets-tabla thead th:last-child {
+  border-radius: 0 8px 0 0;
+}
+
+.mis-tickets-tabla tbody tr {
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.mis-tickets-tabla tbody tr:hover td {
+  background: #f8fcfc;
+}
+.mis-tickets-tabla tbody tr.seleccionado td {
+  background: #eefaf9;
+}
+.mis-tickets-tabla tbody tr.seleccionado td:first-child {
+  box-shadow: inset 3px 0 #00a89c;
+}
+
+.mis-tickets-tabla td {
+  padding: 12px 10px;
+  border-bottom: 1px solid #edf1f4;
+  vertical-align: middle;
+}
+
+.mis-tickets-tabla td:first-child strong {
+  color: #18354f;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.mis-tickets-titulo-tabla {
+  display: block;
+  max-width: 190px;
+  color: #183149;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.mis-tickets-responsable {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.mis-tickets-responsable i {
+  width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(135deg, #0c5c6d, #16a49a);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 750;
+}
+
+.mis-tickets-estado {
+  display: inline-flex;
+  align-items: center;
+  max-width: 170px;
+  min-height: 26px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.mis-tickets-estado--resuelto {
+  color: #087a46;
+  background: #d8f8e7;
+}
+.mis-tickets-estado--respuesta {
+  color: #c93f48;
+  background: #ffe4e5;
+}
+.mis-tickets-estado--validacion {
+  color: #b46d00;
+  background: #fff0d1;
+}
+.mis-tickets-estado--cancelado {
+  color: #697989;
+  background: #edf1f4;
+}
+.mis-tickets-estado--alerta {
+  color: #a74535;
+  background: #ffe8df;
+}
+.mis-tickets-estado--atencion {
+  color: #176dd0;
+  background: #e1efff;
+}
+
+.mis-tickets-accion {
+  min-width: 82px;
+  height: 31px;
+  padding: 0 12px;
+  border: 1px solid #c8dce4;
+  border-radius: 8px;
+  color: #184259;
+  background: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mis-tickets-accion:hover {
+  border-color: #00a89c;
+  color: #007b73;
+}
+
+.mis-tickets-mas {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  color: #5f778b;
+  background: transparent;
+  cursor: pointer;
+}
+
+.mis-tickets-mas:hover {
+  background: #eef4f6;
+}
+.mis-tickets-vacio {
+  padding: 28px !important;
+  color: #8393a0;
+  text-align: center;
+}
+
+.mis-tickets-columna-detalle {
+  display: grid;
+  gap: 12px;
+}
+
+.mis-tickets-detalle-rapido {
+  min-height: 420px;
+}
+
+.mis-tickets-detalle__encabezado {
+  padding: 14px 16px 10px;
+}
+
+.mis-tickets-detalle__encabezado > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mis-tickets-detalle__encabezado > div > strong {
+  color: #132d45;
+  font-size: 15px;
+}
+
+.mis-tickets-detalle__encabezado h3 {
+  margin: 10px 0 5px;
+  color: #0e253d;
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.mis-tickets-detalle__encabezado p {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: #657a8f;
+  font-size: 11px;
+  line-height: 1.45;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.mis-tickets-detalle__cuerpo {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: 12px;
+  padding: 8px 16px 14px;
+}
+
+.mis-tickets-linea-tiempo {
+  position: relative;
+  padding-left: 6px;
+}
+
+.mis-tickets-linea-tiempo::before {
+  content: '';
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  bottom: 10px;
+  width: 2px;
+  background: #c9e8e4;
+}
+
+.mis-tickets-linea-tiempo > div {
+  position: relative;
+  display: flex;
+  gap: 10px;
+  padding: 4px 0 8px;
+}
+
+.mis-tickets-linea-tiempo i {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 10px;
+  width: 10px;
+  height: 10px;
+  margin-top: 3px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #18a79e;
+  box-shadow: 0 0 0 2px #bee8e4;
+}
+
+.mis-tickets-linea-tiempo > div.actual i {
+  background: #e8444e;
+  box-shadow: 0 0 0 2px #ffd6d8;
+}
+
+.mis-tickets-linea-tiempo span {
+  display: grid;
+  gap: 2px;
+}
+.mis-tickets-linea-tiempo strong {
+  color: #24435a;
+  font-size: 10px;
+}
+.mis-tickets-linea-tiempo small {
+  color: #8a9aa7;
+  font-size: 9px;
+}
+
+.mis-tickets-datos {
+  margin: 0;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.mis-tickets-datos > div {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  align-items: center;
+  padding-bottom: 7px;
+  border-bottom: 1px dashed #e6ecef;
+}
+
+.mis-tickets-datos dt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #61778c;
+  font-size: 10px;
+}
+
+.mis-tickets-datos dd {
+  margin: 0;
+  color: #19364e;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.mis-tickets-prioridad {
+  display: inline-flex;
+  padding: 4px 9px;
+  border-radius: 999px;
+  color: #976100;
+  background: #fff2cd;
+}
+
+.mis-tickets-detalle__acciones {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  padding: 12px 16px 16px;
+  border-top: 1px solid #edf1f3;
+}
+
+.mis-tickets-boton {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+  border: 1px solid #b9d4db;
+  border-radius: 9px;
+  color: #164257;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mis-tickets-boton--principal {
+  border-color: #007c76;
+  color: #fff;
+  background: linear-gradient(135deg, #007c76, #005d5b);
+}
+
+.mis-tickets-boton:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.mis-tickets-subgrid {
+  display: grid;
+  grid-template-columns: 1fr 1.18fr;
+  gap: 12px;
+}
+
+.mis-tickets-mini-panel {
+  padding: 12px;
+}
+
+.mis-tickets-mini-panel > header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #edf1f3;
+}
+
+.mis-tickets-mini-panel > header > span {
+  width: 28px;
+  height: 28px;
+}
+
+.mis-tickets-mini-panel h3 {
+  margin: 0;
+  color: #18354c;
+  font-size: 11px;
+}
+
+.mis-tickets-mini-panel > button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 27px 1fr 15px;
+  gap: 7px;
+  align-items: center;
+  padding: 9px 3px;
+  border: 0;
+  border-bottom: 1px solid #edf1f3;
+  background: transparent;
+  color: #425c72;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mis-tickets-mini-panel > button > i {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-style: normal;
+}
+
+.mis-tickets-mini-panel > button > i.rojo {
+  color: #d93a45;
+  background: #ffe4e6;
+}
+.mis-tickets-mini-panel > button > i.amarillo {
+  color: #bb7600;
+  background: #fff0d4;
+}
+.mis-tickets-mini-panel > button > i.verde {
+  color: #0c8551;
+  background: #ddf7e9;
+}
+.mis-tickets-mini-panel > button span {
+  display: grid;
+  gap: 2px;
+}
+.mis-tickets-mini-panel > button strong {
+  font-size: 9px;
+}
+.mis-tickets-mini-panel > button small {
+  color: #8b9aa5;
+  font-size: 8px;
+}
+.mis-tickets-mini-vacio {
+  margin: 14px 3px 4px;
+  color: #8a99a5;
+  font-size: 9px;
+  text-align: center;
+}
+
+.mis-tickets-actividad > div {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  padding: 8px 2px 5px 13px;
+}
+
+.mis-tickets-actividad > div::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 0;
+  bottom: -8px;
+  width: 1px;
+  background: #bfe6e2;
+}
+
+.mis-tickets-actividad > div:last-child::before {
+  bottom: 14px;
+}
+.mis-tickets-actividad > div > i {
+  position: absolute;
+  left: 1px;
+  top: 14px;
+  width: 7px;
+  height: 7px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #10a59b;
+  box-shadow: 0 0 0 1px #a9ddd8;
+}
+.mis-tickets-actividad > div span {
+  display: grid;
+  gap: 2px;
+}
+.mis-tickets-actividad > div strong {
+  color: #355168;
+  font-size: 9px;
+}
+.mis-tickets-actividad > div small {
+  color: #8a9aa5;
+  font-size: 8px;
+  line-height: 1.2;
+}
+
+.mis-tickets-modal-fondo {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(4, 20, 31, 0.58);
+  backdrop-filter: blur(4px);
+}
+
+.mis-tickets-modal {
+  width: min(620px, 100%);
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 28px 80px rgba(0, 25, 39, 0.28);
+}
+
+.mis-tickets-modal--grande {
+  width: min(980px, 100%);
+}
+
+.mis-tickets-modal__cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  padding: 17px 20px;
+  border-bottom: 1px solid #e8eef2;
+  background: linear-gradient(180deg, #fafdfe, #f4f8fa);
+}
+
+.mis-tickets-modal__cabecera span {
+  color: #00958d;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+.mis-tickets-modal__cabecera h2 {
+  margin: 3px 0 0;
+  color: #102c44;
+  font-size: 20px;
+}
+.mis-tickets-modal__cabecera button {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  color: #5b7185;
+  background: #edf3f5;
+  cursor: pointer;
+}
+
+.mis-tickets-modal__detalle,
+.mis-tickets-modal__formulario {
+  overflow: auto;
+  padding: 18px 20px;
+}
+
+.mis-tickets-modal__resumen {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 18px;
+  padding: 16px;
+  border: 1px solid #dfebef;
+  border-radius: 12px;
+  background: #f9fcfd;
+}
+
+.mis-tickets-modal__resumen h3 {
+  margin: 10px 0 5px;
+  color: #143149;
+  font-size: 18px;
+}
+.mis-tickets-modal__resumen p {
+  margin: 0;
+  color: #5d7387;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.mis-tickets-modal__resumen dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px 14px;
+}
+.mis-tickets-modal__resumen dl div {
+  min-width: 0;
+}
+.mis-tickets-modal__resumen dt {
+  color: #8293a1;
+  font-size: 9px;
+}
+.mis-tickets-modal__resumen dd {
+  margin: 2px 0 0;
+  overflow: hidden;
+  color: #29465d;
+  font-size: 10px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mis-tickets-bloque {
+  margin-top: 14px;
+  padding: 15px;
+  border: 1px solid #e4ebef;
+  border-radius: 11px;
+}
+
+.mis-tickets-bloque > h3 {
+  margin: 0 0 10px;
+  color: #17344c;
+  font-size: 12px;
+}
+.mis-tickets-error-texto {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: #a53941;
+  background: #fff3f3;
+  font-size: 11px;
+}
+
+.mis-tickets-documentos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.mis-tickets-documentos > span {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid #dce7ec;
+  border-radius: 8px;
+  color: #37536a;
+  background: #f9fcfd;
+  font-size: 10px;
+}
+.mis-tickets-documentos small {
+  color: #8a9aa5;
+}
+
+.mis-tickets-modal__columnas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.mis-tickets-historial-completo {
+  position: relative;
+  padding-left: 17px;
+}
+.mis-tickets-historial-completo::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 7px;
+  bottom: 8px;
+  width: 2px;
+  background: #cae8e5;
+}
+.mis-tickets-historial-completo > div {
+  position: relative;
+  display: flex;
+  gap: 9px;
+  padding: 0 0 12px;
+}
+.mis-tickets-historial-completo i {
+  position: absolute;
+  left: -15px;
+  top: 4px;
+  width: 8px;
+  height: 8px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #11a79d;
+  box-shadow: 0 0 0 1px #aaddd8;
+}
+.mis-tickets-historial-completo span {
+  display: grid;
+  gap: 2px;
+}
+.mis-tickets-historial-completo strong {
+  color: #2c4a60;
+  font-size: 10px;
+}
+.mis-tickets-historial-completo small {
+  color: #8b9aa6;
+  font-size: 8px;
+}
+.mis-tickets-historial-completo p {
+  margin: 3px 0 0;
+  color: #65798a;
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.mis-tickets-conversacion {
+  display: grid;
+  gap: 8px;
+}
+.mis-tickets-conversacion > div {
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: #f3f7f9;
+}
+.mis-tickets-conversacion > div.usuario {
+  background: #eaf9f7;
+}
+.mis-tickets-conversacion strong {
+  color: #2d4a60;
+  font-size: 9px;
+}
+.mis-tickets-conversacion small {
+  margin-left: 7px;
+  color: #91a0aa;
+  font-size: 8px;
+}
+.mis-tickets-conversacion p {
+  margin: 4px 0 0;
+  color: #556e80;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.mis-tickets-adjuntos-lista {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.mis-tickets-adjuntos-lista a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid #dce8ed;
+  border-radius: 8px;
+  color: #256075;
+  background: #fafcfd;
+  text-decoration: none;
+}
+.mis-tickets-adjuntos-lista a:hover {
+  border-color: #26aaa2;
+  background: #f1fbfa;
+}
+.mis-tickets-adjuntos-lista span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.mis-tickets-adjuntos-lista strong {
+  overflow: hidden;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mis-tickets-adjuntos-lista small {
+  color: #8b9aa5;
+  font-size: 8px;
+}
+.mis-tickets-calificacion-leida {
+  margin: 0;
+  color: #e8a200;
+  font-size: 19px;
+}
+.mis-tickets-calificacion-leida span {
+  margin-left: 8px;
+  color: #65798a;
+  font-size: 10px;
+}
+
+.mis-tickets-modal__formulario > p {
+  margin: 0 0 16px;
+  color: #5d7488;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.mis-tickets-modal__formulario label {
+  display: grid;
+  gap: 7px;
+  color: #27465d;
+  font-size: 11px;
+  font-weight: 700;
+}
+.mis-tickets-modal__formulario label b {
+  color: #da3d46;
+}
+.mis-tickets-modal__formulario textarea {
+  min-height: 118px;
+  resize: vertical;
+  padding: 11px 12px;
+  border: 1px solid #cfdde4;
+  border-radius: 9px;
+  outline: 0;
+  color: #17384f;
+  font: inherit;
+  font-weight: 400;
+  line-height: 1.45;
+}
+.mis-tickets-modal__formulario textarea:focus {
+  border-color: #22aaa1;
+  box-shadow: 0 0 0 3px rgba(0, 168, 156, 0.09);
+}
+.mis-tickets-modal__formulario label > small {
+  justify-self: end;
+  color: #91a0aa;
+  font-size: 9px;
+  font-weight: 400;
+}
+
+.mis-tickets-adjuntar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+.mis-tickets-adjuntar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid #b9d9dc;
+  border-radius: 8px;
+  color: #11746e;
+  background: #f0fbfa;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.mis-tickets-adjuntar span {
+  color: #8c9aa5;
+  font-size: 9px;
+}
+
+.mis-tickets-adjuntos-seleccionados {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 10px;
+}
+.mis-tickets-adjuntos-seleccionados > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 260px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  color: #456278;
+  background: #f0f5f7;
+  font-size: 9px;
+}
+.mis-tickets-adjuntos-seleccionados button {
+  display: grid;
+  place-items: center;
+  border: 0;
+  color: #768b9a;
+  background: transparent;
+  cursor: pointer;
+}
+
+.mis-tickets-validacion-opciones {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.mis-tickets-validacion-opciones button {
+  min-height: 74px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #d7e2e7;
+  border-radius: 10px;
+  color: #52697d;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+.mis-tickets-validacion-opciones button span {
+  display: grid;
+  gap: 3px;
+}
+.mis-tickets-validacion-opciones button strong {
+  color: #29465c;
+  font-size: 10px;
+}
+.mis-tickets-validacion-opciones button small {
+  color: #8796a1;
+  font-size: 9px;
+}
+.mis-tickets-validacion-opciones button.activo.correcto {
+  border-color: #31b684;
+  color: #148055;
+  background: #effbf5;
+}
+.mis-tickets-validacion-opciones button.activo.problema {
+  border-color: #e06a71;
+  color: #c53e47;
+  background: #fff4f4;
+}
+
+.mis-tickets-estrellas {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  margin: 10px 0 20px;
+}
+.mis-tickets-estrellas button {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  color: #d6dde1;
+  background: transparent;
+  cursor: pointer;
+}
+.mis-tickets-estrellas button.activo {
+  color: #f2b51b;
+}
+
+.mis-tickets-modal__pie {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  padding: 13px 20px 16px;
+  border-top: 1px solid #e8eef2;
+  background: #fbfdfe;
+}
+
+.mis-tickets-modal__alerta {
+  margin: 12px 18px 0;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 1320px) {
+  .mis-tickets-grid {
+    grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.9fr);
+  }
+  .mis-tickets-herramientas {
+    grid-template-columns: 1fr auto;
+  }
+  .mis-tickets-filtros {
+    grid-row: 2;
+    grid-column: 1 / -1;
+  }
+  .mis-tickets-nuevo {
+    margin-right: 150px;
+  }
+}
+
+@media (max-width: 1120px) {
+  .mis-tickets-metricas {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .mis-tickets-grid {
+    grid-template-columns: 1fr;
+  }
+  .mis-tickets-columna-detalle {
+    grid-template-columns: 1fr;
+  }
+  .mis-tickets-detalle-rapido {
+    min-height: 0;
+  }
+  .mis-tickets-nuevo {
+    margin-right: 0;
+  }
+  .mis-tickets-hero__firma {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .mis-tickets-contenido {
+    padding: 12px;
+  }
+  .mis-tickets-hero {
+    min-height: 210px;
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 24px;
+  }
+  .mis-tickets-nuevo {
+    width: 100%;
+    margin: 0;
+  }
+  .mis-tickets-metricas {
+    grid-template-columns: 1fr;
+  }
+  .mis-tickets-subgrid {
+    grid-template-columns: 1fr;
+  }
+  .mis-tickets-herramientas {
+    grid-template-columns: 1fr;
+  }
+  .mis-tickets-filtros {
+    grid-row: auto;
+    grid-column: auto;
+    overflow-x: auto;
+  }
+  .mis-tickets-orden {
+    width: 100%;
+  }
+  .mis-tickets-orden select {
+    flex: 1;
+    max-width: none;
+  }
+  .mis-tickets-detalle__cuerpo {
+    grid-template-columns: 1fr;
+  }
+  .mis-tickets-detalle__acciones {
+    grid-template-columns: 1fr;
+  }
+  .mis-tickets-modal-fondo {
+    padding: 10px;
+  }
+  .mis-tickets-modal__resumen,
+  .mis-tickets-modal__columnas,
+  .mis-tickets-validacion-opciones {
+    grid-template-columns: 1fr;
+  }
+  .mis-tickets-adjuntos-lista {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Grabaciones de pantalla que el colaborador adjuntó */
+.mis-tickets-videos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+}
+.mis-tickets-videos video {
+  width: 100%;
+  max-height: 220px;
+  border-radius: 8px;
+  background: #0d2025;
+}

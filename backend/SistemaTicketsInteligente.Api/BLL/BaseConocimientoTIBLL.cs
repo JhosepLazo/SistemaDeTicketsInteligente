@@ -1,101 +1,153 @@
 /**
  * Archivo: BaseConocimientoTIBLL.cs
- * Objetivo: Aplicar las reglas funcionales mínimas del módulo Base de Conocimiento para operadores TI.
- * Responsabilidad: Validar identidad, códigos, contenido y clasificación antes de delegar la persistencia al DAO.
- * Dependencias: BaseConocimientoTIDAO y BaseConocimientoTIDTO.
- * Flujo: BaseConocimientoTIController -> BaseConocimientoTIBLL -> BaseConocimientoTIDAO -> SQL Server.
- * Consideraciones: La capa conserva reglas simples y explícitas; la integridad entre línea, item, tipo, subtipo y categoría se valida definitivamente en los Stored Procedures.
+ * Objetivo: Gestionar los artículos de la Base de Conocimiento: consultarlos, crearlos, editarlos y llevarlos por su ciclo
+ *   (borrador, validación, activo, inactivo).
+ * Responsabilidad: Validar identidad, código, contenido y clasificación, y ejecutar los procedimientos del módulo.
+ * Dependencias: BaseDatos (Usp_TI_Obtener_BaseConocimientoTI, Usp_TI_Obtener_DetalleBaseConocimientoTI, Usp_TI_Crear_BaseConocimientoTI,
+ *   Usp_TI_Actualizar_BaseConocimientoTI, Usp_TI_EnviarValidacion_BaseConocimientoTI, Usp_TI_Validar_BaseConocimientoTI,
+ *   Usp_TI_Inactivar_BaseConocimientoTI).
+ * Flujo: BaseConocimientoTIController -> BaseConocimientoTIBLL -> Stored Procedures.
+ * Consideraciones: La coherencia entre línea, item, tipo, subtipo y categoría se valida definitivamente en los procedimientos.
  */
-
-using SistemaTicketsInteligente.Api.DAO;
-using SistemaTicketsInteligente.Api.DTO;
 
 namespace SistemaTicketsInteligente.Api.BLL;
 
-public sealed class BaseConocimientoTIBLL
+public sealed class BaseConocimientoTIBLL(BaseDatos baseDatos)
 {
-    private readonly BaseConocimientoTIDAO baseConocimientoTIDAO;
+    public Task<BaseConocimientoTIRespuesta> ObtenerAsync(CancellationToken ct) =>
+        baseDatos.LeerAsync("dbo.Usp_TI_Obtener_BaseConocimientoTI", _ => { }, async lector =>
+        {
+            var respuesta = new BaseConocimientoTIRespuesta();
+            respuesta.Resumen = await lector.FilaAsync(f => new BaseConocimientoTIResumen
+            {
+                Total = f.Entero("Total"), Activos = f.Entero("Activos"), Borradores = f.Entero("Borradores"), PendientesValidacion = f.Entero("PendientesValidacion"),
+                PorRevisar = f.Entero("PorRevisar"), CandidatosDesdeTickets = f.Entero("CandidatosDesdeTickets")
+            }, ct) ?? new();
+            respuesta.Articulos = await lector.ListaAsync(f => new BaseConocimientoTIItem
+            {
+                ConocimientoCodigo = f.Texto("ConocimientoCodigo"), Titulo = f.Texto("Titulo"), Problema = f.Texto("Problema"), Solucion = f.Texto("Solucion"),
+                Estado = f.Texto("Estado"), EstadoDescripcion = f.Texto("EstadoDescripcion"), Linea = f.Texto("Linea"), LineaDescripcion = f.Texto("LineaDescripcion"),
+                Item = f.Texto("Item"), ItemDescripcion = f.Texto("ItemDescripcion"), Tipo = f.Texto("Tipo"), TipoDescripcion = f.Texto("TipoDescripcion"),
+                SubTipo = f.Texto("SubTipo"), SubTipoDescripcion = f.Texto("SubTipoDescripcion"), Categoria = f.Texto("Categoria"),
+                CategoriaDescripcion = f.Texto("CategoriaDescripcion"), IncidenciaOrigen = f.Texto("IncidenciaOrigen"), Validador = f.Texto("Validador"),
+                FechaCreacion = f.Fecha("FechaCreacion"), FechaValidacion = f.FechaNula("FechaValidacion"), FechaRevision = f.FechaNula("FechaRevision"),
+                RequiereRevision = f.Booleano("RequiereRevision")
+            }, ct);
+            var catalogos = respuesta.Catalogos;
+            catalogos.Lineas = await lector.ListaAsync(Catalogo, ct);
+            catalogos.Items = await lector.ListaAsync(f => new BaseConocimientoTIItemCatalogo { Codigo = f.Texto("Codigo"), Linea = f.Texto("Linea"), Descripcion = f.Texto("Descripcion") }, ct);
+            catalogos.Tipos = await lector.ListaAsync(Catalogo, ct);
+            catalogos.Categorias = await lector.ListaAsync(Catalogo, ct);
+            catalogos.SubTipos = await lector.ListaAsync(f => new BaseConocimientoTISubTipoCatalogo
+            {
+                Codigo = f.Texto("Codigo"), Tipo = f.Texto("Tipo"), Categoria = f.Texto("Categoria"), Descripcion = f.Texto("Descripcion")
+            }, ct);
+            catalogos.TicketsOrigen = await lector.ListaAsync(f => new BaseConocimientoTITicketOrigen
+            {
+                IncidenciaNumero = f.Texto("IncidenciaNumero"), Titulo = f.Texto("Titulo"), Detalle = f.Texto("Detalle"), MensajeError = f.Texto("MensajeError"),
+                Linea = f.Texto("Linea"), Item = f.Texto("Item"), Tipo = f.Texto("Tipo"), SubTipo = f.Texto("SubTipo"), Categoria = f.Texto("Categoria"),
+                CausaRaiz = f.Texto("CausaRaiz"), SolucionTecnica = f.Texto("SolucionTecnica"), FechaCierre = f.FechaNula("FechaCierre")
+            }, ct);
+            return respuesta;
+        }, ct);
 
-    public BaseConocimientoTIBLL(BaseConocimientoTIDAO baseConocimientoTIDAO)
+    public async Task<BaseConocimientoTIDetalle> ObtenerDetalleAsync(string codigo, CancellationToken ct)
     {
-        this.baseConocimientoTIDAO = baseConocimientoTIDAO;
+        var codigoValido = ValidarCodigo(codigo);
+        return await baseDatos.LeerAsync("dbo.Usp_TI_Obtener_DetalleBaseConocimientoTI", p => p.Add("@cConocimientoCodigo", SqlDbType.VarChar, 20).Value = codigoValido,
+            lector => lector.FilaAsync(f => new BaseConocimientoTIDetalle
+            {
+                ConocimientoCodigo = f.Texto("ConocimientoCodigo"), Titulo = f.Texto("Titulo"), Problema = f.Texto("Problema"), Sintomas = f.Texto("Sintomas"),
+                MensajeError = f.Texto("MensajeError"), Causa = f.Texto("Causa"), Solucion = f.Texto("Solucion"), Procedimiento = f.Texto("Procedimiento"),
+                Linea = f.Texto("Linea"), LineaDescripcion = f.Texto("LineaDescripcion"), Item = f.Texto("Item"), ItemDescripcion = f.Texto("ItemDescripcion"),
+                Tipo = f.Texto("Tipo"), TipoDescripcion = f.Texto("TipoDescripcion"), SubTipo = f.Texto("SubTipo"), SubTipoDescripcion = f.Texto("SubTipoDescripcion"),
+                Categoria = f.Texto("Categoria"), CategoriaDescripcion = f.Texto("CategoriaDescripcion"), IncidenciaOrigen = f.Texto("IncidenciaOrigen"),
+                Estado = f.Texto("Estado"), EstadoDescripcion = f.Texto("EstadoDescripcion"), UsuarioValida = f.Texto("UsuarioValida"), Validador = f.Texto("Validador"),
+                FechaCreacion = f.Fecha("FechaCreacion"), FechaValidacion = f.FechaNula("FechaValidacion"), FechaRevision = f.FechaNula("FechaRevision"),
+                RequiereRevision = f.Booleano("RequiereRevision")
+            }, ct), ct)
+            ?? throw new KeyNotFoundException("El artículo de conocimiento no existe.");
     }
 
-    public Task<BaseConocimientoTIRespuesta> ObtenerAsync(CancellationToken cancellationToken = default) =>
-        baseConocimientoTIDAO.ObtenerAsync(cancellationToken);
-
-    public async Task<BaseConocimientoTIDetalle> ObtenerDetalleAsync(string codigo, CancellationToken cancellationToken = default)
+    public async Task<BaseConocimientoTICreadoRespuesta> CrearAsync(string usuario, GuardarBaseConocimientoTISolicitud solicitud, CancellationToken ct)
     {
-        var detalle = await baseConocimientoTIDAO.ObtenerDetalleAsync(ValidarCodigo(codigo), cancellationToken);
-        return detalle ?? throw new KeyNotFoundException("El artículo de conocimiento no existe.");
-    }
-
-    public async Task<BaseConocimientoTICreadoRespuesta> CrearAsync(string usuario, GuardarBaseConocimientoTISolicitud solicitud, CancellationToken cancellationToken = default)
-    {
-        NormalizarYValidar(solicitud);
-        var codigo = await baseConocimientoTIDAO.CrearAsync(ValidarUsuario(usuario), solicitud, Guid.NewGuid(), cancellationToken);
+        Normalizar(solicitud);
+        var usuarioValido = Validacion.Usuario(usuario);
+        var codigo = (await baseDatos.EscalarAsync("dbo.Usp_TI_Crear_BaseConocimientoTI", p => ParametrosArticulo(p, usuarioValido, solicitud), ct))?.ToString()?.Trim();
         if (string.IsNullOrWhiteSpace(codigo)) throw new InvalidOperationException("No fue posible obtener el código del artículo creado.");
         return new BaseConocimientoTICreadoRespuesta { ConocimientoCodigo = codigo };
     }
 
-    public Task ActualizarAsync(string usuario, string codigo, GuardarBaseConocimientoTISolicitud solicitud, CancellationToken cancellationToken = default)
+    public Task ActualizarAsync(string usuario, string codigo, GuardarBaseConocimientoTISolicitud solicitud, CancellationToken ct)
     {
-        NormalizarYValidar(solicitud);
-        return baseConocimientoTIDAO.ActualizarAsync(ValidarUsuario(usuario), ValidarCodigo(codigo), solicitud, Guid.NewGuid(), cancellationToken);
+        Normalizar(solicitud);
+        var (usuarioValido, codigoValido) = (Validacion.Usuario(usuario), ValidarCodigo(codigo));
+        return baseDatos.EjecutarAsync("dbo.Usp_TI_Actualizar_BaseConocimientoTI", p =>
+        {
+            ParametrosArticulo(p, usuarioValido, solicitud);
+            p.Add("@cConocimientoCodigo", SqlDbType.VarChar, 20).Value = codigoValido;
+        }, ct);
     }
 
-    public Task EnviarValidacionAsync(string usuario, string codigo, CancellationToken cancellationToken = default) =>
-        baseConocimientoTIDAO.EnviarValidacionAsync(ValidarUsuario(usuario), ValidarCodigo(codigo), Guid.NewGuid(), cancellationToken);
+    public Task EnviarValidacionAsync(string usuario, string codigo, CancellationToken ct) => CambiarEstadoAsync("dbo.Usp_TI_EnviarValidacion_BaseConocimientoTI", usuario, codigo, ct);
+    public Task ValidarAsync(string usuario, string codigo, CancellationToken ct) => CambiarEstadoAsync("dbo.Usp_TI_Validar_BaseConocimientoTI", usuario, codigo, ct);
+    public Task InactivarAsync(string usuario, string codigo, CancellationToken ct) => CambiarEstadoAsync("dbo.Usp_TI_Inactivar_BaseConocimientoTI", usuario, codigo, ct);
 
-    public Task ValidarAsync(string usuario, string codigo, CancellationToken cancellationToken = default) =>
-        baseConocimientoTIDAO.ValidarAsync(ValidarUsuario(usuario), ValidarCodigo(codigo), Guid.NewGuid(), cancellationToken);
-
-    public Task InactivarAsync(string usuario, string codigo, CancellationToken cancellationToken = default) =>
-        baseConocimientoTIDAO.InactivarAsync(ValidarUsuario(usuario), ValidarCodigo(codigo), Guid.NewGuid(), cancellationToken);
-
-    private static string ValidarUsuario(string usuario)
+    private Task CambiarEstadoAsync(string procedimiento, string usuario, string codigo, CancellationToken ct)
     {
-        var valor = usuario.Trim();
-        if (valor.Length == 0 || valor.Length > 20) throw new ArgumentException("El operador autenticado no es válido.", nameof(usuario));
-        return valor;
+        var (usuarioValido, codigoValido) = (Validacion.Usuario(usuario), ValidarCodigo(codigo));
+        return baseDatos.EjecutarAsync(procedimiento, p =>
+        {
+            p.Add("@cUsuario", SqlDbType.VarChar, 20).Value = usuarioValido;
+            p.Add("@cConocimientoCodigo", SqlDbType.VarChar, 20).Value = codigoValido;
+            p.Add("@cIdCorrelacion", SqlDbType.UniqueIdentifier).Value = Guid.NewGuid();
+        }, ct);
+    }
+
+    private static void ParametrosArticulo(SqlParameterCollection p, string usuario, GuardarBaseConocimientoTISolicitud s)
+    {
+        p.Add("@cUsuario", SqlDbType.VarChar, 20).Value = usuario;
+        p.Add("@cTitulo", SqlDbType.NVarChar, 250).Value = s.Titulo;
+        p.Add("@cProblema", SqlDbType.NVarChar, -1).Value = s.Problema;
+        p.Add("@cSintomas", SqlDbType.NVarChar, -1).Value = s.Sintomas;
+        p.Add("@cMensajeError", SqlDbType.NVarChar, 1000).Value = BaseDatos.Opcional(s.MensajeError);
+        p.Add("@cCausa", SqlDbType.NVarChar, -1).Value = s.Causa;
+        p.Add("@cSolucion", SqlDbType.NVarChar, -1).Value = s.Solucion;
+        p.Add("@cProcedimiento", SqlDbType.NVarChar, -1).Value = BaseDatos.Opcional(s.Procedimiento);
+        p.Add("@cLinea", SqlDbType.Char, 3).Value = s.Linea;
+        p.Add("@cItem", SqlDbType.VarChar, 20).Value = s.Item;
+        p.Add("@cTipo", SqlDbType.Char, 3).Value = s.Tipo;
+        p.Add("@cSubTipo", SqlDbType.Char, 3).Value = s.SubTipo;
+        p.Add("@cCategoria", SqlDbType.VarChar, 20).Value = s.Categoria;
+        p.Add("@cIncidenciaOrigen", SqlDbType.VarChar, 12).Value = BaseDatos.Opcional(s.IncidenciaOrigen);
+        p.Add("@cIdCorrelacion", SqlDbType.UniqueIdentifier).Value = Guid.NewGuid();
     }
 
     private static string ValidarCodigo(string codigo)
     {
         var valor = codigo.Trim().ToUpperInvariant();
-        if (valor.Length == 0 || valor.Length > 20 || !valor.StartsWith("KB-", StringComparison.Ordinal)) throw new ArgumentException("El código del artículo no es válido.", nameof(codigo));
+        if (valor.Length is 0 or > 20 || !valor.StartsWith("KB-", StringComparison.Ordinal)) throw new ArgumentException("El código del artículo no es válido.");
         return valor;
     }
 
-    private static void NormalizarYValidar(GuardarBaseConocimientoTISolicitud solicitud)
+    private static void Normalizar(GuardarBaseConocimientoTISolicitud s)
     {
-        solicitud.Titulo = solicitud.Titulo.Trim();
-        solicitud.Problema = solicitud.Problema.Trim();
-        solicitud.Sintomas = solicitud.Sintomas.Trim();
-        solicitud.MensajeError = solicitud.MensajeError?.Trim();
-        solicitud.Causa = solicitud.Causa.Trim();
-        solicitud.Solucion = solicitud.Solucion.Trim();
-        solicitud.Procedimiento = solicitud.Procedimiento?.Trim();
-        solicitud.Linea = solicitud.Linea.Trim().ToUpperInvariant();
-        solicitud.Item = solicitud.Item.Trim().ToUpperInvariant();
-        solicitud.Tipo = solicitud.Tipo.Trim().ToUpperInvariant();
-        solicitud.SubTipo = solicitud.SubTipo.Trim().ToUpperInvariant();
-        solicitud.Categoria = solicitud.Categoria.Trim().ToUpperInvariant();
-        solicitud.IncidenciaOrigen = solicitud.IncidenciaOrigen?.Trim().ToUpperInvariant();
-
-        if (solicitud.Titulo.Length is < 5 or > 250) throw new ArgumentException("El título debe contener entre 5 y 250 caracteres.");
-        if (solicitud.Problema.Length is < 10 or > 6000) throw new ArgumentException("El problema debe contener entre 10 y 6000 caracteres.");
-        if (solicitud.Sintomas.Length is < 5 or > 6000) throw new ArgumentException("Los síntomas deben contener entre 5 y 6000 caracteres.");
-        if ((solicitud.MensajeError?.Length ?? 0) > 1000) throw new ArgumentException("El mensaje de error no puede superar los 1000 caracteres.");
-        if (solicitud.Causa.Length is < 5 or > 6000) throw new ArgumentException("La causa debe contener entre 5 y 6000 caracteres.");
-        if (solicitud.Solucion.Length is < 5 or > 6000) throw new ArgumentException("La solución debe contener entre 5 y 6000 caracteres.");
-        if ((solicitud.Procedimiento?.Length ?? 0) > 8000) throw new ArgumentException("El procedimiento no puede superar los 8000 caracteres.");
-
-        if (solicitud.Linea.Length != 3) throw new ArgumentException("Selecciona una línea válida.");
-        if (solicitud.Item.Length is < 1 or > 20) throw new ArgumentException("Selecciona un item válido.");
-        if (solicitud.Tipo.Length != 3) throw new ArgumentException("Selecciona un tipo válido.");
-        if (solicitud.SubTipo.Length != 3) throw new ArgumentException("Selecciona un subtipo válido.");
-        if (solicitud.Categoria.Length is < 1 or > 20) throw new ArgumentException("Selecciona una categoría válida.");
-        if (!string.IsNullOrWhiteSpace(solicitud.IncidenciaOrigen) && solicitud.IncidenciaOrigen.Length > 12) throw new ArgumentException("El ticket de origen no es válido.");
+        s.Titulo = Validacion.Texto(s.Titulo, 5, 250, "El título");
+        s.Problema = Validacion.Texto(s.Problema, 10, 6000, "El problema");
+        s.Sintomas = s.Sintomas.Trim();
+        if (s.Sintomas.Length is < 5 or > 6000) throw new ArgumentException("Los síntomas deben contener entre 5 y 6000 caracteres.");
+        s.MensajeError = Validacion.Opcional(s.MensajeError, 1000, "El mensaje de error");
+        s.Causa = Validacion.Texto(s.Causa, 5, 6000, "La causa");
+        s.Solucion = Validacion.Texto(s.Solucion, 5, 6000, "La solución");
+        s.Procedimiento = Validacion.Opcional(s.Procedimiento, 8000, "El procedimiento");
+        s.Linea = Validacion.CodigoExacto(s.Linea, 3, "Selecciona una línea válida.");
+        s.Item = Validacion.Codigo(s.Item, 20, "Selecciona un item válido.");
+        s.Tipo = Validacion.CodigoExacto(s.Tipo, 3, "Selecciona un tipo válido.");
+        s.SubTipo = Validacion.CodigoExacto(s.SubTipo, 3, "Selecciona un subtipo válido.");
+        s.Categoria = Validacion.Codigo(s.Categoria, 20, "Selecciona una categoría válida.");
+        s.IncidenciaOrigen = s.IncidenciaOrigen?.Trim().ToUpperInvariant();
+        if (!string.IsNullOrWhiteSpace(s.IncidenciaOrigen) && s.IncidenciaOrigen.Length > 12) throw new ArgumentException("El ticket de origen no es válido.");
     }
+
+    private static BaseConocimientoTICatalogo Catalogo(SqlDataReader f) => new() { Codigo = f.Texto("Codigo"), Descripcion = f.Texto("Descripcion") };
 }

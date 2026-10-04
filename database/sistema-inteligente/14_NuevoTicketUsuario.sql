@@ -41,74 +41,7 @@ Begin
 End
 Go
 
-/* Ejecuta Procedure */
-
-/* Ejemplo: Exec dbo.Usp_TI_Registrar_Incidencia 'USR001', 'CMP', 'INC', 'Error al generar OC', 'Detalle del problema', 'Mensaje mostrado', '00000000-0000-0000-0000-000000000001' */
-Create Or Alter Procedure dbo.Usp_TI_Registrar_Incidencia
-/*================================================================================
-Objetivo            : Registrar una incidencia nueva utilizando únicamente datos permitidos al usuario.
-Creado Por          : Jhosep S. Lazo
-Fecha Creación      : 13/09/2026
-SP Anterior         : Ninguno
-Comentario Cambios  : Registra cabecera, estado inicial y auditoría en una sola operación transaccional.
-================================================================================*/
-	@cUsuario varchar(20),
-	@cLinea char(3),
-	@cTipo char(3),
-	@cTitulo nvarchar(250),
-	@cDetalle nvarchar(max),
-	@cMensajeError nvarchar(1000) = Null,
-	@cIdCorrelacion uniqueidentifier
-As
-Begin
-	Set NoCount On
-	Set Xact_Abort On
-
-	Declare @cArea char(3), @cIncidenciaNumero varchar(12), @nCorrelativo int, @dFecha datetime2(0) = SysDateTime()
-
-	Select @cArea = u.Area
-	From dbo.TI_Usuario as u
-	Where u.Usuario = @cUsuario and u.Estado = 'A'
-
-	If @cArea Is Null Throw 50001, 'El usuario autenticado no se encuentra habilitado.', 1
-	If Not Exists (Select 1 From dbo.TI_Linea Where Linea = @cLinea and Estado = 'A') Throw 50002, 'El sistema o módulo seleccionado no se encuentra disponible.', 1
-	If Not Exists (Select 1 From dbo.TI_Tipo Where Tipo = @cTipo and Estado = 'A') Throw 50003, 'El tipo de ticket seleccionado no se encuentra disponible.', 1
-	If NullIf(LTrim(RTrim(@cTitulo)), '') Is Null Throw 50004, 'El título del problema es obligatorio.', 1
-	If NullIf(LTrim(RTrim(@cDetalle)), '') Is Null Throw 50005, 'La descripción detallada es obligatoria.', 1
-
-	Begin Transaction
-	Begin Try
-		Select @nCorrelativo = IsNull(Max(Try_Convert(int, Right(IncidenciaNumero, 6))), 0) + 1
-		From dbo.TI_Incidencia With (UpdLock, HoldLock)
-		Where IncidenciaNumero Like 'INC-[0-9][0-9][0-9][0-9][0-9][0-9]'
-
-		If @nCorrelativo > 999999 Throw 50006, 'Se alcanzó el límite del correlativo de incidencias.', 1
-		Set @cIncidenciaNumero = 'INC-' + Right('000000' + Convert(varchar(6), @nCorrelativo), 6)
-
-		Insert dbo.TI_Incidencia (
-			IncidenciaNumero, FechaRegistro, UsuarioSolicitante, AreaSolicitante, Linea, Tipo, Estado, Titulo, Detalle, MensajeError,
-			CanalRegistro, UltimoUsuario, UltimaFechaModif
-		)
-		Values (
-			@cIncidenciaNumero, @dFecha, @cUsuario, @cArea, @cLinea, @cTipo, 'NV', LTrim(RTrim(@cTitulo)), LTrim(RTrim(@cDetalle)), NullIf(LTrim(RTrim(@cMensajeError)), ''),
-			'PORTAL', @cUsuario, @dFecha
-		)
-
-		Insert dbo.TI_IncidenciaEstado (IncidenciaNumero, Secuencia, Estado, UsuarioCambio, FechaCambio, Observacion)
-		Values (@cIncidenciaNumero, 1, 'NV', @cUsuario, @dFecha, N'Ticket registrado por el usuario desde el portal.')
-
-		Insert dbo.TI_Auditoria (IncidenciaNumero, Usuario, TipoActor, Entidad, Registro, Evento, Resultado, DetalleJson, IdCorrelacion, Fecha)
-		Values (@cIncidenciaNumero, @cUsuario, 'U', 'TI_Incidencia', @cIncidenciaNumero, 'CREAR_TICKET', 'EXITOSO', Null, @cIdCorrelacion, @dFecha)
-
-		Commit Transaction
-	End Try
-	Begin Catch
-		If Xact_State() <> 0 Rollback Transaction
-		;Throw
-	End Catch
-
-	Select IncidenciaNumero = @cIncidenciaNumero, FechaRegistro = @dFecha
-End
+-- dbo.Usp_TI_Registrar_Incidencia: la versión vigente está en 19_MejorasFuncionalesSinIA.sql (aquí había una versión anterior que ese script reemplaza).
 Go
 
 /* Ejecuta Procedure */

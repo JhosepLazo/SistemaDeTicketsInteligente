@@ -338,27 +338,7 @@ When Not Matched Then Insert (HerramientaCodigo, Nombre, Descripcion, Procedimie
 	Values (s.HerramientaCodigo, s.Nombre, s.Descripcion, s.Procedimiento, s.ParametrosEsquemaJson, s.Automatica, s.RequiereTicket, s.MaximoFilas, Null, 'A', Null, SysDateTime());
 Go
 
-Create Or Alter Procedure dbo.Usp_TI_Agente_Herramientas
-/*================================================================================
-Objetivo            : Entregar al backend el catálogo activo de herramientas diagnósticas.
-Creado Por          : Jhosep S. Lazo
-Fecha Creación      : 02/10/2026
-SP Anterior         : Ninguno
-Comentario Cambios  : Solo se listan herramientas cuyo procedimiento está instalado.
-================================================================================*/
-	@cUsuario varchar(20),
-	@cArea char(3)
-As
-Begin
-	Set NoCount On
-	If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Area = @cArea and Estado = 'A' and Perfil In ('TEC','SUP','ADM'))
-		Throw 50500, 'El operador TI no se encuentra habilitado.', 1
-
-	Select HerramientaCodigo, Nombre, Descripcion, Procedimiento, ParametrosEsquemaJson, Automatica, RequiereTicket, MaximoFilas
-	From dbo.TI_AgenteHerramienta
-	Where Estado = 'A' and Object_Id(Procedimiento, 'P') Is Not Null
-	Order By Automatica Desc, HerramientaCodigo
-End
+-- dbo.Usp_TI_Agente_Herramientas: la versión vigente está en 31_AgenteFase5ConocimientoSemantico.sql (aquí había una versión anterior que ese script reemplaza).
 Go
 
 Create Or Alter Procedure dbo.Usp_TI_Agente_RegistrarHerramienta
@@ -490,34 +470,7 @@ Begin
 End
 Go
 
-Create Or Alter Procedure dbo.Usp_TI_Agente_DryRun
-	@cUsuario varchar(20), @cArea char(3), @nSesionNumero bigint
-As
-Begin
-	Set NoCount On
-	-- Solo SELECT: no invoca ejecutores, crea aprobaciones ni cambia estados.
-	Declare @cIncidencia varchar(12), @cAccion varchar(50), @cParametros nvarchar(max), @nSolicitud int
-	Select @cIncidencia = IncidenciaNumero, @cAccion = AccionCodigo, @cParametros = ParametrosJson, @nSolicitud = SolicitudAprobacionSecuencia
-	From dbo.TI_AgenteSesion Where SesionNumero = @nSesionNumero and UsuarioTI = @cUsuario and AreaTI = @cArea
-	If @@RowCount = 0 Throw 50503, 'La investigacion no pertenece al operador.', 1
-	Select 'IDENTIDAD' Codigo, 'Operador TI habilitado' Descripcion,
-		Case When Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Area = @cArea and Estado = 'A' and Perfil In ('TEC','SUP','ADM')) Then 'OK' Else 'ERROR' End Resultado
-	Union All Select 'TICKET', 'Ticket vinculado y existente', Case When Exists (Select 1 From dbo.TI_Incidencia Where IncidenciaNumero = @cIncidencia) Then 'OK' Else 'PENDIENTE' End
-	Union All Select 'ESTADO', 'Ticket admite intervencion', Case When Exists (Select 1 From dbo.TI_Incidencia Where IncidenciaNumero = @cIncidencia and Estado Not In ('RS','CA','CF','NP')) Then 'OK' Else 'PENDIENTE' End
-	Union All Select 'ACCION', 'Accion correctiva activa', Case When Exists (Select 1 From dbo.TI_Accion Where AccionCodigo = @cAccion and Tipo = 'E' and Estado = 'A') Then 'OK' Else 'PENDIENTE' End
-	Union All Select 'PARAMETROS', 'Parametros estructurados validos', Case When IsJson(@cParametros) = 1 and Left(LTrim(@cParametros), 1) = '{' Then 'OK' Else 'PENDIENTE' End
-	Union All Select 'APROBACION', 'Aprobacion formal para esta accion y parametros', Case When Exists (Select 1 From dbo.TI_Accion Where AccionCodigo = @cAccion and RequiereAprobacion = 0)
-		or Exists (Select 1 From dbo.TI_SolicitudAprobacion Where IncidenciaNumero = @cIncidencia and Secuencia = @nSolicitud and AccionCodigo = @cAccion and Estado = 'A' and IsNull(ParametrosJson, '{}') = IsNull(@cParametros, '{}')) Then 'OK' Else 'PENDIENTE' End
-	Union All Select 'EJECUTOR', 'Procedimiento autorizado instalado', Case When Exists (Select 1 From dbo.TI_AgenteAccionEjecutor Where AccionCodigo = @cAccion and Estado = 'A' and Object_Id(Procedimiento, 'P') Is Not Null) Then 'OK' Else 'PENDIENTE' End
-	-- La simulación más reciente decide: si falló o usó otros parámetros, deja de valer.
-	-- Coalesce y no IsNull: IsNull tomaría el largo de 'OK'/'ERROR' y truncaría 'PENDIENTE'.
-	Union All Select 'SIMULACION', 'Simulacion transaccional exitosa con los mismos parametros',
-		Coalesce((Select Top (1) Case When Json_Value(e.DatosJson, '$.exito') = 'true' and Json_Value(e.DatosJson, '$.accionCodigo') = @cAccion
-				and Json_Value(e.DatosJson, '$.parametrosJson') = IsNull(@cParametros, N'{}') Then 'OK' Else 'ERROR' End
-			From dbo.TI_AgenteEvento e Where e.SesionNumero = @nSesionNumero and e.Tipo = 'SIMULACION_CAMBIO' and e.OrigenServidor = 1
-			Order By e.Secuencia Desc), 'PENDIENTE')
-	Union All Select 'ERP', 'Validaciones internas ERP: requieren contrato diagnostico del propietario', 'NO_DISPONIBLE'
-End
+-- dbo.Usp_TI_Agente_DryRun: la versión vigente está en 32_AgenteFase6ReplicaTecnica.sql (aquí había una versión anterior que ese script reemplaza).
 Go
 
 /* ============================================================================

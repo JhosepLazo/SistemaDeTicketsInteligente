@@ -3,7 +3,7 @@
  * Objetivo: Definir los contratos utilizados por el módulo Mis Tickets para la visión del usuario.
  * Responsabilidad: Transportar resumen, listado, detalle, historial, mensajes, adjuntos, documentos y solicitudes de acciones del usuario.
  * Dependencias: ASP.NET Core para IFormFile en la respuesta de observaciones.
- * Flujo: MisTicketsUsuarioController <-> MisTicketsUsuarioBLL <-> MisTicketsUsuarioDAO <-> frontend.
+ * Flujo: Frontend <-> MisTicketsUsuarioController <-> MisTicketsUsuarioBLL <-> SQL Server.
  * Consideraciones: Los DTO no contienen reglas de negocio ni acceso a datos; la identidad del usuario nunca forma parte de las solicitudes enviadas por el frontend.
  */
 
@@ -137,18 +137,12 @@ public sealed class CalificarTicketSolicitud
     public string? Comentario { get; set; }
 }
 
-public sealed class MisTicketsUsuarioAdjuntoRegistro
+/// <summary>Corrección de un ticket propio antes de su procesamiento técnico: solo campos descriptivos, nunca clasificación ni responsable.</summary>
+public sealed class EditarTicketUsuarioSolicitud
 {
-    public string NombreOriginal { get; set; } = string.Empty;
-    public string NombreArchivo { get; set; } = string.Empty;
-    public string RutaArchivo { get; set; } = string.Empty;
-    public string TipoMime { get; set; } = string.Empty;
-    public long TamanoBytes { get; set; }
-}
-
-public sealed class MisTicketsUsuarioArchivo
-{
-    public string NombreOriginal { get; set; } = string.Empty;
-    public string RutaArchivo { get; set; } = string.Empty;
-    public string TipoMime { get; set; } = string.Empty;
+    public string Linea { get; set; } = string.Empty;
+    public string Tipo { get; set; } = string.Empty;
+    public string Titulo { get; set; } = string.Empty;
+    public string Detalle { get; set; } = string.Empty;
+    public string? MensajeError { get; set; }
 }

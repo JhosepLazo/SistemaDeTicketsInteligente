@@ -1,9 +1,9 @@
-/*
+/**
  * Archivo: GestionOperativaTIDTO.cs
  * Objetivo: Definir los contratos de las mejoras operativas que complementan Gestión de Tickets sin introducir IA.
  * Responsabilidad: Transportar catálogos de mesa de ayuda/aprobación, avances con esfuerzo y solicitudes de creación de tickets por otro usuario.
  * Dependencias: Ninguna dependencia funcional fuera de .NET.
- * Flujo: Frontend <-> GestionOperativaTIController <-> GestionOperativaTIBLL <-> GestionOperativaTIDAO <-> SQL Server.
+ * Flujo: Frontend <-> GestionOperativaTIController <-> GestionOperativaTIBLL <-> SQL Server.
  * Consideraciones: Se mantiene separado del DTO histórico de Gestión de Tickets para no inflar contratos que no requieren estas acciones.
  */
 

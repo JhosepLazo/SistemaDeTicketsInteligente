@@ -1,9 +1,9 @@
-/*
+/**
  * Archivo: ReportesTIDTO.cs
  * Objetivo: Definir los contratos utilizados por el módulo Reportes para operadores TI.
  * Responsabilidad: Transportar filtros, indicadores, series, distribuciones, tiempos, tickets destacados y catálogos sin contener reglas de negocio.
  * Dependencias: Ninguna capa de infraestructura; solo tipos base de .NET.
- * Flujo: ReportesTIController <-> ReportesTIBLL <-> ReportesTIDAO <-> Stored Procedure de Reportes TI.
+ * Flujo: ReportesTIController <-> ReportesTIBLL <-> Stored Procedure de Reportes TI.
  * Consideraciones: Las métricas comparativas conservan los valores del período actual y del período anterior equivalente para que el frontend presente variaciones sin inventar datos.
  */
 

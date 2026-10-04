@@ -10,68 +10,7 @@
 Use [GestionSistemas]
 Go
 
-Create Or Alter Procedure dbo.Usp_TI_Registrar_AvanceTicket
-/*================================================================================
-Objetivo            : Registrar un avance técnico con esfuerzo efectivo y área causante obligatorios.
-Creado Por          : Jhosep S. Lazo
-Fecha Creación      : 13/09/2026
-SP Anterior         : dbo.Usp_TI_Registrar_AvanceTicket
-Comentario Cambios  : Mantiene parámetros nuevos con valores por defecto para devolver un error funcional claro a clientes desactualizados.
-================================================================================*/
-    @cUsuario varchar(20), @cArea char(3), @cIncidenciaNumero varchar(12), @cDetalle nvarchar(max), @lVisibleUsuario bit = 0,
-    @nTiempoUtilizado decimal(8,2) = Null, @cAreaCausante char(3) = Null, @cIdCorrelacion uniqueidentifier
-As
-Begin
-    Set NoCount On
-    Set Xact_Abort On
-
-    Begin Try
-        Begin Transaction
-
-        Declare @nAvance int, @nMensaje int, @nEstado int, @cEstado char(2), @dFecha datetime2(0) = SysDateTime()
-
-        If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Area = @cArea and Estado = 'A' and Perfil In ('TEC','SUP','ADM')) Throw 50216, 'El operador TI no es válido.', 1
-        If NullIf(LTrim(RTrim(@cDetalle)), '') Is Null Throw 50217, 'El detalle del avance no puede estar vacío.', 1
-        If @nTiempoUtilizado Is Null or @nTiempoUtilizado <= 0 or @nTiempoUtilizado > 1440 Throw 50234, 'Registra el tiempo efectivo utilizado en minutos (1 a 1440).', 1
-        If @cAreaCausante Is Null or Not Exists (Select 1 From dbo.TI_Area Where Area = @cAreaCausante and Estado = 'A') Throw 50235, 'Selecciona el área causante del avance.', 1
-
-        Select @cEstado = Estado From dbo.TI_Incidencia With (UpdLock, HoldLock) Where IncidenciaNumero = @cIncidenciaNumero
-        If @cEstado Is Null or @cEstado In ('RS','CA','PA') Throw 50218, 'El ticket no existe, está cerrado o espera una aprobación.', 1
-
-        Select @nAvance = IsNull(Max(Secuencia), 0) + 1 From dbo.TI_IncidenciaAvance With (UpdLock, HoldLock) Where IncidenciaNumero = @cIncidenciaNumero
-        Insert dbo.TI_IncidenciaAvance (IncidenciaNumero, Secuencia, UsuarioTI, FechaAvance, Detalle, TiempoUtilizado, PorcentajeAvance, AreaCausante)
-        Values (@cIncidenciaNumero, @nAvance, @cUsuario, @dFecha, LTrim(RTrim(@cDetalle)), @nTiempoUtilizado, Null, @cAreaCausante)
-
-        If @lVisibleUsuario = 1
-        Begin
-            Select @nMensaje = IsNull(Max(Secuencia), 0) + 1 From dbo.TI_IncidenciaMensaje With (UpdLock, HoldLock) Where IncidenciaNumero = @cIncidenciaNumero
-            Insert dbo.TI_IncidenciaMensaje (IncidenciaNumero, Secuencia, UsuarioAutor, TipoAutor, Contenido, FechaMensaje, EsInterno)
-            Values (@cIncidenciaNumero, @nMensaje, @cUsuario, 'T', LTrim(RTrim(@cDetalle)), @dFecha, 0)
-        End
-
-        Update dbo.TI_Incidencia
-        Set AreaCausante = @cAreaCausante, FechaAtencion = IsNull(FechaAtencion, @dFecha),
-            Estado = Case When @cEstado In ('NV','RA','ES') Then 'DG' Else Estado End,
-            UltimoUsuario = @cUsuario, UltimaFechaModif = @dFecha
-        Where IncidenciaNumero = @cIncidenciaNumero
-
-        If @cEstado In ('NV','RA','ES')
-        Begin
-            Select @nEstado = IsNull(Max(Secuencia), 0) + 1 From dbo.TI_IncidenciaEstado With (UpdLock, HoldLock) Where IncidenciaNumero = @cIncidenciaNumero
-            Insert dbo.TI_IncidenciaEstado (IncidenciaNumero, Secuencia, Estado, UsuarioCambio, FechaCambio, Observacion)
-            Values (@cIncidenciaNumero, @nEstado, 'DG', @cUsuario, @dFecha, N'Se inició o retomó la atención técnica del ticket.')
-        End
-
-        Insert dbo.TI_Auditoria (IncidenciaNumero, Usuario, TipoActor, Entidad, Registro, Evento, Resultado, DetalleJson, IdCorrelacion, Fecha)
-        Values (@cIncidenciaNumero, @cUsuario, 'T', 'TI_IncidenciaAvance', Concat(@cIncidenciaNumero, '-', @nAvance), 'REGISTRAR_AVANCE', 'EXITOSO', Concat('{"minutos":', Convert(varchar(30), @nTiempoUtilizado), ',"areaCausante":"', @cAreaCausante, '"}'), @cIdCorrelacion, @dFecha)
-
-        Commit Transaction
-    End Try
-    Begin Catch
-        If Xact_State() <> 0 Rollback Transaction
-        ;Throw
-    End Catch
-End
+-- dbo.Usp_TI_Registrar_AvanceTicket: la versión vigente está en 22_CierreMejorasFuncionalesSinIA.sql (aquí había una versión anterior que ese script reemplaza).
 Go
 
 Create Or Alter Procedure dbo.Usp_TI_Obtener_DatosGestionOperativaTI
@@ -142,32 +81,6 @@ Begin
 End
 Go
 
-Create Or Alter Procedure dbo.Usp_TI_Obtener_EsfuerzoOperativoTI
-/*================================================================================
-Objetivo            : Resumir tiempo efectivo registrado por los avances técnicos dentro de un rango.
-Creado Por          : Jhosep S. Lazo
-Fecha Creación      : 13/09/2026
-SP Anterior         : Ninguno
-Comentario Cambios  : Separa esfuerzo real de duración calendario del ticket.
-================================================================================*/
-    @dFechaInicio date, @dFechaFin date
-As
-Begin
-    Set NoCount On
-    If @dFechaInicio Is Null or @dFechaFin Is Null or @dFechaInicio > @dFechaFin Throw 50450, 'El rango de fechas no es válido.', 1
-
-    Select
-        MinutosEfectivos = Cast(IsNull(Sum(av.TiempoUtilizado), 0) as decimal(18,2)),
-        HorasEfectivas = Cast(IsNull(Sum(av.TiempoUtilizado), 0) / 60.0 as decimal(18,2)),
-        TicketsConEsfuerzo = Count(Distinct av.IncidenciaNumero)
-    From dbo.TI_IncidenciaAvance av
-    Where av.FechaAvance >= @dFechaInicio and av.FechaAvance < DateAdd(day, 1, @dFechaFin)
-
-    Select av.IncidenciaNumero, MinutosEfectivos = Cast(Sum(av.TiempoUtilizado) as decimal(18,2))
-    From dbo.TI_IncidenciaAvance av
-    Where av.FechaAvance >= @dFechaInicio and av.FechaAvance < DateAdd(day, 1, @dFechaFin)
-    Group By av.IncidenciaNumero
-    Order By MinutosEfectivos Desc
-End
+-- dbo.Usp_TI_Obtener_EsfuerzoOperativoTI: la versión vigente está en 22_CierreMejorasFuncionalesSinIA.sql (aquí había una versión anterior que ese script reemplaza).
 Go
 

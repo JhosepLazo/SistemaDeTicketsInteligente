@@ -1,0 +1,1376 @@
+/*
+ * Archivo: GestionTicketsTIPage.css
+ * Objetivo: Definir la presentación visual del módulo Gestión de Tickets para el operador TI.
+ * Responsabilidad: Construir una bandeja profesional, moderna, futurista y responsiva basada en la referencia visual aprobada, manteniendo la identidad Calimod y una jerarquía clara de operación.
+ * Dependencias: InicioPage.css para shell/sidebar/topbar/hero y clases renderizadas por GestionTicketsTIPage.tsx.
+ * Flujo: GestionTicketsTIPage.tsx -> clases gestion-ti-* -> composición visual responsive.
+ * Consideraciones: Los estilos específicos usan el prefijo gestion-ti-; no agregan librerías externas ni modifican visualmente otros módulos.
+ */
+
+.gestion-ti-page {
+  --gestion-verde: #00766e;
+  --gestion-verde-oscuro: #073f42;
+  --gestion-turquesa: #29c9bd;
+  --gestion-borde: #dbe7e9;
+  --gestion-texto: #102a34;
+  --gestion-secundario: #6a7e86;
+  --gestion-panel: #fff;
+}
+
+.gestion-ti-contenido {
+  max-width: 1600px;
+  display: flex;
+  flex-direction: column;
+}
+
+.gestion-ti-hero {
+  order: 1;
+  min-height: 150px;
+  grid-template-columns: minmax(0, 1.35fr) auto 190px;
+}
+
+.gestion-ti-hero__acciones {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.gestion-ti-alerta {
+  order: 2;
+  margin-top: 14px;
+  min-height: 42px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid;
+  border-radius: 11px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.gestion-ti-alerta span {
+  flex: 1;
+}
+
+.gestion-ti-alerta button {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.gestion-ti-alerta--error {
+  border-color: #f0c9cc;
+  background: #fff4f4;
+  color: #a12e37;
+}
+
+.gestion-ti-alerta--ok {
+  border-color: #bfe4dd;
+  background: #f0fbf8;
+  color: #176b60;
+}
+
+.gestion-ti-metricas {
+  order: 3;
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.gestion-ti-metricas > button {
+  min-height: 92px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--gestion-borde);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--gestion-texto);
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(15, 48, 55, 0.055);
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    border-color 0.16s ease;
+}
+
+.gestion-ti-metricas > button:hover {
+  transform: translateY(-2px);
+  border-color: rgba(27, 167, 157, 0.3);
+  box-shadow: 0 12px 28px rgba(15, 48, 55, 0.09);
+}
+
+.gestion-ti-metrica__icono {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+}
+
+.gestion-ti-metrica__icono--turquesa {
+  background: #daf8f4;
+  color: #008b80;
+}
+.gestion-ti-metrica__icono--azul {
+  background: #e1efff;
+  color: #2f78d0;
+}
+.gestion-ti-metrica__icono--rojo {
+  background: #ffeaeb;
+  color: #dc3f4b;
+}
+.gestion-ti-metrica__icono--violeta {
+  background: #f0e8ff;
+  color: #7445d5;
+}
+
+.gestion-ti-metricas div {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 8px;
+  align-items: end;
+}
+
+.gestion-ti-metricas small {
+  grid-column: 1 / -1;
+  color: #243942;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.gestion-ti-metricas strong {
+  font-size: 27px;
+  line-height: 1;
+  color: #15313b;
+}
+
+.gestion-ti-metricas span:not(.gestion-ti-metrica__icono) {
+  grid-column: 1 / -1;
+  margin-top: 5px;
+  color: #738890;
+  font-size: 10px;
+}
+
+.gestion-ti-grid {
+  order: 5;
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.72fr) minmax(320px, 0.88fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.gestion-ti-proceso {
+  order: 4;
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(145px, 1fr));
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.gestion-ti-proceso button {
+  min-height: 58px;
+  padding: 9px 11px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid #dce7e9;
+  border-radius: 8px;
+  background: #fff;
+  color: #577079;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease,
+    color 0.16s ease;
+}
+
+.gestion-ti-proceso button:hover {
+  border-color: rgba(0, 118, 110, 0.38);
+  background: #f5fbfa;
+}
+
+.gestion-ti-proceso button.activo {
+  border-color: #08776e;
+  background: #e8f8f5;
+  color: #086860;
+}
+
+.gestion-ti-proceso button span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.gestion-ti-proceso button strong {
+  color: #18353f;
+  font-size: 11px;
+}
+
+.gestion-ti-proceso button small {
+  overflow: hidden;
+  color: #738890;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gestion-ti-proceso button b {
+  min-width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #edf3f4;
+  color: #60767e;
+  font-size: 9px;
+}
+
+.gestion-ti-proceso button.activo b {
+  background: #08776e;
+  color: #fff;
+}
+
+.gestion-ti-columna-derecha {
+  display: grid;
+  gap: 14px;
+  position: sticky;
+  top: 78px;
+}
+
+.gestion-ti-panel {
+  min-width: 0;
+  border: 1px solid var(--gestion-borde);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 9px 28px rgba(15, 48, 55, 0.06);
+}
+
+.gestion-ti-panel__cabecera {
+  min-height: 62px;
+  padding: 13px 15px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #edf2f3;
+}
+
+.gestion-ti-panel__cabecera > div {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gestion-ti-panel__icono {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: #ddf8f4;
+  color: #007b72;
+}
+
+.gestion-ti-panel h2,
+.gestion-ti-panel p {
+  margin: 0;
+}
+
+.gestion-ti-panel h2 {
+  color: #17313b;
+  font-size: 15px;
+}
+
+.gestion-ti-panel__cabecera p {
+  margin-top: 2px;
+  color: #789099;
+  font-size: 10px;
+}
+
+.gestion-ti-boton-secundario {
+  min-height: 34px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #cfe0e3;
+  border-radius: 9px;
+  background: #fff;
+  color: #17625e;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.gestion-ti-boton-secundario:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.gestion-ti-tabs {
+  padding: 11px 14px 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.gestion-ti-tabs button {
+  min-height: 32px;
+  padding: 0 14px;
+  border: 1px solid #e0e9eb;
+  border-radius: 999px;
+  background: #f6f9fa;
+  color: #425c65;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.gestion-ti-tabs button.activo {
+  border-color: #08776e;
+  background: linear-gradient(135deg, #08766e, #075a58);
+  color: #fff;
+  box-shadow: 0 5px 13px rgba(3, 102, 95, 0.17);
+}
+
+.gestion-ti-filtros {
+  padding: 3px 14px 11px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(115px, 1fr)) auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.gestion-ti-filtros label {
+  display: grid;
+  gap: 4px;
+  color: #526970;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.gestion-ti-filtros select,
+.gestion-ti-form-grid select,
+.gestion-ti-campo select,
+.gestion-ti-form-vertical select,
+.gestion-ti-modal textarea {
+  width: 100%;
+  border: 1px solid #d7e3e6;
+  outline: 0;
+  background: #fff;
+  color: #1d3741;
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.gestion-ti-filtros select,
+.gestion-ti-form-grid select,
+.gestion-ti-campo select,
+.gestion-ti-form-vertical select {
+  height: 36px;
+  padding: 0 9px;
+  border-radius: 8px;
+  font-size: 10px;
+}
+
+.gestion-ti-filtros select:focus,
+.gestion-ti-form-grid select:focus,
+.gestion-ti-campo select:focus,
+.gestion-ti-form-vertical select:focus,
+.gestion-ti-modal textarea:focus {
+  border-color: #3fb8ad;
+  box-shadow: 0 0 0 3px rgba(46, 184, 173, 0.09);
+}
+
+.gestion-ti-filtros > button {
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid #d6e3e5;
+  border-radius: 8px;
+  background: #f7fafb;
+  color: #536a72;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.gestion-ti-tabla-wrap {
+  overflow-x: auto;
+  border-top: 1px solid #eef3f4;
+}
+
+.gestion-ti-tabla {
+  width: 100%;
+  min-width: 920px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.gestion-ti-tabla th,
+.gestion-ti-tabla td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #edf2f3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+.gestion-ti-tabla th {
+  background: #f7fafb;
+  color: #5d737b;
+  font-size: 9px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.gestion-ti-tabla td {
+  color: #415861;
+  font-size: 9.5px;
+}
+
+.gestion-ti-tabla tbody tr {
+  cursor: pointer;
+  transition:
+    background 0.14s ease,
+    box-shadow 0.14s ease;
+}
+
+.gestion-ti-tabla tbody tr:hover,
+.gestion-ti-tabla tbody tr.seleccionado {
+  background: #f3fbfa;
+}
+
+.gestion-ti-tabla tbody tr.seleccionado {
+  box-shadow: inset 3px 0 0 #18b8ad;
+}
+
+.gestion-ti-tabla th:nth-child(1) {
+  width: 86px;
+}
+.gestion-ti-tabla th:nth-child(2) {
+  width: 105px;
+}
+.gestion-ti-tabla th:nth-child(3) {
+  width: 170px;
+}
+.gestion-ti-tabla th:nth-child(4) {
+  width: 90px;
+}
+.gestion-ti-tabla th:nth-child(5) {
+  width: 86px;
+}
+.gestion-ti-tabla th:nth-child(6) {
+  width: 118px;
+}
+.gestion-ti-tabla th:nth-child(7) {
+  width: 105px;
+}
+.gestion-ti-tabla th:nth-child(8) {
+  width: 105px;
+}
+.gestion-ti-tabla th:nth-child(9) {
+  width: 82px;
+}
+
+.gestion-ti-tabla td strong {
+  color: #16333e;
+}
+
+.gestion-ti-tabla__titulo {
+  color: #233f49 !important;
+  line-height: 1.35;
+}
+
+.gestion-ti-tabla__vacio {
+  height: 110px;
+  text-align: center !important;
+  color: #82949a !important;
+}
+
+.gestion-ti-accion-tabla {
+  min-height: 28px;
+  padding: 0 9px;
+  border: 1px solid #08786f;
+  border-radius: 7px;
+  background: #087168;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.gestion-ti-tabla__pie {
+  min-height: 40px;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #7b8e95;
+  font-size: 10px;
+}
+
+.gestion-ti-tabla__pie > button {
+  border: 0;
+  background: transparent;
+  color: #087168;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.gestion-ti-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.gestion-ti-badge--rojo {
+  background: #ffeaeb;
+  color: #c93641;
+}
+.gestion-ti-badge--amarillo {
+  background: #fff3da;
+  color: #a46b0c;
+}
+.gestion-ti-badge--verde {
+  background: #e3f8ee;
+  color: #24775d;
+}
+.gestion-ti-badge--azul {
+  background: #e8f2ff;
+  color: #2e70bd;
+}
+.gestion-ti-badge--violeta {
+  background: #efe7ff;
+  color: #7041bd;
+}
+.gestion-ti-badge--neutro {
+  background: #edf2f3;
+  color: #667b83;
+}
+
+.gestion-ti-detalle-rapido {
+  overflow: hidden;
+}
+
+.gestion-ti-vacio {
+  min-height: 190px;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  color: #84969c;
+  font-size: 11px;
+  text-align: center;
+}
+
+.gestion-ti-detalle__titulo {
+  padding: 14px 15px 10px;
+}
+
+.gestion-ti-detalle__titulo > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.gestion-ti-detalle__titulo > div > strong {
+  color: #17323c;
+  font-size: 15px;
+}
+
+.gestion-ti-detalle__titulo h3 {
+  margin: 8px 0 5px;
+  color: #162f39;
+  font-size: 13px;
+}
+
+.gestion-ti-detalle__titulo p {
+  color: #607881;
+  font-size: 10px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.gestion-ti-datos {
+  margin: 0;
+  padding: 0 15px 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+}
+
+.gestion-ti-datos div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.gestion-ti-datos dt {
+  color: #7b8f96;
+  font-size: 8.5px;
+}
+
+.gestion-ti-datos dd {
+  margin: 0;
+  color: #2c4852;
+  font-size: 10px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.gestion-ti-linea-tiempo {
+  margin: 0 15px 12px;
+  padding: 10px 10px 3px;
+  border: 1px solid #edf2f3;
+  border-radius: 10px;
+  background: #fbfdfd;
+}
+
+.gestion-ti-linea-tiempo > div,
+.gestion-ti-historial > div {
+  position: relative;
+  display: grid;
+  grid-template-columns: 15px 1fr;
+  gap: 8px;
+  padding-bottom: 11px;
+}
+
+.gestion-ti-linea-tiempo > div > span,
+.gestion-ti-historial > div > span {
+  width: 9px;
+  height: 9px;
+  margin-top: 3px;
+  border: 2px solid #91d5cf;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.gestion-ti-linea-tiempo > div:not(:last-child)::before,
+.gestion-ti-historial > div:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 12px;
+  bottom: 0;
+  width: 1px;
+  background: #d8e7e7;
+}
+
+.gestion-ti-linea-tiempo > div.actual > span {
+  border-color: #058479;
+  background: #13b6aa;
+}
+
+.gestion-ti-linea-tiempo strong,
+.gestion-ti-historial strong {
+  display: block;
+  color: #36515a;
+  font-size: 9.5px;
+}
+
+.gestion-ti-linea-tiempo small,
+.gestion-ti-historial small {
+  color: #8b9ca1;
+  font-size: 8px;
+}
+
+.gestion-ti-linea-tiempo p,
+.gestion-ti-historial p {
+  margin: 3px 0 0;
+  color: #61777f;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.gestion-ti-acciones-rapidas {
+  padding: 11px 15px 14px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+  border-top: 1px solid #edf2f3;
+}
+
+.gestion-ti-acciones-rapidas button {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid #b9d9d6;
+  border-radius: 8px;
+  background: #fff;
+  color: #176b65;
+  font-size: 8.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.gestion-ti-acciones-rapidas button:hover {
+  border-color: #27aa9f;
+  background: #f4fbfa;
+}
+
+.gestion-ti-acciones-rapidas .gestion-ti-acciones-rapidas__completo {
+  grid-column: 1 / -1;
+  background: #087168;
+  border-color: #087168;
+  color: #fff;
+}
+
+.gestion-ti-tareas__grid {
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.gestion-ti-tareas__grid button {
+  min-height: 72px;
+  padding: 10px;
+  display: grid;
+  gap: 4px;
+  border: 1px solid #e4ecee;
+  border-radius: 10px;
+  background: #fbfdfd;
+  text-align: left;
+  cursor: pointer;
+}
+
+.gestion-ti-tareas__grid strong {
+  color: #17343e;
+  font-size: 20px;
+}
+
+.gestion-ti-tareas__grid span {
+  color: #687e86;
+  font-size: 9px;
+  line-height: 1.3;
+}
+
+.gestion-ti-modal-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  padding: 24px;
+  display: grid;
+  place-items: center;
+  background: rgba(3, 24, 29, 0.62);
+  backdrop-filter: blur(7px);
+}
+
+.gestion-ti-modal {
+  width: min(660px, 96vw);
+  max-height: 90vh;
+  overflow: auto;
+  border: 1px solid rgba(205, 229, 229, 0.85);
+  border-radius: 17px;
+  background: #fff;
+  box-shadow: 0 26px 80px rgba(3, 28, 33, 0.32);
+}
+
+.gestion-ti-modal--grande {
+  width: min(1060px, 96vw);
+}
+
+.gestion-ti-modal > header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  min-height: 68px;
+  padding: 13px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 1px solid #e5edef;
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(10px);
+}
+
+.gestion-ti-modal > header span {
+  color: #128076;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.gestion-ti-modal > header h2 {
+  margin: 2px 0 0;
+  color: #17333d;
+  font-size: 18px;
+}
+
+.gestion-ti-modal > header > button {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #dae6e8;
+  border-radius: 9px;
+  background: #f8fbfb;
+  color: #557078;
+  cursor: pointer;
+}
+
+.gestion-ti-modal > form {
+  padding: 18px;
+}
+
+.gestion-ti-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+
+.gestion-ti-form-grid label,
+.gestion-ti-form-vertical label,
+.gestion-ti-campo {
+  display: grid;
+  gap: 6px;
+  color: #435e67;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.gestion-ti-form-vertical {
+  display: grid;
+  gap: 12px;
+}
+
+.gestion-ti-campo textarea,
+.gestion-ti-form-vertical textarea {
+  min-height: 120px;
+  padding: 10px 11px;
+  resize: vertical;
+  border-radius: 9px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.gestion-ti-campo small {
+  color: #89999e;
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.gestion-ti-check {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #556d75;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.gestion-ti-check input {
+  accent-color: #08756d;
+}
+
+.gestion-ti-nota {
+  margin: 12px 0 0;
+  padding: 10px 11px;
+  border: 1px solid #d9e8e8;
+  border-radius: 9px;
+  background: #f4faf9;
+  color: #597178;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.gestion-ti-nota--alerta {
+  border-color: #f0d6d7;
+  background: #fff6f6;
+  color: #8d4a50;
+}
+
+.gestion-ti-modal__pie {
+  margin-top: 18px;
+  padding-top: 13px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  border-top: 1px solid #e9eff0;
+}
+
+.gestion-ti-modal__pie button,
+.gestion-ti-detalle-completo__acciones button,
+.gestion-ti-aprobaciones__acciones button {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid #d3e1e3;
+  border-radius: 8px;
+  background: #fff;
+  color: #4f6870;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.gestion-ti-modal__pie button.principal,
+.gestion-ti-detalle-completo__acciones button.principal,
+.gestion-ti-aprobaciones__acciones button:last-child {
+  border-color: #087168;
+  background: #087168;
+  color: #fff;
+}
+
+.gestion-ti-modal__pie button.peligro,
+.gestion-ti-detalle-completo__acciones button.peligro {
+  border-color: #e4aeb2;
+  background: #fff4f4;
+  color: #b63943;
+}
+
+.gestion-ti-modal__pie button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.gestion-ti-detalle-completo {
+  padding: 4px 18px 18px;
+}
+
+.gestion-ti-detalle-completo > section {
+  padding: 16px 0;
+  border-bottom: 1px solid #edf2f3;
+}
+
+.gestion-ti-detalle-completo h3 {
+  margin: 0 0 11px;
+  color: #17343e;
+  font-size: 13px;
+}
+
+.gestion-ti-detalle-completo__cuadricula {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.gestion-ti-detalle-completo__cuadricula > div {
+  min-width: 0;
+  padding: 9px 10px;
+  display: grid;
+  gap: 3px;
+  border: 1px solid #e5edee;
+  border-radius: 8px;
+  background: #fafcfc;
+}
+
+.gestion-ti-detalle-completo__cuadricula span {
+  color: #89999e;
+  font-size: 8.5px;
+}
+
+.gestion-ti-detalle-completo__cuadricula strong {
+  color: #34505a;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+.gestion-ti-bloque-texto {
+  margin-top: 9px;
+  padding: 10px 11px;
+  border: 1px solid #e4ecee;
+  border-radius: 9px;
+  background: #fbfdfd;
+}
+
+.gestion-ti-bloque-texto strong {
+  color: #34515a;
+  font-size: 9px;
+}
+
+.gestion-ti-bloque-texto p {
+  margin: 4px 0 0;
+  color: #5c737b;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.gestion-ti-bloque-texto--error {
+  border-color: #f0d4d6;
+  background: #fff7f7;
+}
+
+.gestion-ti-lista-simple {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.gestion-ti-lista-simple > div,
+.gestion-ti-lista-simple > a {
+  min-width: 0;
+  padding: 9px 10px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid #e2ebec;
+  border-radius: 9px;
+  background: #fbfdfd;
+  color: #087168;
+  text-decoration: none;
+}
+
+.gestion-ti-lista-simple span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.gestion-ti-lista-simple strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #39555e;
+  font-size: 9.5px;
+  white-space: nowrap;
+}
+
+.gestion-ti-lista-simple small {
+  color: #87999f;
+  font-size: 8px;
+}
+
+.gestion-ti-historial {
+  padding: 3px 4px;
+}
+
+.gestion-ti-tarjetas-texto,
+.gestion-ti-aprobaciones {
+  display: grid;
+  gap: 8px;
+}
+
+.gestion-ti-tarjetas-texto article,
+.gestion-ti-aprobaciones article {
+  padding: 10px 11px;
+  border: 1px solid #e4ecee;
+  border-radius: 9px;
+  background: #fbfdfd;
+}
+
+.gestion-ti-tarjetas-texto article.interno {
+  background: #f4f7f8;
+}
+
+.gestion-ti-tarjetas-texto header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.gestion-ti-tarjetas-texto strong,
+.gestion-ti-aprobaciones strong {
+  color: #35515a;
+  font-size: 9.5px;
+}
+
+.gestion-ti-tarjetas-texto small,
+.gestion-ti-aprobaciones span {
+  color: #87999f;
+  font-size: 8.5px;
+}
+
+.gestion-ti-tarjetas-texto p,
+.gestion-ti-aprobaciones p {
+  margin: 5px 0 0;
+  color: #5e757d;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.gestion-ti-aprobaciones article {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+}
+
+.gestion-ti-aprobaciones article > div {
+  display: grid;
+  gap: 4px;
+}
+
+.gestion-ti-aprobaciones__acciones {
+  display: flex !important;
+  flex-direction: row;
+  gap: 6px !important;
+}
+
+.gestion-ti-aprobaciones__acciones button {
+  min-height: 30px;
+  padding: 0 9px;
+  font-size: 9px;
+}
+
+.gestion-ti-detalle-completo__acciones {
+  position: sticky;
+  bottom: -18px;
+  margin: 0 -18px -18px;
+  padding: 12px 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  border-top: 1px solid #dde8ea;
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(10px);
+}
+
+.gestion-ti-modal__alerta {
+  margin: 12px 18px 0;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 1250px) {
+  .gestion-ti-grid {
+    grid-template-columns: 1fr;
+  }
+  .gestion-ti-columna-derecha {
+    position: static;
+    grid-template-columns: 1fr 1fr;
+  }
+  .gestion-ti-filtros {
+    grid-template-columns: repeat(2, 1fr) auto;
+  }
+  .gestion-ti-form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .gestion-ti-metricas {
+    grid-template-columns: 1fr 1fr;
+  }
+  .gestion-ti-columna-derecha {
+    grid-template-columns: 1fr;
+  }
+  .gestion-ti-hero {
+    grid-template-columns: 1fr;
+  }
+  .gestion-ti-hero .inicio-hero__firma {
+    display: none;
+  }
+  .gestion-ti-hero__acciones {
+    justify-content: flex-start;
+  }
+  .gestion-ti-detalle-completo__cuadricula {
+    grid-template-columns: 1fr 1fr;
+  }
+  .gestion-ti-proceso {
+    grid-template-columns: repeat(3, minmax(145px, 1fr));
+  }
+}
+
+.gestion-ti-paginacion {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-left: auto;
+}
+
+.gestion-ti-paginacion__grupo {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.gestion-ti-paginacion__grupo i {
+  color: #91a1a7;
+  font-style: normal;
+}
+
+.gestion-ti-paginacion button {
+  min-width: 31px;
+  height: 31px;
+  padding: 0 9px;
+  border: 1px solid #d7e3e6;
+  border-radius: 6px;
+  color: #405962;
+  background: #fff;
+  font-size: 9.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.gestion-ti-paginacion button:hover:not(:disabled) {
+  border-color: #5eb7b0;
+  color: #087168;
+}
+
+.gestion-ti-paginacion button.activo {
+  border-color: #08776e;
+  color: #fff;
+  background: #08776e;
+}
+
+.gestion-ti-paginacion button:disabled {
+  opacity: 0.42;
+  cursor: default;
+}
+
+.gestion-ti-quitar-filtros {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 680px) {
+  .gestion-ti-metricas {
+    grid-template-columns: 1fr;
+  }
+  .gestion-ti-filtros {
+    grid-template-columns: 1fr 1fr;
+  }
+  .gestion-ti-filtros > button {
+    grid-column: 1 / -1;
+  }
+  .gestion-ti-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .gestion-ti-lista-simple {
+    grid-template-columns: 1fr;
+  }
+  .gestion-ti-detalle-completo__cuadricula {
+    grid-template-columns: 1fr;
+  }
+  .gestion-ti-modal-fondo {
+    padding: 10px;
+  }
+  .gestion-ti-proceso {
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
+  }
+}
+
+.gestion-ti-aprobaciones__parametros {
+  display: block;
+  margin-top: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: #f2eee3;
+  color: #5c615e;
+  font-size: 11px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.gestion-ti-agente {
+  display: grid;
+  gap: 8px;
+}
+
+.gestion-ti-agente article {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid #dbe6e8;
+  border-radius: 8px;
+  background: #fbfdfd;
+}
+
+.gestion-ti-agente header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.gestion-ti-agente header strong {
+  color: #0a766e;
+}
+
+.gestion-ti-agente header span {
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: #e9f6f2;
+  color: #137269;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.gestion-ti-agente header small {
+  color: #7b8f93;
+}
+
+.gestion-ti-agente p {
+  margin: 0;
+  color: #4f6a70;
+  line-height: 1.5;
+}
+
+.gestion-ti-agente__acciones {
+  display: flex;
+  gap: 8px;
+}
+
+.gestion-ti-agente__acciones button {
+  padding: 6px 10px;
+  border: 1px solid #cfdcdf;
+  border-radius: 7px;
+  background: #fff;
+  color: #3a5d63;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.gestion-ti-agente pre {
+  max-height: 360px;
+  overflow: auto;
+  margin: 0;
+  padding: 10px;
+  border-radius: 7px;
+  background: #f2f6f7;
+  color: #2f4c52;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Grabaciones de pantalla adjuntas al ticket (reproducción del usuario o de TI) */
+.gestion-ti-videos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+}
+.gestion-ti-videos figure {
+  margin: 0;
+  display: grid;
+  gap: 4px;
+}
+.gestion-ti-videos video {
+  width: 100%;
+  max-height: 240px;
+  border-radius: 8px;
+  background: #0d2025;
+}
+.gestion-ti-videos figcaption {
+  color: #6f858a;
+  font-size: 11px;
+}

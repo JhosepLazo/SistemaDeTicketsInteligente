@@ -1,9 +1,9 @@
-/*
+/**
  * Archivo: ConfiguracionTIDTO.cs
  * Objetivo: Definir los contratos del módulo restringido Configuración TI.
- * Responsabilidad: Transportar catálogos, matriz de clasificación, SLA, usuarios, formatos y visibilidad de conocimiento entre Controller, BLL, DAO y frontend.
+ * Responsabilidad: Transportar catálogos, matriz de clasificación, SLA, usuarios, formatos y visibilidad de conocimiento entre Controller, BLL y frontend.
  * Dependencias: ASP.NET Core IFormFile únicamente para la carga controlada de formatos.
- * Flujo: Frontend <-> ConfiguracionTIController <-> ConfiguracionTIBLL <-> ConfiguracionTIDAO <-> SQL Server.
+ * Flujo: Frontend <-> ConfiguracionTIController <-> ConfiguracionTIBLL <-> SQL Server.
  * Consideraciones: No contiene lógica de IA; los registros se activan/inactivan para conservar trazabilidad histórica.
  */
 
