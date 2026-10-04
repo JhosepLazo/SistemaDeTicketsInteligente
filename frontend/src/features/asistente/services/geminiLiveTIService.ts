@@ -62,7 +62,8 @@ export class GeminiLiveSesion {
     if (!navigator.mediaDevices?.getDisplayMedia) throw new Error('El navegador no permite compartir pantalla mediante MediaDevices.')
 
     this.deteniendo = false
-    this.pantalla = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 1 }, audio: false })
+    // 5 cuadros por segundo hacen fluida la grabación para TI; a Gemini se le sigue enviando 1 cuadro por segundo.
+    this.pantalla = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: { ideal: 5, max: 5 } }, audio: false })
     this.pantalla.getVideoTracks()[0]?.addEventListener('ended', () => {
       if (!this.deteniendo) {
         this.callbacks.onPantallaFinalizada?.()
@@ -125,6 +126,8 @@ export class GeminiLiveSesion {
   private async conectar(configuracion: AgenteTILiveTokenRespuesta) {
     const url = `${configuracion.webSocketUrl}?access_token=${encodeURIComponent(configuracion.token)}`
     this.socket = new WebSocket(url)
+    // Gemini Live envía sus mensajes JSON como tramas binarias; se reciben como ArrayBuffer y se decodifican en UTF-8.
+    this.socket.binaryType = 'arraybuffer'
 
     await new Promise<void>((resolve, reject) => {
       if (!this.socket) return reject(new Error('No fue posible crear la conexión Live.'))
@@ -142,13 +145,20 @@ export class GeminiLiveSesion {
               tools: configuracion.herramientas ?? undefined,
               inputAudioTranscription: {},
               outputAudioTranscription: {},
+              contextWindowCompression: { slidingWindow: {} },
             }
         this.socket?.send(JSON.stringify({ setup }))
       }
 
       this.socket.onmessage = event => {
+        let respuesta: RespuestaLive
         try {
-          const respuesta = JSON.parse(String(event.data)) as RespuestaLive
+          respuesta = JSON.parse(typeof event.data === 'string' ? event.data : new TextDecoder().decode(event.data as ArrayBuffer)) as RespuestaLive
+        } catch {
+          this.callbacks.onError?.('Se recibió una respuesta Live que no pudo interpretarse.')
+          return
+        }
+        try {
           if (respuesta.setupComplete && !this.listo) {
             window.clearTimeout(timeout)
             this.listo = true
@@ -159,8 +169,9 @@ export class GeminiLiveSesion {
             resolve()
           }
           this.procesarRespuesta(respuesta)
-        } catch {
-          this.callbacks.onError?.('Se recibió una respuesta Live que no pudo interpretarse.')
+        } catch (error) {
+          console.error('Error procesando la respuesta Live', error)
+          this.callbacks.onError?.('No se pudo procesar una respuesta de Gemini Live; la sesión continúa.')
         }
       }
 
@@ -168,11 +179,13 @@ export class GeminiLiveSesion {
         window.clearTimeout(timeout)
         reject(new Error('Se produjo un error en la conexión con Gemini Live.'))
       }
-      this.socket.onclose = () => {
+      this.socket.onclose = evento => {
         window.clearTimeout(timeout)
         const estabaListo = this.listo
         this.listo = false
-        if (!estabaListo) reject(new Error('Gemini Live cerró la conexión antes de iniciar la observación.'))
+        // Gemini explica en el motivo de cierre por qué rechazó la sesión (token vencido, configuración inválida, cuota).
+        const motivo = evento.reason ? ` Motivo: ${evento.reason}` : ''
+        if (!estabaListo) reject(new Error(`Gemini Live cerró la conexión antes de iniciar la observación.${motivo}`))
         else if (!this.deteniendo) {
           this.callbacks.onDesconexion?.()
           void this.detener()
@@ -259,6 +272,8 @@ export class GeminiLiveSesion {
 
   private procesarRespuesta(respuesta: RespuestaLive) {
     if (respuesta.toolCall?.functionCalls?.length) void this.atenderFunciones(respuesta.toolCall.functionCalls)
+    // Gemini avisa antes de cerrar la conexión (límite de ~10 minutos); la evidencia ya registrada no se pierde.
+    if (respuesta.goAway) this.callbacks.onEstado?.('La sesión de voz se cerrará en unos segundos por el límite de tiempo de Gemini. Lo registrado se conserva; luego podrás reanudarla.')
     const contenido = respuesta.serverContent
     if (!contenido) return
     const textoUsuario = contenido.inputTranscription?.text
@@ -312,6 +327,7 @@ export class GeminiLiveSesion {
 interface RespuestaLive {
   setupComplete?: Record<string, never>
   toolCall?: { functionCalls?: Array<{ id?: string; name?: string; args?: Record<string, unknown> }> }
+  goAway?: { timeLeft?: string }
   serverContent?: {
     inputTranscription?: { text?: string }
     outputTranscription?: { text?: string }

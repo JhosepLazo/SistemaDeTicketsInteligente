@@ -1,4 +1,4 @@
-/*
+﻿/*
 	Archivo: 30_AgenteFase4HerramientasDiagnostico.sql
 	Objetivo: Convertir el diagnóstico en una investigación de varios pasos con herramientas catalogadas de solo lectura y simular cambios antes de ejecutarlos.
 	Responsabilidad: Catalogar las herramientas diagnósticas (dbo.Usp_TI_AgenteDiag_*), registrar cada paso como evidencia del servidor,

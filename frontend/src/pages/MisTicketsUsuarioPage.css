@@ -962,3 +962,7 @@
   .mis-tickets-modal__resumen, .mis-tickets-modal__columnas, .mis-tickets-validacion-opciones { grid-template-columns: 1fr; }
   .mis-tickets-adjuntos-lista { grid-template-columns: 1fr; }
 }
+
+/* Grabaciones de pantalla que el colaborador adjuntó */
+.mis-tickets-videos { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.mis-tickets-videos video { width: 100%; max-height: 220px; border-radius: 8px; background: #0d2025; }

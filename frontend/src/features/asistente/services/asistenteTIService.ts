@@ -19,6 +19,8 @@ export interface AsistenteTIUsuarioPropuesto {
 }
 
 export interface AsistenteTIAccion {
+  /** Investigación creada desde la conversación (tipo INVESTIGACION). */
+  sesionNumero?: number | null
   tipo: string
   titulo: string
   tokenConfirmacion: string
@@ -68,6 +70,9 @@ export interface AgenteTISesion {
   usuarioTI: string
   nombreOperador: string
   esPropietario: boolean
+  /** Supervisión o responsable TI del ticket: puede tomar la investigación. */
+  puedeTomar?: boolean
+  usuarioTITicket?: string
   usuarioInvitado: string
   nombreInvitado: string
   estadoInvitacion: '' | 'PENDIENTE' | 'ACEPTADA' | 'RECHAZADA' | 'CANCELADA' | 'FINALIZADA' | 'VENCIDA'
@@ -372,6 +377,24 @@ export async function buscarCodigoInvestigacionTI(numero: number) {
 }
 export async function validarSolucionInvestigacionTI(numero: number) {
   await procesarSinContenido(await enviar(`/api/asistente/ti/investigaciones/${numero}/validar-solucion`, 'POST', { confirmar: true }), 'No se pudo validar la solución.')
+}
+/** Sube la grabación de la pantalla compartida durante la observación TI. */
+export async function subirGrabacionTI(numero: number, grabacion: Blob, duracionSegundos: number) {
+  const datos = new FormData()
+  datos.append('Archivo', new File([grabacion], 'grabacion-pantalla.webm', { type: 'video/webm' }))
+  datos.append('DuracionSegundos', String(Math.round(duracionSegundos)))
+  let respuesta: Response
+  try {
+    respuesta = await fetch(`/api/asistente/ti/investigaciones/${numero}/grabaciones`, { method: 'POST', credentials: 'include', body: datos })
+  } catch {
+    throw new Error('No fue posible subir la grabación de la pantalla.')
+  }
+  return procesar<{ eventoSecuencia: number }>(respuesta, 'No fue posible guardar la grabación de la pantalla.')
+}
+/** URL para reproducir una grabación en la consola (la cookie de sesión autoriza la descarga). */
+export const urlGrabacionTI = (numero: number, eventoSecuencia: number) => `/api/asistente/ti/investigaciones/${numero}/grabaciones/${eventoSecuencia}`
+export async function reabrirObservacionTI(numero: number) {
+  await procesarSinContenido(await enviar(`/api/asistente/ti/investigaciones/${numero}/reabrir`, 'POST'), 'No fue posible reabrir la observación.')
 }
 export async function simularCambioTI(numero: number) {
   return procesar<AgenteTISimulacionRespuesta>(await enviar(`/api/asistente/ti/investigaciones/${numero}/simular-cambio`, 'POST'), 'No se pudo simular el cambio.')

@@ -44,4 +44,20 @@ public sealed class AsistenteUsuarioAccion
     public string Tipo { get; set; } = string.Empty;
     public string Titulo { get; set; } = string.Empty;
     public string Detalle { get; set; } = string.Empty;
+    /// <summary>Mensaje de error exacto registrado al mostrar el problema en pantalla.</summary>
+    public string MensajeError { get; set; } = string.Empty;
+}
+
+/// <summary>Evidencia que el colaborador reunió al mostrar el error en pantalla; se convierte en un borrador de ticket.</summary>
+public sealed class EvidenciaReproduccionUsuarioSolicitud
+{
+    public string Descripcion { get; set; } = string.Empty;
+    public List<string> Pasos { get; set; } = [];
+    public string MensajeError { get; set; } = string.Empty;
+    public List<AsistenteUsuarioMensaje> Conversacion { get; set; } = [];
+}
+
+public sealed class LiveUsuarioSolicitud
+{
+    public string Descripcion { get; set; } = string.Empty;
 }

@@ -91,6 +91,20 @@ public sealed class GeminiLiveClient
     public Task<AgenteTILiveTokenRespuesta> CrearTokenUsuarioFinalAsync(string contextoTicket, CancellationToken ct) =>
         CrearTokenAsync(contextoTicket, ct, InstruccionUsuarioFinal);
 
+    // El colaborador muestra el error por iniciativa propia, antes de registrar el ticket: la evidencia alimentará su ticket.
+    private const string InstruccionAutodiagnostico = """
+        Eres el asistente de TI de Calimod. Un colaborador comparte su pantalla para mostrarte un problema antes de registrar su ticket.
+        Habla en español sencillo, amable y breve; evita términos técnicos. Pide un paso a la vez y confirma lo que ves.
+        Tu objetivo es que el colaborador repita exactamente lo que hizo hasta que aparezca el error, para que TI reciba pasos claros y el mensaje exacto.
+        Pregunta qué sistema, módulo y documento está usando y qué esperaba que ocurriera.
+        Puedes sugerir solo comprobaciones básicas y seguras: volver a intentarlo, revisar los datos que escribió, cerrar y abrir el sistema o recargar la página.
+        Nunca le pidas contraseñas ni códigos, no le pidas cambiar configuraciones ni instalar nada y no prometas soluciones ni plazos. Si aparecen datos sensibles, pídele ocultarlos.
+        Cuando el error aparezca, léelo en voz alta. Al terminar, recuérdale presionar "Terminar y preparar ticket" para enviar la evidencia a TI.
+        """;
+
+    public Task<AgenteTILiveTokenRespuesta> CrearTokenAutodiagnosticoAsync(string descripcionProblema, CancellationToken ct) =>
+        CrearTokenAsync(descripcionProblema, ct, InstruccionAutodiagnostico);
+
     public async Task<AgenteTILiveTokenRespuesta> CrearTokenAsync(string contextoInvestigacion, CancellationToken ct, string? instruccionBase = null)
     {
         var apiKey = ObtenerApiKey();
@@ -126,7 +140,10 @@ public sealed class GeminiLiveClient
                 ["systemInstruction"] = new JsonObject { ["parts"] = new JsonArray(new JsonObject { ["text"] = instruccion }) },
                 ["tools"] = FuncionesLive(),
                 ["inputAudioTranscription"] = new JsonObject(),
-                ["outputAudioTranscription"] = new JsonObject()
+                ["outputAudioTranscription"] = new JsonObject(),
+                // Sin compresión, Gemini corta las sesiones de audio + video a los 2 minutos; con ventana deslizante duran
+                // lo que dure la conexión (unos 10 minutos), suficiente para reproducir un error.
+                ["contextWindowCompression"] = new JsonObject { ["slidingWindow"] = new JsonObject() }
             };
 
         using var solicitud = new HttpRequestMessage(HttpMethod.Post, UrlTokens);

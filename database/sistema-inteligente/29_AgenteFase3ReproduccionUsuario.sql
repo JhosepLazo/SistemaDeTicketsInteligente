@@ -1,4 +1,4 @@
-/*
+﻿/*
 	Archivo: 29_AgenteFase3ReproduccionUsuario.sql
 	Objetivo: Incorporar al usuario final en la observación: TI lo invita, el usuario consiente y reproduce el error desde su portal.
 	Responsabilidad: Registrar la invitación y el consentimiento, recibir la evidencia Live del usuario y correlacionar su telemetría con la investigación.

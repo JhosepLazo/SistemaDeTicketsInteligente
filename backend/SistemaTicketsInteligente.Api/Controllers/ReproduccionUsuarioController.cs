@@ -48,6 +48,15 @@ public sealed class ReproduccionUsuarioController : ControllerBase
     public Task<IActionResult> RegistrarEvento(long sesionNumero, RegistrarEventoReproduccionSolicitud solicitud, CancellationToken ct) =>
         Ejecutar(async usuario => { await reproduccion.RegistrarEventoAsync(usuario, sesionNumero, solicitud, ct); return NoContent(); });
 
+    [HttpPost("{sesionNumero:long}/grabaciones")]
+    [RequestSizeLimit(50 * 1024 * 1024)]
+    public Task<IActionResult> SubirGrabacion(long sesionNumero, [FromForm] SubirGrabacionSolicitud solicitud, CancellationToken ct) =>
+        Ejecutar(async usuario =>
+        {
+            if (solicitud.Archivo is null) return BadRequest(new { mensaje = "Adjunta la grabación de la pantalla." });
+            return Ok(new { eventoSecuencia = await reproduccion.SubirGrabacionAsync(usuario, sesionNumero, solicitud.Archivo, solicitud.DuracionSegundos, ct) });
+        });
+
     [HttpPost("{sesionNumero:long}/finalizar")]
     public Task<IActionResult> Finalizar(long sesionNumero, CancellationToken ct) =>
         Ejecutar(async usuario => { await reproduccion.FinalizarAsync(usuario, sesionNumero, ct); return NoContent(); });

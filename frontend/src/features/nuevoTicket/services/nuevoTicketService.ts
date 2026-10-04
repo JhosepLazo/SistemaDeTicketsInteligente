@@ -62,8 +62,10 @@ export async function obtenerDatosNuevoTicket(): Promise<NuevoTicketDatos> {
   return respuesta.json() as Promise<NuevoTicketDatos>
 }
 
-export async function crearNuevoTicket(formulario: NuevoTicketFormulario): Promise<NuevoTicketCreado> {
+/** evidenciaAsistente: pasos, error y conversación que el colaborador mostró en pantalla; activa la investigación automática de TI. */
+export async function crearNuevoTicket(formulario: NuevoTicketFormulario, evidenciaAsistente?: unknown): Promise<NuevoTicketCreado> {
   const datos = new FormData()
+  if (evidenciaAsistente) datos.append('EvidenciaAsistenteJson', JSON.stringify(evidenciaAsistente))
   datos.append('Linea', formulario.linea)
   datos.append('Tipo', formulario.tipo)
   datos.append('Titulo', formulario.titulo)

@@ -27,7 +27,7 @@ function Invoke-SqlFile {
     }
 
     Write-Host "Ejecutando $([IO.Path]::GetFileName($Path))"
-    & $sqlcmd.Source -S . -E -C -l 20 -b -i $Path
+    & $sqlcmd.Source -S . -E -C -l 20 -b -f 65001 -i $Path
     if ($LASTEXITCODE -ne 0) {
         throw "Falló el script $Path con código $LASTEXITCODE."
     }
@@ -52,7 +52,7 @@ Begin
 End;
 '@
 
-& $sqlcmd.Source -S . -E -C -l 20 -b -Q $eliminar
+& $sqlcmd.Source -S . -E -C -l 20 -b -f 65001 -Q $eliminar
 if ($LASTEXITCODE -ne 0) {
     throw "No se pudieron eliminar las bases locales anteriores. Código $LASTEXITCODE."
 }
@@ -91,7 +91,10 @@ $scriptsAplicacion = @(
     '27_AgenteFase1Integracion.sql',
     '28_AgenteFase2Integracion.sql',
     '29_AgenteFase3ReproduccionUsuario.sql',
-    '30_AgenteFase4HerramientasDiagnostico.sql'
+    '30_AgenteFase4HerramientasDiagnostico.sql',
+    '31_AgenteFase5ConocimientoSemantico.sql',
+    '32_AgenteFase6ReplicaTecnica.sql',
+    '33_AgenteFase6Mejoras.sql'
 )
 
 foreach ($nombre in $scriptsAplicacion) {

@@ -94,6 +94,44 @@ $env:AsistenteIA__Proveedor = "Gemini"
 $env:AsistenteIA__ModeloGemini = "gemini-3.5-flash"
 ```
 
+Los modelos gratuitos de Gemini se saturan por momentos (error 503). El sistema recorre una cadena de modelos (`AsistenteIA:ModelosGeminiRespaldo`) y recuerda unos minutos cuáles están saturados para no esperarlos otra vez; el análisis de grabaciones usa `AsistenteIA:ModeloGeminiVideo`. Si todos fallan, el agente continúa sin IA con la evidencia reunida.
+
+Cada modelo tiene un tiempo máximo propio: `AsistenteIA:SegundosPorModeloChat` (25 s, chat) y `AsistenteIA:SegundosPorModelo` (75 s, borradores e investigación). Si un modelo no responde a tiempo, se marca como saturado y se prueba el siguiente. `AsistenteIA:MaxTokens` debe ser al menos 1800: los modelos con razonamiento gastan parte de ese límite pensando y, con menos, la respuesta queda cortada. El borrador del ticket y el diagnóstico se piden con un esquema JSON y reservan su propio espacio.
+
+La investigación con herramientas dura como máximo `AgenteTI:TiempoMaximoInvestigacionSegundos` (240 s). Al vencer, el agente deja de pedir herramientas y entrega el diagnóstico con lo reunido (tiene 90 s más para esa respuesta). Una herramienta que agota su tiempo dos veces, o que falla cuatro veces seguidas, se desactiva en esa investigación.
+
+### Réplica técnica: código fuente y base de datos de cada sistema
+
+El Agente de Ingeniería puede buscar el mensaje de error en el código fuente y en los procedimientos de un sistema, leer esa lógica, revisar la estructura de las tablas y comprobar la condición con un `SELECT` de solo lectura. Cada sistema se registra en `AgenteTI:Sistemas` (en `appsettings.Local.json` están de ejemplo este portal y la réplica local de Spring):
+
+```json
+"AgenteTI": {
+  "OperadorAutomatico": "SUP001",
+  "Sistemas": [
+    { "Codigo": "ERP_SPRING", "Nombre": "ERP Spring", "Lineas": ["115"], "ConexionLectura": "CnnSpringLectura",
+      "RutaCodigo": "D:\Fuentes\Spring", "ConsultasLibres": true, "ColumnasSensibles": ["Sueldo", "Cuenta", "Clave"] }
+  ]
+}
+```
+
+- `Lineas`: líneas de ticket que pertenecen al sistema; con ellas el agente busca el error automáticamente.
+- `ConexionLectura`: nombre de una cadena en `ConnectionStrings`. En producción debe usar un login **solo lectura** (`db_datareader`, sin permisos de ejecución ni escritura). Además, cada consulta se valida con el analizador oficial de T-SQL (solo un `SELECT`, sin `INTO`, servidores vinculados, otras bases, funciones de usuario ni columnas sensibles) y se ejecuta en una transacción que siempre se revierte, con un máximo de 50 filas y 30 segundos por consulta.
+- `RutaCodigo`: carpeta del código fuente (`@repositorio` usa este portal). Se excluyen configuraciones, credenciales y compilados.
+- `ConsultasLibres`: `false` deja al agente solo con metadatos y definiciones, sin consultar datos.
+- `ColumnasSensibles`: fragmentos de nombre de columna que nunca se consultan ni se muestran (por ejemplo, `Sueldo` protege `SueldoActualLocal`).
+- `OperadorAutomatico`: responsable de las investigaciones que el agente inicia solo cuando el ticket todavía no tiene responsable TI.
+
+Para buscar un texto en la base, la API lee una vez las definiciones de procedimientos, vistas, funciones y triggers de cada sistema (hasta 12 millones de caracteres) y las busca en memoria, sin distinguir mayúsculas ni tildes. Solo vuelve a leerlas si cambió algún objeto. Si el catálogo es más grande, busca directamente en el servidor. El mensaje se busca completo y también sin sus datos variables: "…punto de emisión T003." encuentra el literal `'…punto de emisión ' + @punto` del procedimiento.
+
+**SQL Server local con poca memoria.** En un equipo de 6 GB con otras aplicaciones abiertas, Windows puede dejar a SQL Server casi sin memoria. Los síntomas son el error 802 ("No hay suficiente memoria disponible en el grupo de búferes"), esperas `RESOURCE_SEMAPHORE` y lecturas de minutos. En este equipo se fijó un mínimo garantizado:
+
+```sql
+Exec sp_configure 'show advanced options', 1; Reconfigure;
+Exec sp_configure 'min server memory (MB)', 512; Reconfigure;   -- para revertir: 0
+```
+
+Cuando el colaborador muestra su error en pantalla (por invitación de TI o desde su asistente), la pantalla se graba con su consentimiento, la grabación queda en el ticket, el agente la analiza, replica técnicamente el proceso, diagnostica y notifica al responsable TI. Ninguna de estas tareas modifica datos.
+
 Después de definir la variable, se debe reiniciar la API. Si la clave no existe o el proveedor no está disponible, el sistema vuelve automáticamente al modo de conocimiento local. Nunca se debe colocar la clave en React ni en un archivo versionado.
 
 El asistente operativo para TI está disponible para los perfiles `TEC`, `SUP` y `ADM`. Consulta los catálogos vigentes de áreas, líneas, ítems, tipos, categorías, SLA, formatos, conocimiento y usuarios. También puede preparar la creación o actualización de un usuario corporativo a partir de una instrucción como:
@@ -103,6 +141,14 @@ Crea el usuario JPEREZ en el area 021 con perfil USR y correo jperez@empresa.com
 ```
 
 La operación valida los catálogos, muestra una propuesta y exige confirmación manual mediante un token firmado que vence en 10 minutos. No crea identidades ni contraseñas: el usuario debe existir previamente en Spring y la API reutiliza el flujo corporativo de sincronización. En `Local` la ejecución permanece bloqueada porque `IdentidadCorporativa:Habilitada` es `false`; en `Empresa` se habilita mediante la conexión corporativa ya configurada.
+
+## Arranque rápido (local)
+
+```powershell
+.\IniciarProyecto.ps1
+```
+
+Verifica que SQL Server esté encendido y que no haya otra API en el puerto 5000, carga las claves de IA guardadas como variables de usuario, abre el frontend si no está corriendo y compila e inicia la API con el perfil `Local`. Si cambió el código del backend, la API debe reiniciarse para tomarlo.
 
 ## Backend
 

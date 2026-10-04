@@ -1,4 +1,4 @@
-/*
+﻿/*
 	Archivo: 28_AgenteFase2Integracion.sql
 	Objetivo: Integrar las investigaciones del agente con Gestión de Tickets y habilitar la supervisión de TI.
 	Responsabilidad: Permitir que SUP/ADM consulten y reasignen investigaciones, exponer los expedientes del agente desde el ticket,

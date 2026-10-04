@@ -3,7 +3,8 @@
  * Objetivo: Ejecutar la investigación de varios pasos del Agente de Ingeniería con herramientas diagnósticas de solo lectura.
  * Responsabilidad: Validar los parámetros que propone el modelo contra el esquema catalogado, ejecutar la herramienta, registrar cada paso
  *   como evidencia del servidor y devolver al modelo un resultado acotado y sin datos sensibles.
- * Dependencias: AsistenteTIDAO (catálogo y ejecución), OpenAIAsistenteClient (bucle con function calling) e IConfiguration.
+ * Dependencias: AsistenteTIDAO (catálogo y ejecución), ConocimientoSemanticoBLL, ReplicaTecnicaBLL y AnalizadorGrabacionClient (herramientas internas),
+ *   OpenAIAsistenteClient (bucle con function calling) e IConfiguration.
  * Flujo: herramientas automáticas -> modelo decide herramientas adicionales -> resultado estructurado (JSON Schema estricto).
  * Consideraciones: El modelo elige herramienta y parámetros, nunca el procedimiento ni el SQL. Cada herramienta corre en una transacción
  *   que siempre se revierte. Los resultados son datos, nunca instrucciones para el modelo.
@@ -13,6 +14,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using System.Text.Encodings.Web;
 using System.Text.Json.Nodes;
 using SistemaTicketsInteligente.Api.DAO;
 using SistemaTicketsInteligente.Api.DTO;
@@ -23,24 +25,38 @@ public sealed class InvestigadorAgenteTI
 {
     public const string OrigenAutomatico = "AUTOMATICA";
     public const string OrigenModelo = "MODELO";
-    private const int MaximoCaracteresResultado = 6000;
+    public const string HerramientaSemantica = "DIAG_CONOCIMIENTO_SEMANTICO";
+    public const string HerramientaGrabacion = "DIAG_ANALIZAR_GRABACION";
+    private const int MaximoCaracteresResultado = 9000;
+    // Sin escapar tildes ni eñes: el modelo lee "ó" y no "\u00F3" (menos tokens y búsquedas literales correctas).
+    private static readonly JsonSerializerOptions JsonLegible = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
     private static readonly string[] FuentesHallazgo =
-        ["LIVE", "TICKET", "TELEMETRIA", "HERRAMIENTA", "AUDITORIA", "BASE_CONOCIMIENTO", "DOCUMENTO", "CODIGO_ESTATICO", "OBSERVACION_USUARIO"];
+        ["LIVE", "GRABACION", "TICKET", "TELEMETRIA", "HERRAMIENTA", "CODIGO_FUENTE", "BASE_DATOS", "AUDITORIA", "BASE_CONOCIMIENTO", "DOCUMENTO", "CODIGO_ESTATICO", "OBSERVACION_USUARIO"];
 
     private readonly AsistenteTIDAO agenteDAO;
+    private readonly ConocimientoSemanticoBLL conocimiento;
+    private readonly ReplicaTecnicaBLL replica;
+    private readonly AnalizadorGrabacionClient analizador;
     private readonly OpenAIAsistenteClient openAI;
     private readonly IConfiguration configuration;
     private readonly ILogger<InvestigadorAgenteTI> logger;
 
-    public InvestigadorAgenteTI(AsistenteTIDAO agenteDAO, OpenAIAsistenteClient openAI, IConfiguration configuration, ILogger<InvestigadorAgenteTI> logger)
+    public InvestigadorAgenteTI(AsistenteTIDAO agenteDAO, ConocimientoSemanticoBLL conocimiento, ReplicaTecnicaBLL replica, AnalizadorGrabacionClient analizador,
+        OpenAIAsistenteClient openAI, IConfiguration configuration, ILogger<InvestigadorAgenteTI> logger)
     {
         this.agenteDAO = agenteDAO;
+        this.conocimiento = conocimiento;
+        this.replica = replica;
+        this.analizador = analizador;
         this.openAI = openAI;
         this.configuration = configuration;
         this.logger = logger;
     }
 
-    public int MaximoPasosModelo => Math.Clamp(configuration.GetValue<int?>("AgenteTI:MaxPasosHerramientas") ?? 5, 0, 10);
+    public int MaximoPasosModelo => Math.Clamp(configuration.GetValue<int?>("AgenteTI:MaxPasosHerramientas") ?? 8, 0, 15);
+
+    /// <summary>Hay sistemas con código o base de datos configurados: el agente puede replicar técnicamente el proceso.</summary>
+    public bool ReplicaDisponible => replica.HayCodigo || replica.HayBaseDatos;
 
     public async Task<InvestigacionEnCurso> IniciarAsync(string usuario, string area, AgenteTIContextoInvestigacion contexto, CancellationToken ct)
     {
@@ -54,16 +70,90 @@ public sealed class InvestigadorAgenteTI
         }
 
         var tieneTicket = !string.IsNullOrWhiteSpace(contexto.Sesion.IncidenciaNumero);
-        return new InvestigacionEnCurso(usuario, area, contexto.Sesion.SesionNumero,
-            herramientas.Where(x => tieneTicket || !x.RequiereTicket).ToList());
+        var grabaciones = Grabaciones(contexto);
+        // Las herramientas internas solo se ofrecen si su recurso existe (embeddings, grabación, código o base configurados).
+        var disponibles = herramientas
+            .Where(x => tieneTicket || !x.RequiereTicket)
+            .Where(x => x.Tipo != "INTERNA" || HerramientaInternaDisponible(x.HerramientaCodigo, grabaciones.Count > 0))
+            .ToList();
+        var problema = string.Join(". ", new[]
+        {
+            contexto.Sesion.DescripcionInicial, contexto.Sesion.ErrorObservado, contexto.Ticket.Titulo, contexto.Ticket.MensajeError
+        }.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct());
+        return new InvestigacionEnCurso(usuario, area, contexto.Sesion.SesionNumero, disponibles)
+        {
+            TextoProblema = Limitar(problema, 1500),
+            Excluir = string.IsNullOrWhiteSpace(contexto.Sesion.IncidenciaNumero) ? [] : [contexto.Sesion.IncidenciaNumero],
+            TextoError = Limitar(string.IsNullOrWhiteSpace(contexto.Sesion.ErrorObservado) ? contexto.Ticket.MensajeError : contexto.Sesion.ErrorObservado, 200),
+            Grabaciones = grabaciones,
+            SistemasTicket = replica.SistemasDeLinea(contexto.Ticket.Linea)
+        };
+    }
+
+    private bool HerramientaInternaDisponible(string codigo, bool hayGrabacion) => codigo switch
+    {
+        HerramientaSemantica => conocimiento.Disponible,
+        HerramientaGrabacion => hayGrabacion && analizador.Disponible,
+        "DIAG_CODIGO_BUSCAR" or "DIAG_CODIGO_LEER" => replica.HayCodigo,
+        "DIAG_BD_BUSCAR" or "DIAG_BD_DEFINICION" or "DIAG_BD_ESTRUCTURA" => replica.HayBaseDatos,
+        "DIAG_BD_CONSULTAR" => replica.HayConsultas,
+        _ => false
+    };
+
+    private static List<GrabacionEvidencia> Grabaciones(AgenteTIContextoInvestigacion contexto)
+    {
+        var lista = new List<GrabacionEvidencia>();
+        foreach (var evento in contexto.Eventos.Where(x => x.OrigenServidor && x.Tipo == "GRABACION_PANTALLA").OrderBy(x => x.Secuencia))
+        {
+            try
+            {
+                using var documento = JsonDocument.Parse(evento.DatosJson);
+                var ruta = documento.RootElement.TryGetProperty("ruta", out var r) ? r.GetString() : null;
+                var mime = documento.RootElement.TryGetProperty("tipoMime", out var m) ? m.GetString() : null;
+                if (!string.IsNullOrWhiteSpace(ruta)) lista.Add(new GrabacionEvidencia(evento.Secuencia, ruta, string.IsNullOrWhiteSpace(mime) ? "video/webm" : mime, evento.Fuente == "LIVE_USUARIO"));
+            }
+            catch (JsonException) { /* un evento ilegible no impide la investigación */ }
+        }
+        return lista;
     }
 
     /// <summary>Ejecuta las herramientas marcadas como automáticas con sus parámetros por defecto, antes de consultar al modelo.</summary>
     public async Task EjecutarAutomaticasAsync(InvestigacionEnCurso investigacion, CancellationToken ct)
     {
-        foreach (var herramienta in investigacion.Herramientas.Where(x => x.Automatica))
+        // Primero la grabación (puede revelar el texto exacto del error), al final la búsqueda en código y base con ese texto.
+        foreach (var herramienta in investigacion.Herramientas.Where(x => x.Automatica).OrderBy(x => PrioridadAutomatica(x.HerramientaCodigo)))
+        {
+            if (herramienta.HerramientaCodigo is "DIAG_CODIGO_BUSCAR" or "DIAG_BD_BUSCAR")
+            {
+                // Solo en los sistemas asociados a la línea del ticket y si hay un mensaje de error que buscar.
+                if (string.IsNullOrWhiteSpace(investigacion.TextoError)) continue;
+                var validos = replica.CodigosPara(herramienta.HerramientaCodigo);
+                foreach (var sistema in investigacion.SistemasTicket.Where(x => validos.Contains(x, StringComparer.OrdinalIgnoreCase)).Take(2))
+                {
+                    if (Desactivada(investigacion, herramienta.HerramientaCodigo)) break;
+                    await EjecutarAsync(investigacion, herramienta, new JsonObject { ["sistema"] = sistema, ["texto"] = investigacion.TextoError }.ToJsonString(), OrigenAutomatico, ct);
+                }
+                continue;
+            }
             await EjecutarAsync(investigacion, herramienta, "{}", OrigenAutomatico, ct);
+        }
     }
+
+    // Dos tiempos agotados (o cuatro errores seguidos) desactivan la herramienta en la investigación: con la base lenta,
+    // el modelo repetía la misma búsqueda con variantes y gastaba todo el tiempo disponible.
+    private const int LimiteFallosHerramienta = 4;
+    private static readonly TimeSpan MargenRespuestaFinal = TimeSpan.FromSeconds(90);
+
+    private static bool Desactivada(InvestigacionEnCurso investigacion, string codigo) =>
+        investigacion.Fallos.GetValueOrDefault(codigo) >= LimiteFallosHerramienta;
+
+    private static int PrioridadAutomatica(string codigo) => codigo switch
+    {
+        HerramientaGrabacion => 0,
+        "DIAG_CODIGO_BUSCAR" or "DIAG_BD_BUSCAR" => 3,
+        HerramientaSemantica => 2,
+        _ => 1
+    };
 
     /// <summary>
     /// Bucle agéntico: el modelo recibe el contexto y los pasos automáticos y puede pedir más herramientas.
@@ -73,18 +163,23 @@ public sealed class InvestigadorAgenteTI
     {
         var maximo = MaximoPasosModelo;
         var definiciones = investigacion.Herramientas
-            .Select(x => new HerramientaIA(x.HerramientaCodigo, x.Descripcion, EsquemaParaModelo(x.ParametrosEsquemaJson)))
+            .Where(x => !Desactivada(investigacion, x.HerramientaCodigo))
+            .Select(x => new HerramientaIA(x.HerramientaCodigo, x.Descripcion, EsquemaParaModelo(x.ParametrosEsquemaJson, replica.CodigosPara(x.HerramientaCodigo))))
             .ToList();
 
+        // Al vencer el tiempo configurado ya no se piden herramientas y el modelo responde con lo reunido; la respuesta final tiene
+        // un margen propio, para no perder toda la investigación por una última herramienta o un modelo lento.
+        var tiempo = TimeSpan.FromSeconds(Math.Clamp(configuration.GetValue<int?>("AgenteTI:TiempoMaximoInvestigacionSegundos") ?? 240, 30, 600));
+        using var cierre = new CancellationTokenSource(tiempo);
         using var limite = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        limite.CancelAfter(TimeSpan.FromSeconds(Math.Clamp(configuration.GetValue<int?>("AgenteTI:TiempoMaximoInvestigacionSegundos") ?? 150, 30, 600)));
+        limite.CancelAfter(tiempo + MargenRespuestaFinal);
 
         string? salida;
         try
         {
             salida = await openAI.GenerarConHerramientasAsync(instrucciones, entrada, definiciones,
                 (nombre, argumentos, token) => EjecutarSolicitudModeloAsync(investigacion, nombre, argumentos, token),
-                "diagnostico_agente", EsquemaDiagnostico(), maximo, limite.Token);
+                "diagnostico_agente", EsquemaDiagnostico(), maximo, limite.Token, cierre.Token);
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
@@ -136,6 +231,8 @@ public sealed class InvestigadorAgenteTI
     {
         var herramienta = investigacion.Herramientas.FirstOrDefault(x => string.Equals(x.HerramientaCodigo, nombre, StringComparison.Ordinal));
         if (herramienta is null) return Error($"La herramienta {nombre} no está disponible en esta investigación.");
+        if (Desactivada(investigacion, herramienta.HerramientaCodigo))
+            return Error($"La herramienta {nombre} quedó desactivada en esta investigación porque falló varias veces seguidas. No la vuelvas a pedir: usa otra herramienta o responde con la evidencia reunida.");
         if (!ValidarParametros(herramienta.ParametrosEsquemaJson, argumentos, out var normalizados, out var motivo)) return Error(motivo);
 
         var clave = $"{herramienta.HerramientaCodigo}|{normalizados}";
@@ -153,24 +250,38 @@ public sealed class InvestigadorAgenteTI
         };
         var cronometro = Stopwatch.StartNew();
         AgenteTIHerramientaResultado? resultado = null;
+        var tiempoAgotado = false;
         try
         {
-            resultado = await agenteDAO.EjecutarHerramientaAsync(herramienta.Procedimiento, investigacion.Usuario, investigacion.Area, investigacion.SesionNumero, parametrosJson, herramienta.MaximoFilas, ct);
+            resultado = herramienta.Tipo == "INTERNA"
+                ? await EjecutarInternaAsync(investigacion, herramienta, parametrosJson, ct)
+                : await agenteDAO.EjecutarHerramientaAsync(herramienta.Procedimiento, investigacion.Usuario, investigacion.Area, investigacion.SesionNumero, parametrosJson, herramienta.MaximoFilas, ct);
             paso.Filas = resultado.Filas.Count;
             paso.Truncado = resultado.Truncado;
             paso.Resumen = Resumir(resultado.Filas);
         }
-        catch (InvalidOperationException ex)
+        catch (Exception ex) when (ex is InvalidOperationException or KeyNotFoundException)
         {
             paso.Error = Limitar(ex.Message, 500);
         }
-        catch (Exception ex) when (ex is Microsoft.Data.SqlClient.SqlException or TimeoutException)
+        // Tiempo agotado: el servidor no va a responder distinto a una variante del mismo pedido, así que se le dice al modelo que no insista.
+        catch (Exception ex) when (ex is TimeoutException || (ex is OperationCanceledException && !ct.IsCancellationRequested))
+        {
+            logger.LogWarning("La herramienta {Herramienta} no respondió a tiempo en la sesión {Sesion}: {Motivo}", herramienta.HerramientaCodigo, investigacion.SesionNumero, ex.Message);
+            tiempoAgotado = true;
+            paso.Error = Limitar((ex is TimeoutException ? ex.Message : "La herramienta superó su tiempo máximo.")
+                + " No la repitas con variantes del mismo texto; continúa con otras herramientas o con la evidencia reunida.", 500);
+        }
+        // Un paso que falla queda registrado con su motivo y la investigación sigue con el resto de la evidencia.
+        catch (Exception ex) when (ex is Microsoft.Data.SqlClient.SqlException or HttpRequestException or IOException or JsonException or UnauthorizedAccessException)
         {
             logger.LogWarning(ex, "La herramienta {Herramienta} falló en la sesión {Sesion}.", herramienta.HerramientaCodigo, investigacion.SesionNumero);
             paso.Error = "La herramienta no respondió correctamente; se continúa con la evidencia disponible.";
         }
         paso.DuracionMs = cronometro.ElapsedMilliseconds;
         investigacion.Pasos.Add(paso);
+        investigacion.Fallos[herramienta.HerramientaCodigo] = string.IsNullOrEmpty(paso.Error)
+            ? 0 : investigacion.Fallos.GetValueOrDefault(herramienta.HerramientaCodigo) + (tiempoAgotado ? 2 : 1);
 
         var respuestaModelo = string.IsNullOrEmpty(paso.Error)
             ? SerializarParaModelo(herramienta.HerramientaCodigo, resultado!, out var ocultados)
@@ -186,17 +297,82 @@ public sealed class InvestigadorAgenteTI
                 ["herramienta"] = herramienta.HerramientaCodigo, ["nombre"] = herramienta.Nombre, ["origen"] = origen,
                 ["parametros"] = JsonNode.Parse(parametrosJson), ["filas"] = paso.Filas, ["truncado"] = paso.Truncado,
                 ["duracionMs"] = paso.DuracionMs, ["resumen"] = paso.Resumen, ["error"] = string.IsNullOrEmpty(paso.Error) ? null : paso.Error,
-                ["muestra"] = resultado is null ? null : RedactorDatosSensibles.RedactarSecretos(Limitar(JsonSerializer.Serialize(resultado.Filas.Take(15)), 8000))
+                ["muestra"] = resultado is null ? null : RedactorDatosSensibles.RedactarSecretos(Limitar(JsonSerializer.Serialize(resultado.Filas.Take(15), JsonLegible), 8000))
             };
             var contenido = $"{herramienta.Nombre} ({herramienta.HerramientaCodigo}) · {(origen == OrigenModelo ? "solicitada por el agente" : "automática")} · " +
                 (string.IsNullOrEmpty(paso.Error) ? $"{paso.Filas} fila(s){(paso.Truncado ? " (truncado)" : string.Empty)}" : $"error: {paso.Error}");
-            await agenteDAO.RegistrarHerramientaAsync(investigacion.Usuario, investigacion.SesionNumero, herramienta.HerramientaCodigo, origen, Limitar(contenido, 2000), datos.ToJsonString(), ct);
+            await agenteDAO.RegistrarHerramientaAsync(investigacion.Usuario, investigacion.SesionNumero, herramienta.HerramientaCodigo, origen, Limitar(contenido, 2000), datos.ToJsonString(JsonLegible), ct);
         }
         catch (Exception ex) when (ex is InvalidOperationException or Microsoft.Data.SqlClient.SqlException)
         {
             logger.LogWarning(ex, "No se pudo registrar el paso {Herramienta} de la sesión {Sesion}.", herramienta.HerramientaCodigo, investigacion.SesionNumero);
         }
         return paso;
+    }
+
+    // Herramientas que no son procedimientos: hoy, la búsqueda semántica sobre conocimiento y casos resueltos (solo lectura).
+    private async Task<AgenteTIHerramientaResultado> EjecutarInternaAsync(InvestigacionEnCurso investigacion, AgenteTIHerramienta herramienta, string parametrosJson, CancellationToken ct)
+    {
+        using var parametros = JsonDocument.Parse(parametrosJson);
+        string Texto(string nombre) => parametros.RootElement.TryGetProperty(nombre, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString()!.Trim() : string.Empty;
+        int Entero(string nombre, int defecto) => parametros.RootElement.TryGetProperty(nombre, out var v) && v.ValueKind == JsonValueKind.Number && v.TryGetInt32(out var n) ? n : defecto;
+
+        switch (herramienta.HerramientaCodigo)
+        {
+            case HerramientaGrabacion: return await AnalizarGrabacionAsync(investigacion, ct);
+            case "DIAG_CODIGO_BUSCAR": return await Task.Run(() => replica.BuscarCodigo(Texto("sistema"), Texto("texto"), herramienta.MaximoFilas), ct);
+            case "DIAG_CODIGO_LEER": return await Task.Run(() => replica.LeerCodigo(Texto("sistema"), Texto("archivo"), Math.Max(1, Entero("desde", 1))), ct);
+            case "DIAG_BD_BUSCAR": return await replica.BuscarEnBaseDatosAsync(Texto("sistema"), Texto("texto"), herramienta.MaximoFilas, ct);
+            case "DIAG_BD_DEFINICION": return await replica.DefinicionAsync(Texto("sistema"), Texto("objeto"), Math.Max(1, Entero("desde", 1)), ct);
+            case "DIAG_BD_ESTRUCTURA": return await replica.EstructuraAsync(Texto("sistema"), Texto("tabla"), ct);
+            case "DIAG_BD_CONSULTAR": return await replica.ConsultarAsync(Texto("sistema"), Texto("sql"), herramienta.MaximoFilas, ct);
+            case HerramientaSemantica: break;
+            default: throw new InvalidOperationException("La herramienta interna no está implementada en este servidor.");
+        }
+        if (!conocimiento.Disponible) throw new InvalidOperationException("La búsqueda semántica no está disponible con el proveedor de IA configurado.");
+
+        var consulta = Texto("consulta");
+        if (consulta.Length == 0) consulta = investigacion.TextoProblema;
+        if (consulta.Trim().Length < 5) throw new InvalidOperationException("No hay una descripción del problema suficiente para buscar casos similares.");
+
+        var similares = await conocimiento.BuscarAsync(consulta, soloUsuario: false, herramienta.MaximoFilas, investigacion.Excluir, ct);
+        return new AgenteTIHerramientaResultado
+        {
+            Filas = similares.Select(x => new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Fuente"] = x.Origen == "K" ? "Guía de conocimiento" : "Ticket resuelto",
+                ["Codigo"] = x.Codigo, ["Titulo"] = x.Titulo, ["Similitud"] = $"{x.Similitud:0.#}%", ["Contenido"] = x.Extracto
+            }).ToList()
+        };
+    }
+
+    // El agente "mira" la grabación: pasos con su segundo, datos usados y el error exacto, que además alimenta la búsqueda en código y base.
+    private async Task<AgenteTIHerramientaResultado> AnalizarGrabacionAsync(InvestigacionEnCurso investigacion, CancellationToken ct)
+    {
+        var grabacion = investigacion.Grabaciones.LastOrDefault(x => x.UsuarioFinal) ?? investigacion.Grabaciones.LastOrDefault()
+            ?? throw new InvalidOperationException("La investigación no tiene grabaciones de pantalla.");
+        var analisis = await analizador.AnalizarAsync(AlmacenGrabaciones.Resolver(grabacion.Ruta), grabacion.TipoMime, investigacion.TextoProblema, ct);
+        static string Valor(JsonNode? nodo) => nodo is null ? string.Empty : nodo.GetValueKind() == JsonValueKind.String ? nodo.GetValue<string>().Trim() : nodo.ToJsonString();
+        Dictionary<string, object?> Fila(string tipo, string? segundo, string pantalla, string accion, string detalle) => new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Tipo"] = tipo, ["Segundo"] = segundo, ["Pantalla"] = Limitar(pantalla, 120), ["Accion"] = Limitar(accion, 300), ["Detalle"] = Limitar(detalle, 400)
+        };
+
+        var resultado = new AgenteTIHerramientaResultado();
+        resultado.Filas.Add(Fila("RESUMEN", null, Valor(analisis["sistema"]), string.Empty, Valor(analisis["resumen"])));
+        var error = Valor(analisis["errorExacto"]);
+        if (error.Length > 0)
+        {
+            resultado.Filas.Add(Fila("ERROR", null, string.Empty, string.Empty, error));
+            if (string.IsNullOrWhiteSpace(investigacion.TextoError)) investigacion.TextoError = Limitar(error, 200);
+        }
+        if (analisis["pasos"] is JsonArray pasos)
+            foreach (var paso in pasos.Take(25))
+                resultado.Filas.Add(Fila("PASO", Valor(paso?["segundo"]), Valor(paso?["pantalla"]), Valor(paso?["accion"]), Valor(paso?["datos"])));
+        if (analisis["datosClave"] is JsonArray datos)
+            foreach (var dato in datos.Take(10))
+                resultado.Filas.Add(Fila("DATO", null, Valor(dato?["dato"]), string.Empty, Valor(dato?["valor"])));
+        return resultado;
     }
 
     /// <summary>Convierte los pasos exitosos en evidencia verificable del expediente.</summary>
@@ -208,10 +384,28 @@ public sealed class InvestigadorAgenteTI
     public static List<AgenteTIHallazgo> HallazgosVerificados(IEnumerable<AgenteTIHallazgo> hallazgos, IEnumerable<string> referenciasConocidas, string textoFuentes)
     {
         var conocidas = new HashSet<string>(referenciasConocidas.Where(x => !string.IsNullOrWhiteSpace(x)), StringComparer.OrdinalIgnoreCase);
+        static string SinLinea(string referencia) => System.Text.RegularExpressions.Regex.Replace(referencia.Trim(), @"[:#]\s*(?:l[ií]nea\s*)?\d+$", string.Empty, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         return hallazgos
-            .Where(x => x.Referencia.Length is > 0 and <= 120 && x.Descripcion.Length > 0)
-            .Where(x => conocidas.Contains(x.Referencia) || (x.Referencia.Length >= 4 && textoFuentes.Contains(x.Referencia, StringComparison.OrdinalIgnoreCase)))
+            .Where(x => x.Referencia.Length is > 0 and <= 200 && x.Descripcion.Length > 0)
+            .Where(x => conocidas.Contains(x.Referencia)
+                || (x.Referencia.Length >= 4 && textoFuentes.Contains(x.Referencia, StringComparison.OrdinalIgnoreCase))
+                // "archivo.cs:120" u "objeto:30": basta que el archivo u objeto aparezca en la evidencia.
+                || (SinLinea(x.Referencia).Length >= 4 && textoFuentes.Contains(SinLinea(x.Referencia), StringComparison.OrdinalIgnoreCase)))
             .ToList();
+    }
+
+    public string DescribirSistemas(InvestigacionEnCurso investigacion)
+    {
+        var disponibles = replica.Disponibles;
+        if (disponibles.Count == 0) return string.Empty;
+        var sb = new StringBuilder();
+        sb.AppendLine("SISTEMAS INVESTIGABLES (código fuente y base de datos de solo lectura):");
+        foreach (var sistema in disponibles)
+            sb.AppendLine($"- {sistema.Codigo}: {sistema.Nombre} · código fuente: {(sistema.TieneCodigo ? "sí" : "no")} · base de datos: {(sistema.TieneBaseDatos ? "sí" : "no")} · consultas SELECT: {(sistema.PermiteConsultas ? "sí" : "no")}");
+        sb.AppendLine(investigacion.SistemasTicket.Count > 0
+            ? $"La línea del ticket corresponde a: {string.Join(", ", investigacion.SistemasTicket)}."
+            : "La línea del ticket no está asociada a un sistema investigable; usa uno solo si la evidencia indica que el problema ocurre en él.");
+        return sb.ToString();
     }
 
     public static string DescribirParaModelo(InvestigacionEnCurso investigacion)
@@ -233,22 +427,33 @@ public sealed class InvestigadorAgenteTI
         {
             var nodo = JsonSerializer.SerializeToNode(fila);
             filas.Add(nodo);
-            if (filas.ToJsonString().Length > MaximoCaracteresResultado)
+            if (filas.ToJsonString(JsonLegible).Length > MaximoCaracteresResultado)
             {
                 filas.RemoveAt(filas.Count - 1);
                 truncado = true;
                 break;
             }
         }
-        var json = new JsonObject { ["herramienta"] = codigo, ["filas"] = resultado.Filas.Count, ["truncado"] = truncado, ["datos"] = filas }.ToJsonString();
-        return RedactorDatosSensibles.RedactarParaIA(json, out ocultados);
+        var json = new JsonObject { ["herramienta"] = codigo, ["filas"] = resultado.Filas.Count, ["truncado"] = truncado, ["datos"] = filas };
+        // Una búsqueda vacía también es un hallazgo; sin esta nota el modelo probaba variantes del mismo mensaje una y otra vez.
+        if (resultado.Filas.Count == 0 && NotaSinResultados(codigo) is { } nota) json["nota"] = nota;
+        return RedactorDatosSensibles.RedactarParaIA(json.ToJsonString(JsonLegible), out ocultados);
     }
+
+    private static string? NotaSinResultados(string codigo) => codigo switch
+    {
+        "DIAG_BD_BUSCAR" => "El texto, completo y sin sus datos variables, no aparece en procedimientos, vistas, funciones ni triggers de esa base: "
+            + "probablemente lo genera la aplicación u otro sistema. Prueba DIAG_CODIGO_BUSCAR o concluye con la evidencia; no repitas con variantes del mismo mensaje.",
+        "DIAG_CODIGO_BUSCAR" => "El texto, completo y sin sus datos variables, no aparece en el código fuente de ese sistema: "
+            + "probablemente lo genera la base de datos u otro sistema. Prueba DIAG_BD_BUSCAR o concluye con la evidencia; no repitas con variantes del mismo mensaje.",
+        _ => null
+    };
 
     private static string Error(string mensaje) => Error(mensaje, out _);
     private static string Error(string mensaje, out int ocultados)
     {
         ocultados = 0;
-        return new JsonObject { ["error"] = string.IsNullOrWhiteSpace(mensaje) ? "La herramienta no devolvió resultados." : mensaje }.ToJsonString();
+        return new JsonObject { ["error"] = string.IsNullOrWhiteSpace(mensaje) ? "La herramienta no devolvió resultados." : mensaje }.ToJsonString(JsonLegible);
     }
 
     private static string Resumir(List<Dictionary<string, object?>> filas)
@@ -362,16 +567,18 @@ public sealed class InvestigadorAgenteTI
         return true;
     }
 
-    /// <summary>Quita del esquema las palabras clave que el modo estricto del proveedor no admite; el servidor las sigue validando.</summary>
-    private static string EsquemaParaModelo(string esquemaJson)
+    /// <summary>Quita del esquema las palabras clave que el modo estricto del proveedor no admite; el servidor las sigue validando.
+    /// El parámetro "sistema" se limita a los sistemas configurados para esa herramienta.</summary>
+    private static string EsquemaParaModelo(string esquemaJson, IReadOnlyList<string> sistemas)
     {
         if (JsonNode.Parse(esquemaJson) is not JsonObject esquema) return "{\"type\":\"object\",\"properties\":{},\"required\":[],\"additionalProperties\":false}";
         if (esquema["properties"] is JsonObject propiedades)
-            foreach (var (_, definicion) in propiedades)
+            foreach (var (nombre, definicion) in propiedades)
                 if (definicion is JsonObject objeto)
                 {
                     objeto.Remove("minLength");
                     objeto.Remove("maxLength");
+                    if (nombre == "sistema" && sistemas.Count > 0) objeto["enum"] = new JsonArray(sistemas.Select(x => (JsonNode?)JsonValue.Create(x)).ToArray());
                 }
         // En modo estricto todas las propiedades deben ser requeridas.
         esquema["required"] = new JsonArray((esquema["properties"] as JsonObject ?? new JsonObject()).Select(x => (JsonNode?)JsonValue.Create(x.Key)).ToArray());
@@ -449,9 +656,22 @@ public sealed class InvestigacionEnCurso(string usuario, string area, long sesio
     public List<AgenteTIPasoInvestigacion> Pasos { get; } = [];
     /// <summary>Respuesta entregada al modelo por herramienta y parámetros; evita repetir consultas idénticas.</summary>
     public Dictionary<string, string> Respuestas { get; } = new(StringComparer.Ordinal);
+    /// <summary>Fallos seguidos por herramienta (un tiempo agotado cuenta doble); al llegar al límite la herramienta se desactiva.</summary>
+    public Dictionary<string, int> Fallos { get; } = new(StringComparer.Ordinal);
     public StringBuilder TextoResultados { get; } = new();
     public int DatosOcultados { get; set; }
+    /// <summary>Descripción del problema para la búsqueda semántica automática.</summary>
+    public string TextoProblema { get; init; } = string.Empty;
+    /// <summary>Códigos que no deben aparecer como casos similares (el propio ticket).</summary>
+    public IReadOnlyCollection<string> Excluir { get; init; } = [];
+    /// <summary>Mensaje de error exacto; si no se conocía, lo aporta el análisis de la grabación.</summary>
+    public string TextoError { get; set; } = string.Empty;
+    public IReadOnlyList<GrabacionEvidencia> Grabaciones { get; init; } = [];
+    /// <summary>Sistemas investigables asociados a la línea del ticket.</summary>
+    public IReadOnlyList<string> SistemasTicket { get; init; } = [];
 }
+
+public sealed record GrabacionEvidencia(int EventoSecuencia, string Ruta, string TipoMime, bool UsuarioFinal);
 
 public sealed class ResultadoAgente
 {

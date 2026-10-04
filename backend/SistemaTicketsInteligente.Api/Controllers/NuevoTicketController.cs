@@ -42,7 +42,9 @@ public sealed class NuevoTicketController : ControllerBase
     }
 
     [HttpPost]
-    [RequestSizeLimit(55 * 1024 * 1024)]
+    // Hasta 2 grabaciones de pantalla (40 MB c/u) además de los documentos adjuntos.
+    [RequestSizeLimit(100 * 1024 * 1024)]
+    [RequestFormLimits(MultipartBodyLengthLimit = 100 * 1024 * 1024)]
     public async Task<ActionResult<NuevoTicketCreadoRespuesta>> Crear([FromForm] CrearNuevoTicketSolicitud solicitud, CancellationToken cancellationToken)
     {
         var usuario = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;

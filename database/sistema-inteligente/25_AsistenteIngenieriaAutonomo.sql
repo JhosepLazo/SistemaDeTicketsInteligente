@@ -1,4 +1,4 @@
-/*
+﻿/*
 	Archivo: 25_AsistenteIngenieriaAutonomo.sql
 	Objetivo: Incorporar el workspace persistente del Agente de Ingeniería Autónomo para observar, investigar, diagnosticar, documentar y solicitar ejecuciones controladas.
 	Responsabilidad: Registrar sesiones, eventos Live, correlación técnica, diagnóstico, informe Markdown y decisión de TI sin permitir SQL libre generado por IA.

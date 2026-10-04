@@ -44,3 +44,20 @@ export const crearTokenReproduccion = (sesion: number) => solicitar<AgenteTILive
 export const registrarEventoReproduccion = (sesion: number, tipo: string, contenido: string) =>
   solicitar<void>(`/api/reproducciones/${sesion}/eventos`, 'POST', { tipo, contenido })
 export const finalizarReproduccion = (sesion: number) => solicitar<void>(`/api/reproducciones/${sesion}/finalizar`, 'POST')
+
+/** Sube la grabación de la pantalla de la reproducción (consentida) para que TI la vea y el agente la analice. */
+export async function subirGrabacionReproduccion(sesion: number, grabacion: Blob, duracionSegundos: number) {
+  const datos = new FormData()
+  datos.append('Archivo', new File([grabacion], 'grabacion-pantalla.webm', { type: 'video/webm' }))
+  datos.append('DuracionSegundos', String(Math.round(duracionSegundos)))
+  let respuesta: Response
+  try {
+    respuesta = await fetch(`/api/reproducciones/${sesion}/grabaciones`, { method: 'POST', credentials: 'include', body: datos })
+  } catch {
+    throw new Error('No fue posible enviar la grabación de tu pantalla.')
+  }
+  if (!respuesta.ok) {
+    const error = await respuesta.json().catch(() => null) as { mensaje?: string } | null
+    throw new Error(error?.mensaje || 'No fue posible guardar la grabación de tu pantalla.')
+  }
+}

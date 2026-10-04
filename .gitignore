@@ -12,6 +12,9 @@ dist/
 secrets.json
 appsettings.*.local.json
 
+# Adjuntos y grabaciones de pantalla de los usuarios: datos privados, nunca van al repositorio
+backend/SistemaTicketsInteligente.Api/uploads/
+
 # Configuración local de IDE
 .vs/
 .vscode/

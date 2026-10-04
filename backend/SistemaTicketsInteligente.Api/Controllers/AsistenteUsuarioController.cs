@@ -38,4 +38,27 @@ public sealed class AsistenteUsuarioController : ControllerBase
         try { return Ok(await asistenteUsuarioBLL.ResponderAsync(usuario, solicitud, ct)); }
         catch (ArgumentException ex) { return BadRequest(new { mensaje = ex.Message }); }
     }
+
+    /// <summary>Token Live para que el colaborador muestre el error compartiendo su pantalla.</summary>
+    [HttpPost("live/token")]
+    public async Task<ActionResult<AgenteTILiveTokenRespuesta>> CrearTokenLive(LiveUsuarioSolicitud solicitud, CancellationToken ct)
+    {
+        var usuario = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(usuario)) return Unauthorized();
+
+        try { return Ok(await asistenteUsuarioBLL.CrearTokenLiveAsync(usuario, solicitud, ct)); }
+        catch (ArgumentException ex) { return BadRequest(new { mensaje = ex.Message }); }
+        catch (InvalidOperationException ex) { return StatusCode(StatusCodes.Status429TooManyRequests, new { mensaje = ex.Message }); }
+    }
+
+    /// <summary>Convierte la evidencia mostrada en pantalla en un borrador de ticket (título, descripción y mensaje de error).</summary>
+    [HttpPost("evidencia/borrador")]
+    public async Task<ActionResult<AsistenteUsuarioAccion>> PrepararBorrador(EvidenciaReproduccionUsuarioSolicitud solicitud, CancellationToken ct)
+    {
+        var usuario = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(usuario)) return Unauthorized();
+
+        try { return Ok(await asistenteUsuarioBLL.PrepararBorradorAsync(solicitud, ct)); }
+        catch (ArgumentException ex) { return BadRequest(new { mensaje = ex.Message }); }
+    }
 }

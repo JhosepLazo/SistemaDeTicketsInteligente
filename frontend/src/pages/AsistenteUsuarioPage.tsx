@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import NotificacionesCampana from '../components/NotificacionesCampana'
+import MostrarErrorLive, { type EvidenciaParaTicket } from '../components/MostrarErrorLive'
 import { useAutenticacion } from '../features/autenticacion/context/AutenticacionContext'
 import {
   consultarAsistente,
@@ -17,7 +18,7 @@ import { obtenerMisTickets, type MisTicketItem } from '../features/misTickets/se
 import './InicioPage.css'
 import './AsistenteUsuarioPage.css'
 
-type NombreIcono = 'inicio' | 'asistente' | 'nuevo' | 'tickets' | 'enviar' | 'salir' | 'escudo' | 'libro' | 'reloj' | 'flecha' | 'limpiar' | 'mensaje' | 'alerta'
+type NombreIcono = 'inicio' | 'asistente' | 'nuevo' | 'tickets' | 'enviar' | 'salir' | 'escudo' | 'libro' | 'reloj' | 'flecha' | 'limpiar' | 'mensaje' | 'alerta' | 'pantalla'
 
 function Icono({ nombre, size = 20 }: { nombre: NombreIcono; size?: number }) {
   const trazos: Record<NombreIcono, ReactNode> = {
@@ -34,6 +35,7 @@ function Icono({ nombre, size = 20 }: { nombre: NombreIcono; size?: number }) {
     limpiar: <><path d="m4 15 8-8 5 5-8 8H4v-5Z"/><path d="m10 9 5 5M13 20h7"/></>,
     mensaje: <><path d="M4 5h16v12H8l-4 4V5Z"/><path d="M8 9h8M8 13h5"/></>,
     alerta: <><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 17h.01"/></>,
+    pantalla: <><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></>,
   }
   return <svg className="inicio-icono" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{trazos[nombre]}</svg>
 }
@@ -90,6 +92,8 @@ export default function AsistenteUsuarioPage() {
   const editorRef = useRef<HTMLTextAreaElement>(null)
   const finalRef = useRef<HTMLDivElement>(null)
   const secuenciaRef = useRef(1)
+  // Descripción del problema con la que se abre "Mostrar el error"; null cuando el panel está cerrado.
+  const [mostrarError, setMostrarError] = useState<string | null>(null)
 
   const cargarTickets = useCallback(async () => {
     setEstadoTickets('cargando')
@@ -176,8 +180,15 @@ export default function AsistenteUsuarioPage() {
     void enviar(sugerencia)
   }
 
-  function crearTicket(accion?: AsistenteUsuarioAccion | null) {
-    navigate('/nuevo-ticket', accion ? { state: { asistenteBorrador: { titulo: accion.titulo, detalle: accion.detalle } } } : undefined)
+  function crearTicket(accion?: AsistenteUsuarioAccion | null, extra?: EvidenciaParaTicket) {
+    navigate('/nuevo-ticket', accion ? { state: { asistenteBorrador: { titulo: accion.titulo, detalle: accion.detalle, mensajeError: accion.mensajeError ?? '', grabaciones: extra?.grabaciones ?? [], evidencia: extra?.evidencia } } } : undefined)
+  }
+
+  // El problema que el colaborador describió en el chat orienta al asistente de voz.
+  function abrirMostrarError(mensajeId?: number) {
+    const anteriores = mensajeId === undefined ? mensajes : mensajes.filter(x => x.id < mensajeId)
+    const descripcion = [...anteriores].reverse().find(x => x.rol === 'usuario')?.contenido ?? ''
+    setMostrarError(descripcion)
   }
 
   async function salir() {
@@ -209,7 +220,8 @@ export default function AsistenteUsuarioPage() {
       <main className="asistente-contenido">
         <header className="asistente-cabecera">
           <div><span className="asistente-cabecera__etiqueta"><Icono nombre="escudo" size={15}/> Asistencia segura</span><h1>¿En qué puedo ayudarte, {nombre}?</h1><p>Consulta soluciones de TI y el estado de tus solicitudes en una sola conversación.</p></div>
-          <button className="asistente-limpiar" type="button" title="Iniciar nueva conversación" onClick={() => { setMensajes([bienvenida]); setError(''); setConsulta('') }} disabled={mensajes.length === 1}><Icono nombre="limpiar" size={17}/> Nueva conversación</button>
+          <div className="asistente-cabecera__acciones"><button className="asistente-limpiar asistente-mostrar" type="button" title="Muestra el error compartiendo tu pantalla" onClick={() => abrirMostrarError()}><Icono nombre="pantalla" size={17}/> Mostrar un error</button>
+          <button className="asistente-limpiar" type="button" title="Iniciar nueva conversación" onClick={() => { setMensajes([bienvenida]); setError(''); setConsulta('') }} disabled={mensajes.length === 1}><Icono nombre="limpiar" size={17}/> Nueva conversación</button></div>
         </header>
 
         <div className="asistente-layout">
@@ -221,7 +233,7 @@ export default function AsistenteUsuarioPage() {
                   <div className="asistente-mensaje__meta"><strong>{mensaje.rol === 'asistente' ? 'Asistente TI' : 'Tú'}</strong>{mensaje.rol === 'asistente' && mensaje.modo && <span className={`asistente-modo asistente-modo--${mensaje.modo.toLowerCase()}`}>{mensaje.modo === 'IA' ? 'IA conectada' : 'Base corporativa'}</span>}</div>
                   <p>{mensaje.contenido}</p>
                   {!!mensaje.fuentes?.length && <div className="asistente-fuentes"><strong>Fuentes consultadas</strong><div>{mensaje.fuentes.map(fuente => <button type="button" key={`${fuente.tipo}-${fuente.codigo}`} onClick={() => fuente.tipo === 'TICKET' && navigate(`/mis-tickets?ticket=${encodeURIComponent(fuente.codigo)}`)} disabled={fuente.tipo !== 'TICKET'} title={fuente.resumen}><span className={`asistente-fuente__tipo asistente-fuente__tipo--${fuente.tipo.toLowerCase()}`}>{fuente.tipo === 'TICKET' ? 'Ticket' : 'Guía'}</span><span><b>{fuente.codigo}</b>{fuente.titulo}</span></button>)}</div></div>}
-                  {mensaje.escalarATicket && <button className="asistente-escalar" type="button" onClick={() => crearTicket(mensaje.accion)}><Icono nombre="nuevo" size={17}/> Preparar ticket con mi caso <Icono nombre="flecha" size={15}/></button>}
+                  {mensaje.escalarATicket && <div className="asistente-escalar__opciones"><button className="asistente-escalar" type="button" onClick={() => crearTicket(mensaje.accion)}><Icono nombre="nuevo" size={17}/> Preparar ticket con mi caso <Icono nombre="flecha" size={15}/></button><button className="asistente-escalar asistente-escalar--pantalla" type="button" onClick={() => abrirMostrarError(mensaje.id)}><Icono nombre="pantalla" size={17}/> Mostrar el error en pantalla</button></div>}
                   {!!mensaje.sugerencias?.length && <div className="asistente-sugerencias">{mensaje.sugerencias.map(sugerencia => <button type="button" key={sugerencia} onClick={() => usarSugerencia(sugerencia)}>{sugerencia}</button>)}</div>}
                 </div>
               </article>)}
@@ -245,5 +257,6 @@ export default function AsistenteUsuarioPage() {
         </div>
       </main>
     </section>
+    {mostrarError !== null && <MostrarErrorLive descripcion={mostrarError} onCerrar={() => setMostrarError(null)} onBorrador={(accion, extra) => { setMostrarError(null); crearTicket(accion, extra) }}/>}
   </div>
 }

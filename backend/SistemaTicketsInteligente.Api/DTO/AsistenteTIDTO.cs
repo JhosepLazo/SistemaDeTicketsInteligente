@@ -31,6 +31,8 @@ public sealed class AsistenteTIUsuarioPropuesto
 
 public sealed class AsistenteTIAccion
 {
+    /// <summary>Investigación creada desde la conversación (Tipo = INVESTIGACION).</summary>
+    public long? SesionNumero { get; set; }
     public string Tipo { get; set; } = string.Empty;
     public string Titulo { get; set; } = string.Empty;
     public string TokenConfirmacion { get; set; } = string.Empty;
@@ -74,6 +76,13 @@ public sealed class RegistrarEventoAgenteTISolicitud
     public string? DatosJson { get; set; }
 }
 
+/// <summary>Grabación de pantalla de una observación (multipart/form-data).</summary>
+public sealed class SubirGrabacionSolicitud
+{
+    public IFormFile? Archivo { get; set; }
+    public int? DuracionSegundos { get; set; }
+}
+
 public sealed class FinalizarObservacionAgenteTISolicitud
 {
     public string ResumenObservacion { get; set; } = string.Empty;
@@ -114,6 +123,10 @@ public sealed class AgenteTISesion
     public string UsuarioTI { get; set; } = string.Empty;
     public string NombreOperador { get; set; } = string.Empty;
     public bool EsPropietario { get; set; }
+    /// <summary>Quien consulta puede tomar la investigación (supervisión o responsable TI del ticket).</summary>
+    public bool PuedeTomar { get; set; }
+    /// <summary>Responsable TI asignado al ticket investigado.</summary>
+    public string UsuarioTITicket { get; set; } = string.Empty;
     public string UsuarioInvitado { get; set; } = string.Empty;
     public string NombreInvitado { get; set; } = string.Empty;
     public string EstadoInvitacion { get; set; } = string.Empty;
@@ -264,6 +277,8 @@ public sealed class AgenteTIHerramienta
     public bool Automatica { get; set; }
     public bool RequiereTicket { get; set; }
     public int MaximoFilas { get; set; }
+    /// <summary>SP (procedimiento dbo.Usp_TI_AgenteDiag_*) o INTERNA (ejecutada por el backend, por ejemplo la búsqueda semántica).</summary>
+    public string Tipo { get; set; } = "SP";
 }
 
 public sealed class AgenteTIHerramientaResultado

@@ -35,6 +35,8 @@ public sealed class CrearNuevoTicketSolicitud
     public string Detalle { get; set; } = string.Empty;
     public string? MensajeError { get; set; }
     public List<IFormFile> Adjuntos { get; set; } = [];
+    /// <summary>Evidencia que el colaborador mostró en pantalla al Asistente TI (pasos, error, conversación); activa la investigación automática.</summary>
+    public string? EvidenciaAsistenteJson { get; set; }
 }
 
 public sealed class NuevoTicketAdjuntoRegistro

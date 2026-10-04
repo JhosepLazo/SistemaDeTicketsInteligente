@@ -1,4 +1,4 @@
--- Migracion aditiva: no elimina ni recrea bases o datos empresariales.
+﻿-- Migracion aditiva: no elimina ni recrea bases o datos empresariales.
 Use [GestionSistemas]
 Go
 

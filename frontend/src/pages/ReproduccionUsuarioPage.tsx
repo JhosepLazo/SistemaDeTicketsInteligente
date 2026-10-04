@@ -10,6 +10,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import NotificacionesCampana from '../components/NotificacionesCampana'
 import { useAutenticacion } from '../features/autenticacion/context/AutenticacionContext'
 import { GeminiLiveSesion } from '../features/asistente/services/geminiLiveTIService'
+import { GrabadorPantalla } from '../features/asistente/services/grabadorPantalla'
 import {
   crearTokenReproduccion,
   finalizarReproduccion,
@@ -17,6 +18,7 @@ import {
   obtenerReproduccion,
   registrarEventoReproduccion,
   responderReproduccion,
+  subirGrabacionReproduccion,
   type ReproduccionInvitacion,
 } from '../features/reproduccion/services/reproduccionUsuarioService'
 import { seleccionarSesionTraza } from '../shared/services/observabilidadAgente'
@@ -70,6 +72,7 @@ export default function ReproduccionUsuarioPage() {
   const [mensaje, setMensaje] = useState('')
   const videoRef = useRef<HTMLVideoElement>(null)
   const liveRef = useRef<GeminiLiveSesion | null>(null)
+  const grabadorRef = useRef<GrabadorPantalla | null>(null)
   const invitacionRef = useRef<ReproduccionInvitacion | null>(null)
   const sesionParam = parametros.get('sesion')
 
@@ -143,6 +146,18 @@ export default function ReproduccionUsuarioPage() {
     return 'Función no disponible.'
   }
 
+  // La grabación (consentida) llega a TI como evidencia y adjunto del ticket.
+  async function guardarGrabacion() {
+    const grabador = grabadorRef.current
+    const actual = invitacionRef.current
+    grabadorRef.current = null
+    if (!grabador || !actual) return
+    const video = await grabador.detener()
+    if (!video) return
+    try { await subirGrabacionReproduccion(actual.sesionNumero, video, grabador.segundos) }
+    catch (e) { setError(mensajeError(e, 'No fue posible enviar la grabación de tu pantalla.')) }
+  }
+
   const iniciarLive = () => ejecutar(async () => {
     const token = await crearTokenReproduccion(invitacion!.sesionNumero)
     if (!token.disponible) throw new Error(token.mensaje || 'La asistencia por voz no está disponible en este momento.')
@@ -151,13 +166,15 @@ export default function ReproduccionUsuarioPage() {
       onTranscripcion: agregarTurno,
       onFuncion: atenderFuncion,
       onError: setError,
-      onPantallaFinalizada: () => { liveRef.current = null; setLiveActivo(false); setEstadoLive('Dejaste de compartir la pantalla. Puedes volver a compartirla o terminar.') },
-      onDesconexion: () => { liveRef.current = null; setLiveActivo(false); setEstadoLive('La conexión de voz terminó. Puedes volver a compartir la pantalla para continuar.') },
+      onPantallaFinalizada: () => { void guardarGrabacion(); liveRef.current = null; setLiveActivo(false); setEstadoLive('Dejaste de compartir la pantalla. Puedes volver a compartirla o terminar.') },
+      onDesconexion: () => { void guardarGrabacion(); liveRef.current = null; setLiveActivo(false); setEstadoLive('La conexión de voz terminó. Puedes volver a compartir la pantalla para continuar.') },
     })
     liveRef.current = live
     try {
       const stream = await live.iniciar(token)
       if (videoRef.current) { videoRef.current.srcObject = stream; void videoRef.current.play() }
+      const grabador = new GrabadorPantalla()
+      if (grabador.iniciar(stream)) grabadorRef.current = grabador
       await registrar('INICIO_LIVE', 'El usuario empezó a compartir su pantalla para reproducir el error.')
       setSilenciado(false); setLiveActivo(true)
       setEstadoLive(live.tieneMicrofono ? 'Compartiendo pantalla · cuéntale al asistente qué estás haciendo' : 'Compartiendo pantalla sin micrófono · escribe tus respuestas abajo')
@@ -166,6 +183,7 @@ export default function ReproduccionUsuarioPage() {
 
   async function detenerLive() {
     await liveRef.current?.detener(); liveRef.current = null; setLiveActivo(false)
+    await guardarGrabacion()
     if (videoRef.current) videoRef.current.srcObject = null
   }
 
@@ -213,7 +231,7 @@ export default function ReproduccionUsuarioPage() {
       <main className="repro-contenido">
         {(error || mensaje) && <div className={`repro-aviso ${error ? 'repro-aviso--error' : ''}`} role={error ? 'alert' : 'status'}><Icono nombre={error ? 'alerta' : 'check'} size={17}/><span>{error || mensaje}</span></div>}
 
-        {terminada ? <section className="repro-tarjeta repro-final"><Icono nombre="check" size={34}/><h1>¡Gracias, {nombre}!</h1><p>TI recibió lo que mostraste y continuará con tu ticket. Te avisaremos cuando haya una solución para validar.</p><button className="repro-btn repro-btn--primario" onClick={() => navigate('/mis-tickets')}>Ir a Mis Tickets</button></section>
+        {terminada ? <section className="repro-tarjeta repro-final"><Icono nombre="check" size={34}/><h1>¡Gracias, {nombre}!</h1><p>TI recibió lo que mostraste y la grabación de tu pantalla. El asistente ya está revisando el caso y te avisaremos cuando haya una solución para validar.</p><button className="repro-btn repro-btn--primario" onClick={() => navigate('/mis-tickets')}>Ir a Mis Tickets</button></section>
         : !invitacion ? <section className="repro-tarjeta">
             <h1>Solicitudes de TI</h1>
             <p className="repro-tarjeta__texto">Cuando TI necesite ver cómo ocurre un error, te enviará una solicitud aquí.</p>
@@ -227,10 +245,10 @@ export default function ReproduccionUsuarioPage() {
             <ul className="repro-puntos">
               <li><Icono nombre="pantalla" size={16}/>Compartirás la ventana o pantalla que tú elijas y conversarás con un asistente de voz que te guiará paso a paso.</li>
               <li><Icono nombre="stop" size={16}/>Puedes pausar o terminar cuando quieras. El navegador siempre te mostrará que estás compartiendo.</li>
-              <li><Icono nombre="escudo" size={16}/>No se graba video: solo se guarda la conversación escrita y el error que marques, y solo TI lo usa para resolver tu ticket.</li>
+              <li><Icono nombre="escudo" size={16}/>Se grabará la ventana que compartas (sin audio) junto con la conversación escrita y el error que marques. La grabación queda en tu ticket y solo TI la usa para resolverlo.</li>
               <li><Icono nombre="alerta" size={16}/>No muestres contraseñas, códigos de verificación ni datos personales que no tengan relación con el error.</li>
             </ul>
-            <label className="repro-consentimiento"><input type="checkbox" checked={consiente} onChange={e => setConsiente(e.target.checked)}/><span>Acepto compartir mi pantalla y mi voz durante esta sesión para que TI analice el error de mi ticket.</span></label>
+            <label className="repro-consentimiento"><input type="checkbox" checked={consiente} onChange={e => setConsiente(e.target.checked)}/><span>Acepto compartir mi pantalla y mi voz, y que se grabe la pantalla compartida, para que TI analice el error de mi ticket.</span></label>
             {rechazando && <label className="repro-campo">¿Quieres contarnos por qué? <small>opcional</small><textarea value={motivo} onChange={e => setMotivo(e.target.value)} maxLength={500} rows={2} placeholder="Ej. Ya no ocurre el error / Prefiero que me llamen"/></label>}
             <div className="repro-botones">
               {rechazando ? <><button className="repro-btn" onClick={() => setRechazando(false)} disabled={procesando}>Volver</button><button className="repro-btn repro-btn--peligro" onClick={() => void rechazar()} disabled={procesando}>Confirmar que no puedo</button></>

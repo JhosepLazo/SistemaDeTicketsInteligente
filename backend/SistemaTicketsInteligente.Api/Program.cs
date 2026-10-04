@@ -87,13 +87,20 @@ builder.Services.AddScoped<RecursosSoporteDAO>();
 builder.Services.AddScoped<RecursosSoporteBLL>();
 builder.Services.AddScoped<AsistenteTIDAO>();
 builder.Services.AddScoped<AsistenteUsuarioBLL>();
+builder.Services.AddScoped<ConocimientoDAO>();
+builder.Services.AddScoped<ConocimientoSemanticoBLL>();
+builder.Services.AddSingleton<ReplicaTecnicaBLL>();
 builder.Services.AddScoped<InvestigadorAgenteTI>();
 builder.Services.AddScoped<AsistenteTIBLL>();
 builder.Services.AddScoped<ReproduccionUsuarioBLL>();
 builder.Services.AddSingleton<AgenteCodigoClient>();
 builder.Services.AddHostedService<SqlTrazaListener>();
+// Investigación automática en segundo plano cuando el usuario termina de mostrar su error.
+builder.Services.AddSingleton<ColaAgenteTI>();
+builder.Services.AddHostedService<ProcesadorAgenteTI>();
 builder.Services.AddHttpClient<OpenAIAsistenteClient>(cliente => cliente.Timeout = TimeSpan.FromSeconds(90));
 builder.Services.AddHttpClient<GeminiLiveClient>(cliente => cliente.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddHttpClient<AnalizadorGrabacionClient>(cliente => cliente.Timeout = TimeSpan.FromSeconds(180));
 builder.Services.AddMemoryCache();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)

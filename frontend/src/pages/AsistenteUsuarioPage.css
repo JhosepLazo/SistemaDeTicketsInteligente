@@ -135,3 +135,10 @@
   .asistente-editor__pie > span { max-width: 210px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .asistente-privacidad { margin-inline: 10px; text-align: center; }
 }
+
+/* Mostrar el error en pantalla (Fase 5) */
+.asistente-cabecera__acciones { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.asistente-mostrar { border-color: #9fd3cc; color: #006e65; }
+.asistente-escalar__opciones { display: flex; flex-wrap: wrap; gap: 8px; }
+.asistente-escalar--pantalla { background: #0b6f68; }
+.asistente-escalar--pantalla:hover { background: #075a54; }

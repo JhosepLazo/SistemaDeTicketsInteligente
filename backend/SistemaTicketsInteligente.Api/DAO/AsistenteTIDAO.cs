@@ -120,6 +120,9 @@ public sealed class AsistenteTIDAO
                     UsuarioTI = LeerCadena(lector, "UsuarioTI"),
                     NombreOperador = LeerCadena(lector, "NombreOperador"),
                     EsPropietario = LeerBooleano(lector, "EsPropietario"),
+                    // Columnas del script 33; sin él, solo el responsable o un supervisor (EsPropietario) actúan.
+                    PuedeTomar = TieneColumna(lector, "PuedeTomar") && LeerBooleano(lector, "PuedeTomar"),
+                    UsuarioTITicket = TieneColumna(lector, "UsuarioTITicket") ? LeerCadena(lector, "UsuarioTITicket") : string.Empty,
                     UsuarioInvitado = LeerCadena(lector, "UsuarioInvitado"),
                     NombreInvitado = LeerCadena(lector, "NombreInvitado"),
                     EstadoInvitacion = LeerCadena(lector, "EstadoInvitacion"),
@@ -561,7 +564,9 @@ public sealed class AsistenteTIDAO
             {
                 HerramientaCodigo = LeerCadena(lector, "HerramientaCodigo"), Nombre = LeerCadena(lector, "Nombre"), Descripcion = LeerCadena(lector, "Descripcion"),
                 Procedimiento = LeerCadena(lector, "Procedimiento"), ParametrosEsquemaJson = LeerCadena(lector, "ParametrosEsquemaJson"),
-                Automatica = LeerBooleano(lector, "Automatica"), RequiereTicket = LeerBooleano(lector, "RequiereTicket"), MaximoFilas = LeerEntero(lector, "MaximoFilas")
+                Automatica = LeerBooleano(lector, "Automatica"), RequiereTicket = LeerBooleano(lector, "RequiereTicket"), MaximoFilas = LeerEntero(lector, "MaximoFilas"),
+                // Antes del script 31 el catálogo no tiene la columna Tipo: todas son procedimientos.
+                Tipo = TieneColumna(lector, "Tipo") ? LeerCadena(lector, "Tipo") : "SP"
             });
             return herramientas;
         }
@@ -673,6 +678,85 @@ public sealed class AsistenteTIDAO
         _ => valor
     };
 
+    public async Task<int> RegistrarGrabacionAsync(string usuario, long sesion, bool usuarioFinal, string nombreOriginal, string nombreArchivo, string rutaRelativa,
+        string tipoMime, long tamanoBytes, int? duracionSegundos, CancellationToken ct)
+    {
+        await using var conexion = conexionSqlServer.CrearConexion();
+        await using var comando = new SqlCommand("dbo.Usp_TI_Agente_RegistrarGrabacion", conexion) { CommandType = CommandType.StoredProcedure };
+        comando.Parameters.Add("@cUsuario", SqlDbType.VarChar, 20).Value = usuario;
+        comando.Parameters.Add("@nSesionNumero", SqlDbType.BigInt).Value = sesion;
+        comando.Parameters.Add("@lUsuarioFinal", SqlDbType.Bit).Value = usuarioFinal;
+        comando.Parameters.Add("@cNombreOriginal", SqlDbType.NVarChar, 260).Value = nombreOriginal;
+        comando.Parameters.Add("@cNombreArchivo", SqlDbType.NVarChar, 260).Value = nombreArchivo;
+        comando.Parameters.Add("@cRutaArchivo", SqlDbType.NVarChar, 1000).Value = rutaRelativa;
+        comando.Parameters.Add("@cTipoMime", SqlDbType.VarChar, 100).Value = tipoMime;
+        comando.Parameters.Add("@nTamanoBytes", SqlDbType.BigInt).Value = tamanoBytes;
+        comando.Parameters.Add("@nDuracionSegundos", SqlDbType.Int).Value = duracionSegundos.HasValue ? duracionSegundos.Value : DBNull.Value;
+        await conexion.OpenAsync(ct);
+        try
+        {
+            return Convert.ToInt32(await comando.ExecuteScalarAsync(ct));
+        }
+        catch (SqlException ex) when (EsErrorFuncional(ex))
+        {
+            throw new InvalidOperationException(ex.Message, ex);
+        }
+    }
+
+    /// <summary>Registra como evidencia los videos adjuntados al ticket que aún no estén en la investigación; devuelve cuántos agregó.</summary>
+    public async Task<int> VincularGrabacionesTicketAsync(string usuario, long sesion, CancellationToken ct)
+    {
+        await using var conexion = conexionSqlServer.CrearConexion();
+        await using var comando = new SqlCommand("dbo.Usp_TI_Agente_VincularGrabacionesTicket", conexion) { CommandType = CommandType.StoredProcedure };
+        comando.Parameters.Add("@cUsuario", SqlDbType.VarChar, 20).Value = usuario;
+        comando.Parameters.Add("@nSesionNumero", SqlDbType.BigInt).Value = sesion;
+        await conexion.OpenAsync(ct);
+        try { return Convert.ToInt32(await comando.ExecuteScalarAsync(ct)); }
+        catch (SqlException ex) when (ex.Number == 2812) { return 0; } // Sin el script 33 instalado.
+    }
+
+    public Task ReabrirObservacionAsync(string usuario, string area, long sesion, CancellationToken ct) =>
+        EjecutarAsync("dbo.Usp_TI_Agente_ReabrirObservacion", c => AgregarSesion(c, usuario, area, sesion), ct);
+
+    public async Task<(string Usuario, string Area)?> ResolverOperadorAutomaticoAsync(string incidenciaNumero, string? preferido, CancellationToken ct)
+    {
+        await using var conexion = conexionSqlServer.CrearConexion();
+        await using var comando = new SqlCommand("dbo.Usp_TI_Agente_ResolverOperadorAutomatico", conexion) { CommandType = CommandType.StoredProcedure };
+        comando.Parameters.Add("@cIncidenciaNumero", SqlDbType.VarChar, 12).Value = incidenciaNumero;
+        comando.Parameters.Add("@cUsuarioPreferido", SqlDbType.VarChar, 20).Value = string.IsNullOrWhiteSpace(preferido) ? DBNull.Value : preferido;
+        await conexion.OpenAsync(ct);
+        await using var lector = await comando.ExecuteReaderAsync(ct);
+        return await lector.ReadAsync(ct) ? (LeerCadena(lector, "Usuario"), LeerCadena(lector, "Area")) : null;
+    }
+
+    public async Task<(string UsuarioTI, string AreaTI, string Estado, string IncidenciaNumero)?> DatosSesionAsync(long sesion, CancellationToken ct)
+    {
+        await using var conexion = conexionSqlServer.CrearConexion();
+        await using var comando = new SqlCommand("dbo.Usp_TI_Agente_DatosSesion", conexion) { CommandType = CommandType.StoredProcedure };
+        comando.Parameters.Add("@nSesionNumero", SqlDbType.BigInt).Value = sesion;
+        await conexion.OpenAsync(ct);
+        await using var lector = await comando.ExecuteReaderAsync(ct);
+        return await lector.ReadAsync(ct)
+            ? (LeerCadena(lector, "UsuarioTI"), LeerCadena(lector, "AreaTI"), LeerCadena(lector, "Estado"), LeerCadena(lector, "IncidenciaNumero"))
+            : null;
+    }
+
+    public Task ImportarEvidenciaTicketAsync(string usuario, long sesion, string evidenciaJson, CancellationToken ct) =>
+        EjecutarAsync("dbo.Usp_TI_Agente_ImportarEvidenciaTicket", c =>
+        {
+            c.Parameters.Add("@cUsuario", SqlDbType.VarChar, 20).Value = usuario;
+            c.Parameters.Add("@nSesionNumero", SqlDbType.BigInt).Value = sesion;
+            c.Parameters.Add("@cEvidenciaJson", SqlDbType.NVarChar, -1).Value = evidenciaJson;
+        }, ct);
+
+    public Task NotificarDiagnosticoAsync(long sesion, bool exito, string? detalle, CancellationToken ct) =>
+        EjecutarAsync("dbo.Usp_TI_Agente_NotificarDiagnostico", c =>
+        {
+            c.Parameters.Add("@nSesionNumero", SqlDbType.BigInt).Value = sesion;
+            c.Parameters.Add("@lExito", SqlDbType.Bit).Value = exito;
+            c.Parameters.Add("@cDetalle", SqlDbType.NVarChar, 400).Value = string.IsNullOrWhiteSpace(detalle) ? DBNull.Value : detalle.Length > 400 ? detalle[..400] : detalle;
+        }, ct);
+
     private static void AgregarSesion(SqlCommand comando, string usuario, string area, long sesion)
     {
         AgregarIdentidad(comando, usuario, area);
@@ -702,6 +786,11 @@ public sealed class AsistenteTIDAO
     }
 
     private static bool EsErrorFuncional(SqlException ex) => ex.Number is >= 50500 and <= 50599;
+    private static bool TieneColumna(SqlDataReader lector, string columna)
+    {
+        for (var i = 0; i < lector.FieldCount; i++) if (string.Equals(lector.GetName(i), columna, StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
+    }
     private static string LeerCadena(SqlDataReader lector, string columna) => lector[columna] is DBNull ? string.Empty : lector[columna].ToString()?.Trim() ?? string.Empty;
     private static bool LeerBooleano(SqlDataReader lector, string columna) => lector[columna] is not DBNull && Convert.ToBoolean(lector[columna]);
     private static int LeerEntero(SqlDataReader lector, string columna) => lector[columna] is DBNull ? 0 : Convert.ToInt32(lector[columna]);

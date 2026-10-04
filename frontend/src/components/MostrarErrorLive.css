@@ -1,0 +1,10 @@
+.mostrar-error{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:20px;background:rgba(8,28,33,.55)}
+.mostrar-error__panel{width:min(1180px,100%);max-height:calc(100vh - 40px);overflow:auto;display:grid;gap:12px;padding:16px;border-radius:14px;background:#f4f7f8;box-shadow:0 24px 60px rgba(5,30,35,.35)}
+.mostrar-error__cabecera{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.mostrar-error__cabecera div{display:grid;gap:2px}
+.mostrar-error__cabecera strong{color:#14373f;font-size:15px}
+.mostrar-error__cabecera small{color:#6f858a;font-size:11px}
+.mostrar-error__cabecera button{width:34px;height:34px;border:1px solid #d6e2e4;border-radius:8px;background:#fff;color:#40575c;font-size:20px;cursor:pointer}
+.mostrar-error__sesion{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(260px,1fr);gap:12px;align-items:start}
+.mostrar-error__pasos ol{margin:8px 0 0;padding-left:18px;display:grid;gap:5px;color:#35545b;font-size:12px;line-height:1.45}
+@media(max-width:860px){.mostrar-error__sesion{grid-template-columns:1fr}}

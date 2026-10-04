@@ -1255,3 +1255,9 @@
 	white-space: pre-wrap;
 	overflow-wrap: anywhere;
 }
+
+/* Grabaciones de pantalla adjuntas al ticket (reproducción del usuario o de TI) */
+.gestion-ti-videos { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.gestion-ti-videos figure { margin: 0; display: grid; gap: 4px; }
+.gestion-ti-videos video { width: 100%; max-height: 240px; border-radius: 8px; background: #0d2025; }
+.gestion-ti-videos figcaption { color: #6f858a; font-size: 11px; }

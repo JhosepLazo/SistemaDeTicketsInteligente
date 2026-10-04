@@ -1,4 +1,4 @@
-/*
+﻿/*
 	Archivo: 27_AgenteFase1Integracion.sql
 	Objetivo: Integrar el Agente de Ingeniería con el ciclo real del ticket y cerrar las brechas de control detectadas en la Fase 1.
 	Responsabilidad: Persistir evidencias del diagnóstico, bloquear el ticket mientras una acción del agente espera aprobación, impedir la autoaprobación,

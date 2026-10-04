@@ -33,7 +33,7 @@ public sealed class AsistenteTIController : ControllerBase
     [HttpPost("mensajes")]
     [EnableRateLimiting("Asistente")]
     public Task<IActionResult> Responder(AsistenteTISolicitud solicitud, CancellationToken ct) =>
-        Ejecutar(async identidad => Ok(await asistente.ResponderAsync(identidad.Usuario, solicitud, ct)));
+        Ejecutar(async identidad => Ok(await asistente.ResponderAsync(identidad.Usuario, identidad.Area, solicitud, ct)));
 
     [HttpPost("acciones/confirmar")]
     public Task<IActionResult> Confirmar(ConfirmarAccionTISolicitud solicitud, CancellationToken ct) =>
@@ -90,6 +90,28 @@ public sealed class AsistenteTIController : ControllerBase
     [HttpPost("investigaciones/{sesionNumero:long}/realizar-cambio")]
     public Task<IActionResult> RealizarCambio(long sesionNumero, RealizarCambioAgenteTISolicitud solicitud, CancellationToken ct) =>
         Ejecutar(async identidad => Ok(await asistente.RealizarCambioAsync(identidad.Usuario, identidad.Area, sesionNumero, solicitud, ct)));
+
+    [HttpPost("investigaciones/{sesionNumero:long}/grabaciones")]
+    [RequestSizeLimit(50 * 1024 * 1024)]
+    public Task<IActionResult> SubirGrabacion(long sesionNumero, [FromForm] SubirGrabacionSolicitud solicitud, CancellationToken ct) =>
+        Ejecutar(async identidad =>
+        {
+            if (solicitud.Archivo is null) return BadRequest(new { mensaje = "Adjunta la grabación de la pantalla." });
+            return Ok(new { eventoSecuencia = await asistente.SubirGrabacionAsync(identidad.Usuario, identidad.Area, sesionNumero, solicitud.Archivo, solicitud.DuracionSegundos, ct) });
+        });
+
+    // Sin nombre de descarga: el navegador la reproduce en la consola y puede adelantar (rangos habilitados).
+    [HttpGet("investigaciones/{sesionNumero:long}/grabaciones/{eventoSecuencia:int}")]
+    public Task<IActionResult> VerGrabacion(long sesionNumero, int eventoSecuencia, CancellationToken ct) =>
+        Ejecutar(async identidad =>
+        {
+            var grabacion = await asistente.ObtenerGrabacionAsync(identidad.Usuario, identidad.Area, sesionNumero, eventoSecuencia, ct);
+            return PhysicalFile(grabacion.Ruta, grabacion.TipoMime, enableRangeProcessing: true);
+        });
+
+    [HttpPost("investigaciones/{sesionNumero:long}/reabrir")]
+    public Task<IActionResult> ReabrirObservacion(long sesionNumero, CancellationToken ct) =>
+        Ejecutar(async identidad => { await asistente.ReabrirObservacionAsync(identidad.Usuario, identidad.Area, sesionNumero, ct); return NoContent(); });
 
     [HttpPost("investigaciones/{sesionNumero:long}/simular-cambio")]
     public Task<IActionResult> SimularCambio(long sesionNumero, CancellationToken ct) =>

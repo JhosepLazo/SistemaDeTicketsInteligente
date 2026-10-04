@@ -29,8 +29,11 @@ import {
   obtenerInvestigacionTI,
   realizarCambioTI,
   reasignarInvestigacionTI,
+  reabrirObservacionTI,
   registrarEventoInvestigacionTI,
   simularCambioTI,
+  subirGrabacionTI,
+  urlGrabacionTI,
   validarSolucionInvestigacionTI,
   vincularIncidenciaTI,
   type AgenteCodigoReferencia,
@@ -42,6 +45,7 @@ import {
   type AgenteTISimulacionRespuesta,
 } from '../features/asistente/services/asistenteTIService'
 import { GeminiLiveSesion } from '../features/asistente/services/geminiLiveTIService'
+import { GrabadorPantalla } from '../features/asistente/services/grabadorPantalla'
 import { registrarAvanceDetalladoTI } from '../features/gestionOperativaTI/services/gestionOperativaTIService'
 import { resolverTicketTI } from '../features/gestionTicketsTI/services/gestionTicketsTIService'
 import { seleccionarSesionTraza } from '../shared/services/observabilidadAgente'
@@ -141,6 +145,8 @@ export default function AsistenteTIPage(){
   const [mensaje,setMensaje]=useState('')
   const videoRef=useRef<HTMLVideoElement>(null)
   const liveRef=useRef<GeminiLiveSesion|null>(null)
+  const grabadorRef=useRef<GrabadorPantalla|null>(null)
+  const [grabarSesion,setGrabarSesion]=useState(true)
 
   useEffect(()=>()=>{void liveRef.current?.detener()},[])
 
@@ -184,6 +190,15 @@ export default function AsistenteTIPage(){
   const hayTranscripcionServidor=!!contexto?.eventos.some(x=>esTranscripcion(x.tipo))
   const puedeEnviarSolucion=puedeActuar&&['CAMBIO_VALIDADO','INFORME_GRABADO'].includes(estado)&&!!sesion?.incidenciaNumero&&!!estadoTicket&&!estadosTicketCerrados.includes(estadoTicket)
   const accionCatalogo=diagnostico?.accion?contexto?.acciones.find(x=>x.accionCodigo===diagnostico.accion?.accionCodigo):undefined
+  const grabaciones=contexto?.eventos.filter(x=>x.tipo==='GRABACION_PANTALLA'&&x.origenServidor)??[]
+  const puedeTomar=!puedeActuar&&!!sesion&&(!!sesion.puedeTomar||(esSupervisor&&estadosReasignables.includes(estado)))
+  // Explica por qué Live e Investigar están deshabilitados y ofrece la salida cuando existe.
+  const puedeReabrir=puedeActuar&&['PENDIENTE_TI','SIN_EJECUTOR'].includes(estado)
+  const motivoBloqueo=!puedeActuar?(puedeTomar?'Solo el responsable de la investigación puede observar e investigar. Usa "Tomar investigación" para continuar tú.':'Solo el responsable de la investigación puede observar e investigar. Pide a un supervisor que te la reasigne.')
+    :finalizada?'La investigación está cerrada: no admite más observación ni un nuevo diagnóstico.'
+    :!enObservacion&&puedeReabrir?'El diagnóstico ya fue generado, por eso Live e Investigar están bloqueados. Para reunir más evidencia (otra reproducción, otra grabación), reabre la observación.'
+    :!enObservacion?'Hay una decisión de cambio en curso; la observación no puede reabrirse hasta que termine.'
+    :""
 
   async function cargarHistorial(equipo=alcanceEquipo){
     try{setHistorial(null);setHistorial(await listarInvestigacionesTI(equipo))}catch(e){setHistorial([]);setError(mensajeError(e,'No fue posible cargar el historial de investigaciones.'))}
@@ -272,6 +287,17 @@ export default function AsistenteTIPage(){
     return 'Función no disponible.'
   }
 
+  // La grabación de la pantalla queda en la investigación (y como adjunto del ticket) para revisarla y para que el agente la analice.
+  async function guardarGrabacion(numero:number){
+    const grabador=grabadorRef.current
+    grabadorRef.current=null
+    if(!grabador)return
+    const video=await grabador.detener()
+    if(!video)return
+    try{await subirGrabacionTI(numero,video,grabador.segundos)}
+    catch(e){setError(mensajeError(e,'No se pudo guardar la grabación de la pantalla.'))}
+  }
+
   async function iniciarLive(){
     if(!sesion||liveActivo||procesando)return
     setProcesando(true);setError('');setMensaje('')
@@ -285,11 +311,12 @@ export default function AsistenteTIPage(){
         onFuncion:atenderFuncionLive,
         onError:setError,
         onPantallaFinalizada:()=>void cerrarObservacion(false),
-        onDesconexion:()=>{liveRef.current=null;setLiveActivo(false);if(videoRef.current)videoRef.current.srcObject=null;setLiveEstado('Gemini cerró la sesión Live (límite de tiempo o red). La transcripción se conservó; puedes reanudar o finalizar la reproducción.')},
+        onDesconexion:()=>{const actual=sesionRef.current;if(actual)void guardarGrabacion(actual.sesionNumero).then(()=>refrescar()).catch(()=>undefined);liveRef.current=null;setLiveActivo(false);if(videoRef.current)videoRef.current.srcObject=null;setLiveEstado('Gemini cerró la sesión Live (límite de tiempo o red). La transcripción se conservó; puedes reanudar o finalizar la reproducción.')},
       })
       liveRef.current=live
       const stream=await live.iniciar(token)
       if(videoRef.current){videoRef.current.srcObject=stream;void videoRef.current.play()}
+      if(grabarSesion){const grabador=new GrabadorPantalla();if(grabador.iniciar(stream))grabadorRef.current=grabador}
       setMicroSilenciado(false);setLiveActivo(true);setLiveEstado(live.tieneMicrofono?'Live activo · reproduce el proceso hasta el error':'Live activo sin micrófono · escribe al agente desde el campo de texto')
       await refrescar()
     }catch(e){setError(mensajeError(e,'No fue posible iniciar Live.'));await liveRef.current?.detener();liveRef.current=null;setLiveActivo(false)}
@@ -319,6 +346,7 @@ export default function AsistenteTIPage(){
     liveRef.current=null;setLiveActivo(false)
     if(videoRef.current)videoRef.current.srcObject=null
     try{
+      await guardarGrabacion(actual.sesionNumero)
       await registrarEventoInvestigacionTI(actual.sesionNumero,'FIN_LIVE','LIVE','La etapa de observación finalizó y el agente continuará con investigación técnica.')
       // Se usa lo registrado en el servidor: incluye la reproducción del usuario final, no solo la conversación de esta consola.
       const registrado=await obtenerInvestigacionTI(actual.sesionNumero)
@@ -384,6 +412,16 @@ export default function AsistenteTIPage(){
     setSimulacion(r);setComprobaciones(null);await refrescar()
     setMensaje(r.exito?'Simulación completada sin persistir cambios. Revisa el resultado antes de decidir.':'La simulación detectó que la acción no podría aplicarse. Revisa el motivo.')
   },'No fue posible simular el cambio.')
+
+  const reabrir=()=>{
+    if(!window.confirm('El diagnóstico actual se guardará en el historial de la investigación y podrás volver a observar, invitar al usuario e investigar. ¿Continuar?'))return
+    return ejecutar(async()=>{
+      await reabrirObservacionTI(sesion!.sesionNumero)
+      setDiagnostico(null);setSimulacion(null);setComprobaciones(null);await refrescar()
+      setLiveEstado('Observación reabierta · puedes compartir pantalla o invitar al usuario')
+      setMensaje('Observación reabierta. El diagnóstico anterior quedó guardado en el historial de la investigación.')
+    },'No fue posible reabrir la observación.')
+  }
 
   const comprobar=()=>ejecutar(async()=>{setComprobaciones(await comprobarInvestigacionTI(sesion!.sesionNumero))},'No fue posible ejecutar la comprobación sin cambios.')
   const consultarCodigo=()=>ejecutar(async()=>{setCodigo(await buscarCodigoInvestigacionTI(sesion!.sesionNumero))},'No fue posible consultar referencias de código.')
@@ -470,7 +508,7 @@ export default function AsistenteTIPage(){
 
         {(error||mensaje)&&<div className={`agente-aviso ${error?'agente-aviso--error':'agente-aviso--ok'}`} role={error?'alert':'status'}><Icono nombre={error?'alerta':'check'} size={17}/><span>{error||mensaje}</span><button onClick={()=>{setError('');setMensaje('')}} aria-label="Cerrar aviso">×</button></div>}
 
-        {vista==='consulta'?<div className="agente-consulta"><AsistenteTIConversacion/></div>:!sesion?<>
+        {vista==='consulta'?<div className="agente-consulta"><AsistenteTIConversacion onAbrirInvestigacion={numero=>{setVista('investigacion');void abrirSesion(numero)}}/></div>:!sesion?<>
           <section className="agente-inicio-card"><div className="agente-inicio-card__icono"><Icono nombre="buscar" size={27}/></div><div className="agente-inicio-card__titulo"><h2>Crear expediente de investigación</h2><p>Asocia el ticket cuando exista. Si todavía no existe, el agente puede recopilar la evidencia Live y documentarla sin ejecutar cambios.</p></div><label><span>Incidencia <small>opcional</small></span><input value={incidencia} onChange={e=>setIncidencia(e.target.value.toUpperCase())} maxLength={12} placeholder="INC-000523 o TKT-00042342"/></label><label><span>Problema a investigar</span><textarea value={descripcion} onChange={e=>setDescripcion(e.target.value)} maxLength={1200} rows={4} placeholder="Ej. El usuario no puede generar el picking después de aprobar la requisición..."/></label><button className="agente-btn agente-btn--primario" onClick={()=>void iniciarInvestigacion()} disabled={descripcion.trim().length<5||procesando}><Icono nombre="flecha" size={17}/>{procesando?'Procesando...':'Iniciar investigación'}</button></section>
           <section className="agente-panel agente-historial"><header><div><span className="agente-panel__icono"><Icono nombre="reloj" size={18}/></span><div><h2>{alcanceEquipo?'Investigaciones del equipo':'Mis investigaciones'}</h2><p>{alcanceEquipo?'Supervisa, consulta o reasigna investigaciones de otros operadores':'Retoma una investigación en curso o revisa expedientes anteriores'}</p></div></div><div className="agente-historial__acciones">{esSupervisor&&<div className="agente-segmentado" role="group" aria-label="Alcance"><button className={!alcanceEquipo?'activo':''} onClick={()=>cambiarAlcance(false)}>Mías</button><button className={alcanceEquipo?'activo':''} onClick={()=>cambiarAlcance(true)}>Equipo TI</button></div>}<button className="agente-btn agente-btn--secundario" onClick={()=>void cargarHistorial()} disabled={procesando}>Actualizar</button></div></header>
             {historial===null?<p className="agente-vacio">Cargando historial...</p>:historial.length===0?<p className="agente-vacio">Todavía no tienes investigaciones registradas.</p>:<div className="agente-historial__lista">{historial.map(x=><button key={x.sesionNumero} onClick={()=>void abrirSesion(x.sesionNumero)} disabled={procesando}><strong>{codigoSesion(x.sesionNumero)}</strong><span>{x.incidenciaNumero||'Sin ticket'}</span><p>{alcanceEquipo&&<b>{x.esPropietario?'Tú':x.nombreOperador} · </b>}{x.descripcionInicial}</p><span className={`agente-chip ${estadosFinales.includes(x.estado)?'agente-chip--final':''}`}>{x.estado.replaceAll('_',' ')}</span><small>{fechaCorta(x.fechaInicio)}</small></button>)}</div>}
@@ -479,13 +517,15 @@ export default function AsistenteTIPage(){
         <>
           <section className="agente-progreso" aria-label="Progreso de investigación">{['RECOPILAR','OBSERVAR','INVESTIGAR','DIAGNOSTICAR','DECIDIR'].map((paso,i)=><div key={paso} className={i<progreso?'agente-progreso__paso agente-progreso__paso--ok':i===progreso?'agente-progreso__paso agente-progreso__paso--actual':'agente-progreso__paso'}><span>{i<progreso?<Icono nombre="check" size={13}/>:i+1}</span><strong>{paso}</strong></div>)}</section>
 
-          {!puedeActuar&&<section className="agente-solo-lectura"><Icono nombre="escudo" size={18}/><div><strong>Investigación de {sesion.nombreOperador} · modo consulta</strong><p>Puedes revisar evidencia, diagnóstico y expediente. Para observar, decidir o ejecutar, la investigación debe reasignarse.</p></div>{esSupervisor&&estadosReasignables.includes(estado)&&<button className="agente-btn agente-btn--primario" onClick={()=>void reasignar(usuario.usuario)} disabled={procesando}>Tomar investigación</button>}</section>}
+          {!puedeActuar&&<section className="agente-solo-lectura"><Icono nombre="escudo" size={18}/><div><strong>Investigación de {sesion.nombreOperador} · modo consulta</strong><p>{puedeTomar?'Puedes revisar evidencia, diagnóstico y expediente. Para observar, decidir o ejecutar, tómala: quedarás como responsable.':'Puedes revisar evidencia, diagnóstico y expediente. Para observar, decidir o ejecutar, un supervisor o el responsable del ticket debe tomarla.'}</p></div>{puedeTomar&&<button className="agente-btn agente-btn--primario" onClick={()=>void reasignar(usuario.usuario)} disabled={procesando}>Tomar investigación</button>}</section>}
 
           <div className="agente-grid">
             <section className="agente-panel agente-live"><header><div><span className="agente-panel__icono"><Icono nombre="pantalla" size={19}/></span><div><h2>Observación Live</h2><p>Pantalla + voz para reproducir exactamente el proceso del usuario</p></div></div><span className={`agente-estado ${liveActivo?'agente-estado--live':''}`}>{liveActivo?'EN VIVO':'OBSERVACIÓN'}</span></header>
               <div className="agente-live__visor"><video ref={videoRef} muted playsInline/><div className={liveActivo?'agente-live__placeholder agente-live__placeholder--oculto':'agente-live__placeholder'}><Icono nombre="pantalla" size={34}/><strong>{contexto?.sesion.procesoObservado?'Reproducción registrada':'Comparte la pantalla cuando estés listo'}</strong><span>La imagen se procesa durante Live y no se almacena; el expediente conserva eventos, transcripción y el error observado.</span></div></div>
               <div className="agente-live__estado"><span className={liveActivo?'agente-pulso':''}/><p>{liveEstado}</p></div>
               <div className="agente-live__acciones">{!liveActivo?<button className="agente-btn agente-btn--live" onClick={()=>void iniciarLive()} disabled={procesando||!enObservacion||!puedeActuar}><Icono nombre="pantalla" size={17}/>{transcripciones.length?'Reanudar pantalla y conversación':'Compartir pantalla y conversar'}</button>:<><button className="agente-btn agente-btn--stop" onClick={()=>void cerrarObservacion()}><Icono nombre="stop" size={15}/>Finalizar reproducción</button><button className="agente-btn agente-btn--secundario" onClick={alternarMicrofono} aria-pressed={microSilenciado}><Icono nombre="microfono" size={15}/>{microSilenciado?'Activar micrófono':'Silenciar micrófono'}</button></>}<button className="agente-btn agente-btn--primario" onClick={()=>void investigar()} disabled={procesando||finalizada||!!diag||!puedeActuar}><Icono nombre="buscar" size={17}/>{procesando?'Investigando...':diag?'Diagnóstico generado':'Investigar ahora'}</button></div>
+              {!liveActivo&&enObservacion&&puedeActuar&&<label className="agente-grabar"><input type="checkbox" checked={grabarSesion} onChange={e=>setGrabarSesion(e.target.checked)}/><span>Grabar la pantalla compartida para el expediente (sin audio)</span></label>}
+              {!liveActivo&&motivoBloqueo&&<div className="agente-motivo"><Icono nombre="alerta" size={15}/><span>{motivoBloqueo}</span>{puedeReabrir&&<button className="agente-btn agente-btn--secundario" onClick={()=>void reabrir()} disabled={procesando}>Reabrir observación</button>}</div>}
               {liveActivo&&<form className="agente-live__texto" onSubmit={e=>{e.preventDefault();enviarTextoLive()}}><input value={textoLive} onChange={e=>setTextoLive(e.target.value)} maxLength={500} placeholder="Escribe al agente Live (por ejemplo, el número de documento)"/><button className="agente-btn agente-btn--secundario" disabled={!textoLive.trim()}><Icono nombre="flecha" size={15}/>Enviar</button></form>}
               {enObservacion&&puedeActuar&&<div className="agente-error-observado"><label htmlFor="error-observado"><Icono nombre="alerta" size={14}/>Error observado {errorRegistrado&&<small>· registrado</small>}</label><div><input id="error-observado" value={errorObservado} onChange={e=>setErrorObservado(e.target.value)} maxLength={1000} placeholder="Copia el mensaje exacto que muestra la pantalla cuando aparece el error"/><button className="agente-btn agente-btn--stop" onClick={()=>void marcarError()} disabled={procesando}>Marcar error</button></div></div>}
               {(enObservacion||sesion.estadoInvitacion)&&<div className="agente-invitacion">
@@ -494,11 +534,12 @@ export default function AsistenteTIPage(){
                 {eventosUsuarioFinal.length>0&&<div className="agente-invitacion__lista">{eventosUsuarioFinal.slice(-8).map(x=><p key={x.secuencia} className={x.tipo==='ERROR_OBSERVADO'?'agente-invitacion__error':''}><b>{x.tipo==='TRANSCRIPCION_USUARIO'?'Usuario':x.tipo==='TRANSCRIPCION_AGENTE'?'Asistente':x.tipo==='ERROR_OBSERVADO'?'Error marcado':x.tipo==='PASO_OBSERVADO'?'Paso':'Sesión'}</b><span>{x.contenido}</span></p>)}</div>}
                 {puedeActuar&&enObservacion&&!liveActivo&&(hayTranscripcionServidor||eventosUsuarioFinal.length>0)&&<button className="agente-btn agente-btn--stop agente-invitacion__cerrar" onClick={cerrarObservacionManual} disabled={procesando}><Icono nombre="stop" size={14}/>Cerrar observación</button>}
               </div>}
+              {grabaciones.length>0&&<div className="agente-grabaciones"><strong><Icono nombre="pantalla" size={14}/>Grabaciones de pantalla ({grabaciones.length})</strong>{grabaciones.map(g=><figure key={g.secuencia}><video controls preload="metadata" src={urlGrabacionTI(sesion.sesionNumero,g.secuencia)}/><figcaption><b>{g.fuente==='LIVE_USUARIO'?'Reproducción del usuario':'Observación TI'}</b> · {fechaCorta(g.fecha)} · {g.contenido}</figcaption></figure>)}</div>}
               <div className="agente-transcripcion"><div className="agente-transcripcion__titulo"><Icono nombre="microfono" size={15}/><strong>Conversación Live</strong><span>{transcripciones.length} turnos</span></div>{transcripciones.length===0?<p className="agente-vacio">La transcripción aparecerá aquí durante la reproducción.</p>:<div className="agente-transcripcion__lista">{transcripciones.slice(-12).map((t,i)=><div key={`${i}-${t.texto.slice(0,20)}`} className={`agente-transcripcion__item agente-transcripcion__item--${t.rol}`}><b>{t.rol==='usuario'?'Usuario':'Agente'}</b><span>{t.texto}</span></div>)}</div>}</div>
             </section>
 
             <aside className="agente-columna">
-              <section className="agente-panel agente-contexto"><header><div><span className="agente-panel__icono"><Icono nombre="datos" size={18}/></span><div><h2>Contexto correlacionado</h2><p>Identidad y fuentes autorizadas</p></div></div></header><dl><div><dt>Incidencia</dt><dd>{contexto?.ticket.incidenciaNumero||'Sin ticket asociado'}</dd></div><div><dt>Correlation ID</dt><dd className="agente-mono">{sesion.idCorrelacion}</dd></div><div><dt>Documentos</dt><dd>{contexto?.documentos.length??0}</dd></div><div><dt>Mensajes</dt><dd>{contexto?.mensajes.length??0}</dd></div><div><dt>Conocimiento</dt><dd>{contexto?.conocimientos.length??0} referencias</dd></div><div><dt>Auditoría</dt><dd>{contexto?.auditoria.length??0} eventos</dd></div><div><dt>Trazas</dt><dd>{contexto?.eventos.filter(x=>x.origenServidor).length??0} del servidor</dd></div><div><dt>Estado</dt><dd><span className="agente-chip">{estado.replaceAll('_',' ')}</span></dd></div><div><dt>Estado del ticket</dt><dd>{estadoTicket||'—'}</dd></div><div><dt>Responsable</dt><dd>{sesion.esPropietario?'Tú':sesion.nombreOperador}</dd></div></dl>
+              <section className="agente-panel agente-contexto"><header><div><span className="agente-panel__icono"><Icono nombre="datos" size={18}/></span><div><h2>Contexto correlacionado</h2><p>Identidad y fuentes autorizadas</p></div></div></header><dl><div><dt>Incidencia</dt><dd>{contexto?.ticket.incidenciaNumero||'Sin ticket asociado'}</dd></div><div><dt>Correlation ID</dt><dd className="agente-mono">{sesion.idCorrelacion}</dd></div><div><dt>Documentos</dt><dd>{contexto?.documentos.length??0}</dd></div><div><dt>Mensajes</dt><dd>{contexto?.mensajes.length??0}</dd></div><div><dt>Conocimiento</dt><dd>{contexto?.conocimientos.length??0} referencias</dd></div><div><dt>Auditoría</dt><dd>{contexto?.auditoria.length??0} eventos</dd></div><div><dt>Trazas</dt><dd>{contexto?.eventos.filter(x=>x.tipo==='TRAZA_BACKEND').length??0} del servidor</dd></div><div><dt>Estado</dt><dd><span className="agente-chip">{estado.replaceAll('_',' ')}</span></dd></div><div><dt>Estado del ticket</dt><dd>{estadoTicket||'—'}</dd></div><div><dt>Responsable</dt><dd>{sesion.esPropietario?'Tú':sesion.nombreOperador}</dd></div></dl>
                 {enObservacion&&<p className="agente-nota">Mientras la investigación esté en observación, tus acciones en otros módulos del portal se registran como traza técnica correlacionada.</p>}</section>
 
               <section className="agente-panel agente-herramientas"><header><div><span className="agente-panel__icono"><Icono nombre="codigo" size={18}/></span><div><h2>Herramientas sin cambios</h2><p>Consultas de solo lectura sobre la investigación</p></div></div></header>
