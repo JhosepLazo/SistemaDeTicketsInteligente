@@ -1,5 +1,9 @@
 param(
-    [switch]$ConfirmarRecreacion
+    [switch]$ConfirmarRecreacion,
+    # Servidor y usuario SQL opcionales (por ejemplo, el contenedor del CI). Sin usuario se usa seguridad integrada;
+    # con usuario, la contraseña se lee de la variable de entorno SQLCMDPASSWORD y nunca se escribe en el script.
+    [string]$Servidor = '.',
+    [string]$Usuario = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -9,6 +13,10 @@ if (-not $ConfirmarRecreacion) {
 }
 
 $sqlcmd = Get-Command sqlcmd -ErrorAction Stop
+if ($Usuario -and -not $env:SQLCMDPASSWORD) {
+    throw 'Con -Usuario define la contraseña en la variable de entorno SQLCMDPASSWORD.'
+}
+$autenticacion = if ($Usuario) { @('-U', $Usuario) } else { @('-E') }
 $raiz = [IO.Path]::GetFullPath($PSScriptRoot)
 $legado = [IO.Path]::GetFullPath((Join-Path $raiz 'legado'))
 $aplicacion = [IO.Path]::GetFullPath((Join-Path $raiz 'sistema-inteligente'))
@@ -27,7 +35,7 @@ function Invoke-SqlFile {
     }
 
     Write-Host "Ejecutando $([IO.Path]::GetFileName($Path))"
-    & $sqlcmd.Source -S . -E -C -l 20 -b -f 65001 -i $Path
+    & $sqlcmd.Source -S $Servidor @autenticacion -C -I -l 20 -b -f 65001 -i $Path
     if ($LASTEXITCODE -ne 0) {
         throw "Falló el script $Path con código $LASTEXITCODE."
     }
@@ -52,7 +60,7 @@ Begin
 End;
 '@
 
-& $sqlcmd.Source -S . -E -C -l 20 -b -f 65001 -Q $eliminar
+& $sqlcmd.Source -S $Servidor @autenticacion -C -l 20 -b -f 65001 -Q $eliminar
 if ($LASTEXITCODE -ne 0) {
     throw "No se pudieron eliminar las bases locales anteriores. Código $LASTEXITCODE."
 }
@@ -69,6 +77,7 @@ $scriptsAplicacion = @(
     '04_AccionesControl.sql',
     '05_Auditoria.sql',
     '06_Indices.sql',
+    '07_DatosIniciales.sql',
     '09_InsertDeDatos.sql',
     '10_Autenticacion.sql',
     '11_InicioUsuario.sql',
@@ -83,7 +92,6 @@ $scriptsAplicacion = @(
     '20_AjustesOperativosSinIA.sql',
     '21_CorreccionesCompatibilidadSinIA.sql',
     '22_CierreMejorasFuncionalesSinIA.sql',
-    '08_Validacion.sql',
     '23_SincronizarDatosLegado.sql',
     '24_OptimizacionRendimiento.sql',
     '25_AsistenteIngenieriaAutonomo.sql',
@@ -94,7 +102,16 @@ $scriptsAplicacion = @(
     '30_AgenteFase4HerramientasDiagnostico.sql',
     '31_AgenteFase5ConocimientoSemantico.sql',
     '32_AgenteFase6ReplicaTecnica.sql',
-    '33_AgenteFase6Mejoras.sql'
+    '33_AgenteFase6Mejoras.sql',
+    '34_DominiosYMaquinaEstados.sql',
+    '35_ControlAgenteYAutonomia.sql',
+    '36_ClasificacionFichaYGuias.sql',
+    '37_MetricasAgente.sql',
+    '38_PermisosMinimos.sql',
+    '39_CorreccionQuotedIdentifier.sql',
+    '40_SeguridadSesion.sql',
+    # La validación estructural va al final: sus listas cubren los objetos de todos los scripts.
+    '08_Validacion.sql'
 )
 
 foreach ($nombre in $scriptsAplicacion) {

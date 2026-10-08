@@ -1,10 +1,13 @@
 /**
  * Archivo: GestionTicketsTIPage.tsx
  * Objetivo: Implementar el módulo Gestión de Tickets para el operador TI autenticado.
- * Responsabilidad: Mostrar bandeja, detalle y flujo completo de clasificación, asignación, avances con esfuerzo, recopilación, aprobación, resolución, No Procede y registro por mesa de ayuda.
- * Dependencias: AutenticacionContext, gestionTicketsTIApi, gestionOperativaTIApi, NotificacionesCampana, InicioPage.css y GestionTicketsTIPage.css.
+ * Responsabilidad: Mostrar bandeja, detalle (con la ficha del colaborador) y flujo completo de clasificación (con propuesta opcional de la IA),
+ *   asignación, avances con esfuerzo, recopilación, aprobación, resolución, No Procede y registro por mesa de ayuda.
+ * Dependencias: AutenticacionContext, gestionTicketsTIApi, gestionOperativaTIApi, asistenteTIApi, MarcoPortal, Icono, FichaRegistrada,
+ *   PanelClasificacionIA y GestionTicketsTIPage.css.
  * Flujo: /gestion-tickets -> Gestión TI -> endpoints protegidos -> acciones controladas -> recarga de bandeja/detalle.
- * Consideraciones: Prioridad/impacto/complejidad salen de la matriz configurable; las aprobaciones bloquean el ticket mientras están pendientes; no ejecuta acciones automatizadas ni contiene funciones de IA.
+ * Consideraciones: Prioridad/impacto/complejidad salen de la matriz configurable; las aprobaciones bloquean el ticket mientras están pendientes.
+ *   La IA solo propone la clasificación: TI la revisa y la guarda; esta pantalla no ejecuta acciones automatizadas.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -15,6 +18,7 @@ import {
   clasificarTicketTI,
   marcarNoProcedeTI,
   obtenerDetalleGestionTicketTI,
+  obtenerFichaTI,
   obtenerGestionTicketsTI,
   resolverTicketTI,
   responderAprobacionTI,
@@ -32,8 +36,11 @@ import {
   type GestionOperativaTIDatos,
 } from '../../services/gestionOperativaTIApi'
 import { listarInvestigacionesTicketTI, obtenerInformeTI, type AgenteTIInvestigacionTicket } from '../../services/asistenteTIApi'
+import type { DatoFichaTicket } from '../../services/fichaTicketService'
 import MarcoPortal from '../../components/MarcoPortal'
 import IconoBase, { type PropsIcono } from '../../components/Icono'
+import FichaRegistrada from '../../components/FichaRegistrada'
+import PanelClasificacionIA from './PanelClasificacionIA'
 import './GestionTicketsTIPage.css'
 
 // Esta pantalla dibuja sus íconos a 19 px.
@@ -404,6 +411,10 @@ export default function GestionTicketsTIPage() {
                       )
                     }}
                   >
+                    <PanelClasificacionIA
+                      incidenciaNumero={detalle.incidenciaNumero}
+                      onAplicar={propuesta => setClasificacion(v => ({ ...v, ...propuesta }))}
+                    />
                     <div className="gestion-ti-form-grid">
                       <label>
                         Línea
@@ -1392,6 +1403,7 @@ function DetalleCompleto({
         <Bloque titulo="Detalle" texto={detalle.detalle} />
         {detalle.mensajeError && <Bloque titulo="Mensaje de error" texto={detalle.mensajeError} error />}
       </section>
+      <FichaTicketTI incidenciaNumero={detalle.incidenciaNumero} />
       {detalle.documentos.length > 0 && (
         <section>
           <h3>Documentos relacionados</h3>
@@ -1563,6 +1575,27 @@ function DetalleCompleto({
   )
 }
 // Expedientes del Agente de Ingeniería asociados al ticket: consulta para cualquier operador TI; abrir la sesión depende de propiedad o supervisión.
+/** Ficha que el colaborador completó al registrar el ticket; no ocupa espacio si el tipo no tiene ficha. */
+function FichaTicketTI({ incidenciaNumero }: { incidenciaNumero: string }) {
+  const [ficha, setFicha] = useState<DatoFichaTicket[]>([])
+  useEffect(() => {
+    let vigente = true
+    obtenerFichaTI(incidenciaNumero)
+      .then(datos => vigente && setFicha(datos))
+      .catch(() => vigente && setFicha([]))
+    return () => {
+      vigente = false
+    }
+  }, [incidenciaNumero])
+  if (ficha.length === 0) return null
+  return (
+    <section>
+      <h3>Ficha del ticket</h3>
+      <FichaRegistrada datos={ficha} />
+    </section>
+  )
+}
+
 function InvestigacionesAgente({ incidenciaNumero }: { incidenciaNumero: string }) {
   const navigate = useNavigate()
   const [lista, setLista] = useState<AgenteTIInvestigacionTicket[] | null>(null)

@@ -112,78 +112,7 @@ Go
 
 /* ============================== SEGREGACIÓN DE FUNCIONES ============================== */
 
-Create Or Alter Procedure dbo.Usp_TI_Responder_AprobacionTicket
-/*================================================================================
-Objetivo            : Aprobar o rechazar una solicitud pendiente y desbloquear el flujo operativo.
-Creado Por          : Jhosep S. Lazo
-Fecha Creación      : 13/09/2026
-SP Anterior         : dbo.Usp_TI_Responder_AprobacionTicket (27_AgenteFase1Integracion.sql)
-Comentario Cambios  : 02/10/2026 Tampoco puede aprobar el operador que hoy es responsable de la investigación del agente que originó la solicitud
-					  (evita eludir la segregación reasignando la investigación).
-================================================================================*/
-	@cUsuario varchar(20), @cArea char(3), @cIncidenciaNumero varchar(12), @nSecuencia int, @lAprobar bit, @cComentario nvarchar(1000), @cIdCorrelacion uniqueidentifier
-As
-Begin
-	Set NoCount On
-	Set Xact_Abort On
-
-	Begin Try
-		Begin Transaction
-		Declare @nEstado int, @cSolicitante varchar(20), @cMensajeNotificacion nvarchar(500), @cRuta varchar(250) = '/gestion-tickets', @nSesionAgente bigint, @cResponsableAgente varchar(20), @dFecha datetime2(0) = SysDateTime()
-
-		If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Estado = 'A' and Perfil In ('TEC','SUP','ADM')) Throw 50230, 'Solo un operador TI activo puede responder esta aprobación.', 1
-		Select @cSolicitante = UsuarioSolicitante From dbo.TI_SolicitudAprobacion With (UpdLock, HoldLock) Where IncidenciaNumero = @cIncidenciaNumero and Secuencia = @nSecuencia and Estado = 'P'
-		If @cSolicitante Is Null Throw 50231, 'La solicitud de aprobación ya no se encuentra pendiente.', 1
-		If @cSolicitante = @cUsuario Throw 50242, 'No puedes responder una aprobación que tú mismo solicitaste. Debe resolverla otro operador TI.', 1
-
-		Select @nSesionAgente = SesionNumero, @cResponsableAgente = UsuarioTI From dbo.TI_AgenteSesion
-		Where IncidenciaNumero = @cIncidenciaNumero and SolicitudAprobacionSecuencia = @nSecuencia and Estado = 'PENDIENTE_APROBACION'
-		If @cResponsableAgente = @cUsuario Throw 50243, 'Eres el responsable actual de la investigación que propone esta acción; debe aprobarla otro operador TI.', 1
-		If @lAprobar = 0 and NullIf(LTrim(RTrim(@cComentario)), '') Is Null Throw 50232, 'Indica el motivo del rechazo.', 1
-
-		Update dbo.TI_SolicitudAprobacion
-		Set Estado = Case When @lAprobar = 1 Then 'A' Else 'R' End, UsuarioAprobador = @cUsuario,
-			ComentarioRespuesta = NullIf(LTrim(RTrim(@cComentario)), ''), FechaRespuesta = @dFecha
-		Where IncidenciaNumero = @cIncidenciaNumero and Secuencia = @nSecuencia and Estado = 'P'
-
-		Update dbo.TI_Incidencia Set Estado = 'DG', UltimoUsuario = @cUsuario, UltimaFechaModif = @dFecha Where IncidenciaNumero = @cIncidenciaNumero and Estado = 'PA'
-		Select @nEstado = IsNull(Max(Secuencia), 0) + 1 From dbo.TI_IncidenciaEstado With (UpdLock, HoldLock) Where IncidenciaNumero = @cIncidenciaNumero
-		Insert dbo.TI_IncidenciaEstado (IncidenciaNumero, Secuencia, Estado, UsuarioCambio, FechaCambio, Observacion)
-		Values (@cIncidenciaNumero, @nEstado, 'DG', @cUsuario, @dFecha, Case When @lAprobar = 1 Then N'La aprobación fue concedida; el ticket puede continuar.' Else N'La aprobación fue rechazada; el ticket vuelve a diagnóstico.' End)
-
-		If @nSesionAgente Is Not Null Set @cRuta = Concat('/asistente-ti?sesion=', @nSesionAgente)
-
-		Set @cMensajeNotificacion = Case
-			When @nSesionAgente Is Not Null and @lAprobar = 1 Then N'La acción del agente fue aprobada. Abre la investigación para ejecutarla.'
-			When @lAprobar = 1 Then N'La solicitud fue aprobada y el ticket puede continuar.'
-			Else N'La solicitud fue rechazada. Revisa el comentario registrado.' End
-		-- Si la investigación fue reasignada, el aviso llega a su responsable actual.
-		Exec dbo.Usp_TI_Registrar_Notificacion
-			@cUsuario = @cSolicitante,
-			@cIncidenciaNumero = @cIncidenciaNumero,
-			@cTipo = 'APROBACION_RESPUESTA',
-			@cTitulo = N'Respuesta de aprobación',
-			@cMensaje = @cMensajeNotificacion,
-			@cRuta = @cRuta
-		If @cResponsableAgente Is Not Null and @cResponsableAgente <> @cSolicitante
-			Exec dbo.Usp_TI_Registrar_Notificacion
-				@cUsuario = @cResponsableAgente,
-				@cIncidenciaNumero = @cIncidenciaNumero,
-				@cTipo = 'APROBACION_RESPUESTA',
-				@cTitulo = N'Respuesta de aprobación',
-				@cMensaje = @cMensajeNotificacion,
-				@cRuta = @cRuta
-
-		Insert dbo.TI_Auditoria (IncidenciaNumero, Usuario, TipoActor, Entidad, Registro, Evento, Resultado, DetalleJson, IdCorrelacion, Fecha)
-		Values (@cIncidenciaNumero, @cUsuario, 'T', 'TI_SolicitudAprobacion', Concat(@cIncidenciaNumero, '-', @nSecuencia), Case When @lAprobar = 1 Then 'APROBAR_ACCION' Else 'RECHAZAR_ACCION' End, 'EXITOSO', Null, @cIdCorrelacion, @dFecha)
-
-		Commit Transaction
-	End Try
-	Begin Catch
-		If Xact_State() <> 0 Rollback Transaction
-		;Throw
-	End Catch
-End
+-- dbo.Usp_TI_Responder_AprobacionTicket: la versión vigente está en 35_ControlAgenteYAutonomia.sql (aquí había una versión anterior que ese script reemplaza).
 Go
 
 Create Or Alter Procedure dbo.Usp_TI_Resolver_TicketTI

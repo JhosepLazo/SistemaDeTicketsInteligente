@@ -1,8 +1,13 @@
 /**
  * Archivo: ReproduccionUsuarioPage.tsx
  * Objetivo: Permitir que el colaborador muestre a TI cómo ocurre su error, compartiendo pantalla y voz por invitación.
- * Responsabilidad: Explicar y registrar el consentimiento, conducir la sesión Live guiada y enviar solo evidencia observacional.
- * Consideraciones: El usuario decide cuándo empezar, pausar y terminar; la pantalla no se graba y el diagnóstico permanece exclusivamente en TI.
+ * Responsabilidad: Explicar y registrar el consentimiento (REPRODUCCION_V2), conducir la sesión Live guiada, grabar la ventana compartida
+ *   (sin audio) y enviar solo evidencia observacional: pasos, error marcado, transcripción y grabación.
+ * Dependencias: AutenticacionContext, reproduccionApi, geminiLiveApi (GeminiLiveSesion), grabadorPantallaService (GrabadorPantalla),
+ *   MarcoPortal y ReproduccionUsuarioPage.css.
+ * Flujo: invitación de TI -> /reproducir?sesion=n -> consentimiento -> Live y grabación -> finalizar -> investigación automática de TI.
+ * Consideraciones: El usuario decide cuándo empezar, pausar y terminar; la grabación solo existe con su consentimiento explícito y se sube como
+ *   evidencia de la investigación. El diagnóstico permanece exclusivamente en TI.
  */
 
 import { useEffect, useRef, useState } from 'react'

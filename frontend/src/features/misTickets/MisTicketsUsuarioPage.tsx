@@ -2,7 +2,7 @@
  * Archivo: MisTicketsUsuarioPage.tsx
  * Objetivo: Implementar el módulo Mis Tickets para el usuario autenticado siguiendo la estructura visual definida para Calimod.
  * Responsabilidad: Mostrar la bandeja personal, filtros, detalle rápido/completo y permitir responder observaciones, validar/reabrir soluciones, calificar y consultar adjuntos.
- * Dependencias: AutenticacionContext, misTicketsApi, NotificacionesCampana, InicioPage.css y MisTicketsUsuarioPage.css.
+ * Dependencias: AutenticacionContext, misTicketsApi, MarcoPortal, Icono, FichaRegistrada y MisTicketsUsuarioPage.css.
  * Flujo: Ruta protegida /mis-tickets -> listado personal -> selección de ticket -> detalle/acción -> actualización de bandeja.
  * Consideraciones: El módulo no permite asignar, priorizar ni clasificar técnicamente tickets; esas funciones pertenecen a TI. Las acciones disponibles dependen del estado real retornado por backend.
  */
@@ -23,6 +23,7 @@ import {
 } from '../../services/misTicketsApi'
 import MarcoPortal from '../../components/MarcoPortal'
 import Icono from '../../components/Icono'
+import FichaRegistrada from '../../components/FichaRegistrada'
 import './MisTicketsUsuarioPage.css'
 
 type Filtro = 'TODOS' | 'ACTIVOS' | 'PENDIENTES' | 'RESUELTOS'
@@ -443,6 +444,12 @@ export default function MisTicketsUsuarioPage() {
                             </span>
                           ))}
                         </div>
+                      </section>
+                    )}
+                    {detalle.ficha.length > 0 && (
+                      <section className="mis-tickets-bloque">
+                        <h3>Ficha del ticket</h3>
+                        <FichaRegistrada datos={detalle.ficha} />
                       </section>
                     )}
                     <section className="mis-tickets-modal__columnas">

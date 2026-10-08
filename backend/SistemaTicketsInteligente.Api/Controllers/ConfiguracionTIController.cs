@@ -1,10 +1,12 @@
 /**
  * Archivo: ConfiguracionTIController.cs
  * Objetivo: Exponer la administración de los maestros de TI.
- * Responsabilidad: Delegar la consulta y el guardado de cada maestro, y la sincronización con Spring, en ConfiguracionTIBLL.
+ * Responsabilidad: Delegar la consulta y el guardado de cada maestro, la sincronización con Spring, el control del agente
+ *   (parámetros, política de autonomía y acciones) y las fichas por tipo de ticket en ConfiguracionTIBLL.
  * Dependencias: ConfiguracionTIBLL y la autenticación por cookie.
  * Flujo: ConfiguracionTIPage -> ConfiguracionTIController -> ConfiguracionTIBLL.
- * Consideraciones: El frontend solo muestra este módulo a SUP y ADM; los procedimientos aplican la autorización definitiva.
+ * Consideraciones: El módulo está abierto a TEC, SUP y ADM (decisión del 07/10/2026); el control del agente y las fichas solo los
+ *   modifica un ADM, como exige el plan de mejoras. Los procedimientos aplican la autorización definitiva.
  */
 
 using Microsoft.AspNetCore.Authorization;
@@ -56,6 +58,28 @@ public sealed class ConfiguracionTIController(ConfiguracionTIBLL configuracion) 
     [RequestSizeLimit(16 * 1024 * 1024)]
     public Task<IActionResult> GuardarFormato([FromForm] GuardarFormatoSoporteSolicitud s, CancellationToken ct) =>
         Ejecutar(() => configuracion.GuardarFormatoAsync(Usuario, s, ct));
+
+    [HttpGet("agente")]
+    public Task<IActionResult> ObtenerControlAgente(CancellationToken ct) => Responder(async () => Ok(await configuracion.ObtenerControlAgenteAsync(Usuario, Area, ct)));
+
+    [HttpPost("agente/parametros")]
+    [Authorize(Roles = "ADM")]
+    public Task<IActionResult> GuardarParametro(GuardarParametroTISolicitud s, CancellationToken ct) => Ejecutar(() => configuracion.GuardarParametroAsync(Usuario, Area, s, ct));
+
+    [HttpPost("agente/politica")]
+    [Authorize(Roles = "ADM")]
+    public Task<IActionResult> GuardarPolitica(GuardarPoliticaAutonomiaSolicitud s, CancellationToken ct) => Ejecutar(() => configuracion.GuardarPoliticaAsync(Usuario, Area, s, ct));
+
+    [HttpPost("agente/acciones")]
+    [Authorize(Roles = "ADM")]
+    public Task<IActionResult> GuardarAccion(GuardarAccionCatalogoSolicitud s, CancellationToken ct) => Ejecutar(() => configuracion.GuardarAccionAsync(Usuario, Area, s, ct));
+
+    [HttpGet("fichas")]
+    public Task<IActionResult> ObtenerFichas(CancellationToken ct) => Responder(async () => Ok(await configuracion.ObtenerFichasAsync(Usuario, Area, ct)));
+
+    [HttpPost("fichas")]
+    [Authorize(Roles = "ADM")]
+    public Task<IActionResult> GuardarCampoFicha(GuardarCampoFichaSolicitud s, CancellationToken ct) => Ejecutar(() => configuracion.GuardarCampoFichaAsync(Usuario, Area, s, ct));
 
     [HttpPost("conocimiento/{conocimientoCodigo}/visibilidad")]
     public Task<IActionResult> ActualizarVisibilidad(string conocimientoCodigo, VisibilidadConocimientoSolicitud s, CancellationToken ct) =>

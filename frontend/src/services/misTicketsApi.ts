@@ -3,13 +3,14 @@
  * Objetivo: Comunicar Mis Tickets con los servicios del colaborador sobre sus propios tickets.
  * Responsabilidad: Consultar bandeja y detalle, responder observaciones con adjuntos, validar la solución, calificar, armar la ruta
  *   de descarga de adjuntos y editar un ticket antes de que TI lo procese.
- * Dependencias: api.ts (cliente único de la API).
+ * Dependencias: api.ts (cliente único de la API) y fichaTicketService.ts (tipo de la ficha registrada).
  * Flujo: MisTicketsUsuarioPage / AsistenteUsuarioPage -> misTicketsApi -> /api/mis-tickets.
  * Consideraciones: El backend obtiene la identidad de la cookie y valida que el ticket sea del usuario. La edición temprana tiene API
  *   pero todavía no tiene pantalla (pendiente).
  */
 
 import { crearApi } from './api'
+import type { DatoFichaTicket } from './fichaTicketService'
 
 export interface MisTicketsResumen {
   activos: number
@@ -79,6 +80,8 @@ export interface MisTicketDocumento {
 }
 
 export interface MisTicketDetalle {
+  /** Ficha completada al registrar el ticket (vacía si el tipo no tiene ficha). */
+  ficha: DatoFichaTicket[]
   incidenciaNumero: string
   titulo: string
   detalle: string

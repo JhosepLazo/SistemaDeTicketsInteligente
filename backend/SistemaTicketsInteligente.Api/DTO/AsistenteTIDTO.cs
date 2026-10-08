@@ -178,6 +178,8 @@ public sealed class AgenteTIConocimiento
     public string Solucion { get; set; } = string.Empty;
     public string Procedimiento { get; set; } = string.Empty;
     public int PuntajeContextual { get; set; }
+    /// <summary>Pasos de diagnóstico validados por TI (JSON: paso, herramienta, confirma, descarta); vacío si el artículo no tiene guía.</summary>
+    public string GuiaDiagnosticoJson { get; set; } = string.Empty;
 }
 
 public sealed class AgenteTIAccionDisponible
@@ -190,6 +192,9 @@ public sealed class AgenteTIAccionDisponible
     public bool RequiereAprobacion { get; set; }
     public bool TieneEjecutor { get; set; }
     public string ParametrosDescripcion { get; set; } = string.Empty;
+    public bool Reversible { get; set; }
+    /// <summary>JSON Schema de los parámetros del ejecutor; el backend valida contra él lo que propone el modelo.</summary>
+    public string ParametrosEsquemaJson { get; set; } = string.Empty;
 }
 
 public sealed class AgenteTIAuditoria
@@ -241,6 +246,14 @@ public sealed class AgenteTIAccionPropuesta
     public string NivelRiesgo { get; set; } = string.Empty;
     public bool RequiereAprobacion { get; set; }
     public string ParametrosJson { get; set; } = string.Empty;
+    public bool Reversible { get; set; }
+}
+
+/// <summary>Causa que el agente consideró y descartó, con el motivo (parte del paquete que TI revisa antes de aprobar).</summary>
+public sealed class AgenteTIAlternativa
+{
+    public string Causa { get; set; } = string.Empty;
+    public string Motivo { get; set; } = string.Empty;
 }
 
 public sealed class AgenteTIDiagnosticoRespuesta
@@ -264,6 +277,12 @@ public sealed class AgenteTIDiagnosticoRespuesta
     public List<AgenteTIHallazgo> Hallazgos { get; set; } = [];
     /// <summary>Datos sensibles ocultados antes de enviar el contexto al proveedor de IA.</summary>
     public int DatosOcultados { get; set; }
+    /// <summary>
+    /// ALTA: un hallazgo verificado de una prueba determinista (herramienta, base, código, telemetría o auditoría) sostiene la causa.
+    /// MEDIA: solo la sostiene conocimiento validado. BAJA: es una hipótesis del modelo y no se propone ninguna acción.
+    /// </summary>
+    public string NivelEvidencia { get; set; } = string.Empty;
+    public List<AgenteTIAlternativa> AlternativasDescartadas { get; set; } = [];
 }
 
 /// <summary>Herramienta diagnóstica de solo lectura del catálogo TI_AgenteHerramienta.</summary>
@@ -420,6 +439,8 @@ public sealed class AgenteTIPreparacionCambio
     public int? EjecucionSecuencia { get; set; }
     public int? SolicitudAprobacionSecuencia { get; set; }
     public string ParametrosJson { get; set; } = string.Empty;
+    /// <summary>Esquema de parámetros del ejecutor; los parámetros aprobados se validan contra él antes de ejecutar.</summary>
+    public string ParametrosEsquemaJson { get; set; } = string.Empty;
 }
 
 public sealed class AgenteTIEjecucionResultado
@@ -436,3 +457,46 @@ public sealed class AgenteTIDecisionRespuesta
     public int? SolicitudAprobacionSecuencia { get; set; }
     public bool Ejecutado { get; set; }
 }
+
+/// <summary>Parámetros operativos vigentes del agente y de los tickets (TI_Parametro), con caché corta en ControlAgenteTI.</summary>
+public sealed record ParametrosAgenteTI(string Modo, string RiesgoMaximoAutonomo, decimal ConfianzaMinimaPropuesta, int? VigenciaAprobacionHoras,
+    int? AutocierreValidacionDias)
+{
+    /// <summary>APAGADO: no investiga ni ejecuta.</summary>
+    public bool Apagado => Modo == "APAGADO";
+    /// <summary>APAGADO o SOMBRA: la ejecución de cambios está deshabilitada.</summary>
+    public bool EjecucionDeshabilitada => Modo is "APAGADO" or "SOMBRA";
+}
+
+/// <summary>Todo lo que PoliticaAutonomia necesita para decidir si una acción propuesta puede ejecutarse sin humano.</summary>
+public sealed class AgenteTIDatosAutonomia
+{
+    public long SesionNumero { get; set; }
+    public string UsuarioTI { get; set; } = string.Empty;
+    public string AreaTI { get; set; } = string.Empty;
+    public string EstadoSesion { get; set; } = string.Empty;
+    public decimal? Confianza { get; set; }
+    public string AccionCodigo { get; set; } = string.Empty;
+    public string ParametrosJson { get; set; } = "{}";
+    public bool SolicitudPendiente { get; set; }
+    public string IncidenciaNumero { get; set; } = string.Empty;
+    public string TipoTicket { get; set; } = string.Empty;
+    public string SubTipo { get; set; } = string.Empty;
+    public string EstadoTicket { get; set; } = string.Empty;
+    public string PerfilSolicitante { get; set; } = string.Empty;
+    public string AccionTipo { get; set; } = string.Empty;
+    public string AccionEstado { get; set; } = string.Empty;
+    public bool RequiereAprobacion { get; set; } = true;
+    public bool Reversible { get; set; }
+    public string NivelRiesgo { get; set; } = string.Empty;
+    public bool TieneEjecutor { get; set; }
+    public string ParametrosEsquemaJson { get; set; } = string.Empty;
+    public string ModoPolitica { get; set; } = "APROBACION";
+    public decimal? ConfianzaMinima { get; set; }
+    public string EstadoPolitica { get; set; } = string.Empty;
+    public string ModoAgente { get; set; } = "ASISTIDO";
+    public string RiesgoMaximo { get; set; } = string.Empty;
+}
+
+/// <summary>Resultado de la regla compuesta: Permitida solo si no quedó ningún motivo para exigir la decisión de TI.</summary>
+public sealed record ResultadoPoliticaAutonomia(bool Permitida, IReadOnlyList<string> Motivos);

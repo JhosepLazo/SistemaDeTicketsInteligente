@@ -1,8 +1,8 @@
 /**
  * Archivo: GestionTicketsTIController.cs
  * Objetivo: Exponer la bandeja de tickets del operador TI y sus acciones.
- * Responsabilidad: Delegar consulta, clasificación, asignación, información, resolución, No Procede, aprobaciones y descargas
- *   en GestionTicketsTIBLL con la identidad y el área de la cookie.
+ * Responsabilidad: Delegar consulta, clasificación (y su propuesta con IA), asignación, información, resolución, No Procede,
+ *   aprobaciones, ficha y descargas en GestionTicketsTIBLL con la identidad y el área de la cookie.
  * Dependencias: GestionTicketsTIBLL y la autenticación por cookie.
  * Flujo: GestionTicketsTIPage -> GestionTicketsTIController -> GestionTicketsTIBLL.
  * Consideraciones: Solo perfiles TEC, SUP y ADM; los avances se registran en GestionOperativaTIController.
@@ -10,6 +10,7 @@
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace SistemaTicketsInteligente.Api.Controllers;
 
@@ -28,6 +29,21 @@ public sealed class GestionTicketsTIController(GestionTicketsTIBLL gestion) : Co
     [HttpPost("{incidenciaNumero}/clasificar")]
     public Task<IActionResult> Clasificar(string incidenciaNumero, ClasificarTicketTISolicitud s, CancellationToken ct) =>
         Ejecutar(() => gestion.ClasificarAsync(Usuario, Area, incidenciaNumero, s, ct));
+
+    /// <summary>Historial de clasificaciones: propuestas de la IA (I) y clasificaciones aplicadas por TI (T).</summary>
+    [HttpGet("{incidenciaNumero}/clasificaciones")]
+    public Task<IActionResult> ObtenerClasificaciones(string incidenciaNumero, CancellationToken ct) =>
+        Responder(async () => Ok(await gestion.ObtenerClasificacionesAsync(Usuario, Area, incidenciaNumero, ct)));
+
+    /// <summary>La IA propone una clasificación; no cambia el ticket hasta que TI la aplique.</summary>
+    [HttpPost("{incidenciaNumero}/clasificacion/proponer")]
+    [EnableRateLimiting("Asistente")]
+    public Task<IActionResult> ProponerClasificacion(string incidenciaNumero, CancellationToken ct) =>
+        Responder(async () => Ok(await gestion.ProponerClasificacionAsync(Usuario, Area, incidenciaNumero, ct)));
+
+    [HttpGet("{incidenciaNumero}/ficha")]
+    public Task<IActionResult> ObtenerFicha(string incidenciaNumero, CancellationToken ct) =>
+        Responder(async () => Ok(await gestion.ObtenerFichaAsync(Usuario, Area, incidenciaNumero, ct)));
 
     [HttpPost("{incidenciaNumero}/asignar")]
     public Task<IActionResult> Asignar(string incidenciaNumero, AsignarTicketTISolicitud s, CancellationToken ct) =>

@@ -1,18 +1,22 @@
 /**
  * Archivo: api.ts
  * Objetivo: Hacer todas las peticiones a la API del sistema con las mismas reglas.
- * Responsabilidad: Enviar la cookie de sesión, avisar a la aplicación cuando la sesión venció (401), marcar las peticiones
- *   del proceso que se está reproduciendo para el agente y convertir cada error en un mensaje para la pantalla.
+ * Responsabilidad: Enviar la cookie de sesión y el token CSRF, avisar a la aplicación cuando la sesión venció (401), marcar las
+ *   peticiones del proceso que se está reproduciendo para el agente y convertir cada error en un mensaje para la pantalla.
  * Dependencias: Fetch API y sessionStorage.
- * Flujo: <modulo>Api.ts -> crearApi(textos) -> fetch -> API ASP.NET Core.
+ * Flujo: <modulo>Api.ts -> crearApi(textos) -> llamarApi -> fetch -> API ASP.NET Core.
  * Consideraciones: El mensaje de un error es el { mensaje } que devuelve la API; si no trae uno, el texto del módulo para ese
- *   estado (sin permiso o demasiadas solicitudes) o el de la operación. Nunca se muestran detalles técnicos.
+ *   estado (sin permiso o demasiadas solicitudes) o el de la operación. Nunca se muestran detalles técnicos. El token CSRF se pide
+ *   una vez por sesión (GET /api/autenticacion/token-csrf), solo vive en memoria y se olvida al iniciar o cerrar sesión.
  */
 
 export const EVENTO_SESION_EXPIRADA = 'sistema-tickets:sesion-expirada'
 
 const CONEXION = 'No fue posible comunicarse con el sistema. Intenta nuevamente en unos momentos.'
 const CLAVE_SESION_AGENTE = 'calimod.agente.traza.v1'
+const METODOS_SIN_CAMBIOS = new Set(['GET', 'HEAD', 'OPTIONS'])
+
+let tokenCsrf: Promise<string | null> | null = null
 
 /** Textos de un módulo para los errores que la API devuelve sin mensaje propio. */
 export interface TextosModulo {
@@ -66,10 +70,43 @@ function cabeceras(url: string, propias?: HeadersInit): HeadersInit | undefined 
   return resultado
 }
 
-/** fetch con la cookie de sesión; sin conexión con el servidor lanza el mensaje indicado. */
+/** Olvida el token CSRF: la identidad cambió (inicio o cierre de sesión) y la próxima operación pide uno nuevo. */
+export function reiniciarTokenCsrf() {
+  tokenCsrf = null
+}
+
+// Una sola petición del token aunque varias operaciones salgan a la vez; si falla, la siguiente operación lo vuelve a intentar.
+function pedirTokenCsrf(): Promise<string | null> {
+  tokenCsrf ??= fetch('/api/autenticacion/token-csrf', { credentials: 'include' })
+    .then(async respuesta => (respuesta.ok ? (((await respuesta.json()) as { token?: string }).token ?? null) : null))
+    .catch(() => null)
+    .then(token => {
+      if (!token) tokenCsrf = null
+      return token
+    })
+  return tokenCsrf
+}
+
+/**
+ * fetch con la cookie de sesión y, si la operación modifica datos, con el token CSRF en X-CSRF-TOKEN. Sin conexión con el
+ * servidor lanza el mensaje indicado.
+ */
 export async function llamarApi(url: string, opciones: RequestInit, conexion = CONEXION): Promise<Response> {
+  const metodo = (opciones.method ?? 'GET').toUpperCase()
+  const protegida =
+    !METODOS_SIN_CAMBIOS.has(metodo) && !new URL(url, window.location.href).pathname.startsWith('/api/autenticacion/iniciar-sesion')
+  const enviar = async () => {
+    const encabezados = new Headers(cabeceras(url, opciones.headers))
+    const token = protegida ? await pedirTokenCsrf() : null
+    if (token) encabezados.set('X-CSRF-TOKEN', token)
+    return fetch(url, { ...opciones, credentials: 'include', headers: encabezados })
+  }
   try {
-    return await fetch(url, { ...opciones, credentials: 'include', headers: cabeceras(url, opciones.headers) })
+    const respuesta = await enviar()
+    // El token venció o es de otra sesión (por ejemplo, se inició sesión en otra pestaña): la API no procesó nada, se reintenta una vez.
+    if (!protegida || respuesta.status !== 400 || respuesta.headers.get('X-Csrf-Invalido') !== '1') return respuesta
+    reiniciarTokenCsrf()
+    return await enviar()
   } catch {
     throw new Error(conexion)
   }
@@ -95,6 +132,7 @@ export function crearApi(textos: TextosModulo = {}) {
       conexion ?? textos.conexion,
     )
     if (respuesta.status === 401) {
+      reiniciarTokenCsrf()
       window.dispatchEvent(new Event(EVENTO_SESION_EXPIRADA))
       throw new Error('Tu sesión venció. Vuelve a iniciar sesión para continuar.')
     }

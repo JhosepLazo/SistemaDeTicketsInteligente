@@ -19,4 +19,9 @@ public sealed class ReportesTIController(ReportesTIBLL reportes) : ControladorBa
 {
     [HttpGet]
     public Task<IActionResult> Obtener([FromQuery] ReportesTIFiltros filtros, CancellationToken ct) => Responder(async () => Ok(await reportes.ObtenerAsync(filtros, ct)));
+
+    /// <summary>Indicadores del agente y comparación con TI para el periodo indicado.</summary>
+    [HttpGet("agente")]
+    public Task<IActionResult> ObtenerAgente([FromQuery] DateTime desde, [FromQuery] DateTime hasta, CancellationToken ct) =>
+        Responder(async () => Ok(await reportes.ObtenerAgenteAsync(Usuario, Area, desde, hasta, ct)));
 }

@@ -3,7 +3,8 @@
  * Objetivo: Calcular los reportes de gestión de TI para un rango de fechas y filtros.
  * Responsabilidad: Validar los filtros, leer indicadores, evolución, distribución, avances, tiempos y detalle exportable,
  *   y completar el resumen con el esfuerzo efectivo registrado.
- * Dependencias: BaseDatos (Usp_TI_Obtener_ReportesTI y Usp_TI_Obtener_EsfuerzoOperativoTI).
+ * Dependencias: BaseDatos (Usp_TI_Obtener_ReportesTI, Usp_TI_Obtener_EsfuerzoOperativoTI, Usp_TI_Obtener_MetricasAgente y
+ *   Usp_TI_Obtener_ComparativoAgente).
  * Flujo: ReportesTIController -> ReportesTIBLL -> Stored Procedures -> ReportesTIDTO.
  * Consideraciones: El rango máximo es de 366 días; los filtros vacíos se envían como NULL (sin filtrar).
  */
@@ -13,6 +14,76 @@ namespace SistemaTicketsInteligente.Api.BLL;
 public sealed class ReportesTIBLL(BaseDatos baseDatos)
 {
     private static readonly HashSet<string> PrioridadesPermitidas = new(StringComparer.OrdinalIgnoreCase) { "ALTA", "MEDIA", "BAJA", "SIN" };
+
+    /// <summary>Indicadores del agente (Anexo B del plan de mejoras) y la comparación de su diagnóstico con lo que registró TI.</summary>
+    public async Task<MetricasAgenteTIRespuesta> ObtenerAgenteAsync(string usuario, string area, DateTime desde, DateTime hasta, CancellationToken ct)
+    {
+        var (usuarioValido, areaValida) = (Validacion.Usuario(usuario), Validacion.Area(area));
+        if (desde.Date > hasta.Date || (hasta.Date - desde.Date).TotalDays > 366) throw new ArgumentException("Indica un periodo válido de hasta un año.");
+        void Parametros(SqlParameterCollection p)
+        {
+            p.Add("@cUsuario", SqlDbType.VarChar, 20).Value = usuarioValido;
+            p.Add("@cArea", SqlDbType.Char, 3).Value = areaValida;
+            p.Add("@dDesde", SqlDbType.Date).Value = desde.Date;
+            p.Add("@dHasta", SqlDbType.Date).Value = hasta.Date;
+        }
+        static ConteoTI Conteo(SqlDataReader f, string columna) => new() { Valor = f.Texto(columna), Cantidad = f.Entero("Cantidad") };
+        var respuesta = await baseDatos.LeerAsync("dbo.Usp_TI_Obtener_MetricasAgente", Parametros, async lector => new MetricasAgenteTIRespuesta
+        {
+            Investigaciones = await lector.FilaAsync(f => new MetricasInvestigacionesTI
+            {
+                Total = f.Entero("Total"), Automaticas = f.Entero("Automaticas"), ConDiagnostico = f.Entero("ConDiagnostico"),
+                ConAccionPropuesta = f.Entero("ConAccionPropuesta"), SolucionValidada = f.Entero("SolucionValidada"), Canceladas = f.Entero("Canceladas"),
+                ConfianzaPromedio = f.DecimalNulo("ConfianzaPromedio"), MinutosPromedioDiagnostico = f.DecimalNulo("MinutosPromedioDiagnostico")
+            }, ct) ?? new(),
+            EstadosInvestigacion = await lector.ListaAsync(f => Conteo(f, "Estado"), ct),
+            Aprobaciones = await lector.ListaAsync(f => new MetricasAprobacionesTI
+            {
+                Origen = f.Texto("Origen"), Solicitadas = f.Entero("Solicitadas"), Aprobadas = f.Entero("Aprobadas"), Rechazadas = f.Entero("Rechazadas"),
+                Canceladas = f.Entero("Canceladas"), Pendientes = f.Entero("Pendientes"), Vencidas = f.Entero("Vencidas"),
+                HorasPromedioRespuesta = f.DecimalNulo("HorasPromedioRespuesta")
+            }, ct),
+            MotivosRechazo = await lector.ListaAsync(f => Conteo(f, "Motivo"), ct),
+            Ejecuciones = await lector.ListaAsync(f => new MetricaEjecucionTI
+            {
+                TipoEjecutor = f.Texto("TipoEjecutor"), Estado = f.Texto("Estado"), Cantidad = f.Entero("Cantidad"), FilasAfectadas = f.Entero("FilasAfectadas")
+            }, ct),
+            Clasificacion = await lector.FilaAsync(f => new MetricasClasificacionTI
+            {
+                Propuestas = f.Entero("Propuestas"), Comparadas = f.Entero("Comparadas"), CoincideTipo = f.Entero("CoincideTipo"),
+                CoincideSubTipo = f.Entero("CoincideSubTipo"), CoincideItem = f.Entero("CoincideItem"), ConfianzaPromedio = f.DecimalNulo("ConfianzaPromedio")
+            }, ct) ?? new(),
+            Tipos = await lector.ListaAsync(f => new MetricaTipoTicketTI
+            {
+                Tipo = f.Texto("Tipo"), TipoDescripcion = f.Texto("TipoDescripcion"), Total = f.Entero("Total"), Resueltos = f.Entero("Resueltos"),
+                Reabiertos = f.Entero("Reabiertos"), DesdeAsistente = f.Entero("DesdeAsistente"),
+                MinutosPromedioPrimeraRespuesta = f.DecimalNulo("MinutosPromedioPrimeraRespuesta"), HorasPromedioResolucion = f.DecimalNulo("HorasPromedioResolucion"),
+                CalificacionPromedio = f.DecimalNulo("CalificacionPromedio")
+            }, ct),
+            Fichas = await lector.FilaAsync(f => new MetricasFichaTI
+            {
+                Requerimientos = f.Entero("Requerimientos"), ConFichaCompleta = f.Entero("ConFichaCompleta"), DevueltosRecopilacion = f.Entero("DevueltosRecopilacion")
+            }, ct) ?? new(),
+            Conocimiento = await lector.ListaAsync(f => new MetricaConocimientoTI
+            {
+                ConocimientoCodigo = f.Texto("ConocimientoCodigo"), Titulo = f.Texto("Titulo"), VecesEvidencia = f.Entero("VecesEvidencia"),
+                TicketsResueltosSinReapertura = f.Entero("TicketsResueltosSinReapertura")
+            }, ct),
+            Modelos = await lector.ListaAsync(f => new MetricaModeloTI
+            {
+                Modelo = f.Texto("Modelo"), Llamadas = f.Entero("Llamadas"), TokensEntrada = f.Largo("TokensEntrada"), TokensSalida = f.Largo("TokensSalida"),
+                DuracionPromedioMs = f.DecimalNulo("DuracionPromedioMs"), Fallidas = f.Entero("Fallidas")
+            }, ct)
+        }, ct);
+        respuesta.Comparativo = await baseDatos.LeerAsync("dbo.Usp_TI_Obtener_ComparativoAgente", Parametros, lector => lector.ListaAsync(f => new ComparativoAgenteTI
+        {
+            SesionNumero = f.Largo("SesionNumero"), IncidenciaNumero = f.Texto("IncidenciaNumero"), Titulo = f.Texto("Titulo"), EstadoTicket = f.Texto("EstadoTicket"),
+            EstadoSesion = f.Texto("EstadoSesion"), CausaAgente = f.Texto("CausaAgente"), Confianza = f.DecimalNulo("Confianza"), AccionCodigo = f.Texto("AccionCodigo"),
+            Decision = f.Texto("Decision"), SolucionValidada = f.Booleano("SolucionValidada"), CausaRaizTI = f.Texto("CausaRaizTI"), SolucionTI = f.Texto("SolucionTI"),
+            TipoResolucion = f.Texto("TipoResolucion"), Reabierto = f.Booleano("Reabierto"), FechaDiagnostico = f.FechaNula("FechaDiagnostico")
+        }, ct), ct);
+        return respuesta;
+    }
 
     public async Task<ReportesTIRespuesta> ObtenerAsync(ReportesTIFiltros filtros, CancellationToken ct)
     {

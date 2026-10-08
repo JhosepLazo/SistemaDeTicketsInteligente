@@ -255,3 +255,29 @@ public sealed class ResponderAprobacionTISolicitud
     public bool Aprobar { get; set; }
     public string? Comentario { get; set; }
 }
+
+/// <summary>Clasificación del historial: propuesta de la IA (Origen I) o aplicada por TI con la matriz (Origen T).</summary>
+public sealed class ClasificacionTicketTI
+{
+    public int Secuencia { get; set; }
+    public string Origen { get; set; } = string.Empty;
+    public string Linea { get; set; } = string.Empty;
+    public string LineaDescripcion { get; set; } = string.Empty;
+    public string Item { get; set; } = string.Empty;
+    public string ItemDescripcion { get; set; } = string.Empty;
+    public string Tipo { get; set; } = string.Empty;
+    public string SubTipo { get; set; } = string.Empty;
+    public string SubTipoDescripcion { get; set; } = string.Empty;
+    public string Categoria { get; set; } = string.Empty;
+    public int? Prioridad { get; set; }
+    public int? Impacto { get; set; }
+    public int? Complejidad { get; set; }
+    public decimal? Confianza { get; set; }
+    public List<string> Senales { get; set; } = [];
+    public string Justificacion { get; set; } = string.Empty;
+    public List<string> PreguntasPendientes { get; set; } = [];
+    public string Modelo { get; set; } = string.Empty;
+    public string Usuario { get; set; } = string.Empty;
+    public string NombreUsuario { get; set; } = string.Empty;
+    public DateTime FechaClasificacion { get; set; }
+}

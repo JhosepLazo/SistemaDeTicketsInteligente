@@ -1,4 +1,4 @@
-Use [GestionSistemas]
+﻿Use [GestionSistemas]
 Go
 
 Set Xact_Abort On
@@ -7,12 +7,18 @@ Go
 Begin Transaction
 
 -- Conserva los catálogos y accesos de desarrollo, pero retira la transacción sintética.
+-- Las tablas de los scripts 25 en adelante solo existen si este script se vuelve a ejecutar sobre una base ya instalada.
+If Object_Id('dbo.TI_AgenteEvento', 'U') Is Not Null Delete From dbo.TI_AgenteEvento;
+If Object_Id('dbo.TI_AgenteSesion', 'U') Is Not Null Delete From dbo.TI_AgenteSesion;
+If Object_Id('dbo.TI_IncidenciaClasificacion', 'U') Is Not Null Delete From dbo.TI_IncidenciaClasificacion;
+If Object_Id('dbo.TI_IncidenciaDato', 'U') Is Not Null Delete From dbo.TI_IncidenciaDato;
 Update dbo.TI_BaseConocimiento Set IncidenciaOrigen = Null Where IncidenciaOrigen Is Not Null;
+-- Ejecuciones y aprobaciones antes que los diagnósticos: una aprobación puede referenciar el diagnóstico que la justificó.
+Delete From dbo.TI_EjecucionAccion;
+Delete From dbo.TI_SolicitudAprobacion;
 Delete From dbo.TI_IncidenciaDiagnosticoEvidencia;
 Delete From dbo.TI_IncidenciaDiagnostico;
-Delete From dbo.TI_EjecucionAccion;
 Delete From dbo.TI_Notificacion;
-Delete From dbo.TI_SolicitudAprobacion;
 Delete From dbo.TI_IncidenciaAdjunto;
 Delete From dbo.TI_IncidenciaAvance;
 Delete From dbo.TI_IncidenciaDocumento;

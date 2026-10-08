@@ -1,19 +1,21 @@
-﻿/**
+/**
  * Archivo: ProcesadorAgenteTI.cs
  * Objetivo: Investigar automáticamente, en segundo plano, cuando el usuario termina de mostrar su error, y avisar a TI.
  * Responsabilidad: Recibir trabajos en una cola en memoria y ejecutarlos uno a uno con un ámbito de servicios propio.
  * Dependencias: Channel, IServiceScopeFactory, AsistenteTIBLL e IConfiguration (AgenteTI:InvestigacionAutomatica).
- * Flujo: ReproduccionUsuarioBLL / NuevoTicketBLL -> ColaAgenteTI.Encolar -> ProcesadorAgenteTI -> AsistenteTIBLL -> notificación TI.
- * Consideraciones: La investigación automática solo lee y diagnostica: nunca ejecuta cambios. Si el servidor se reinicia, los trabajos
- *   pendientes se pierden sin efectos; TI siempre puede pulsar "Investigar ahora" en la consola.
+ * Flujo: ReproduccionUsuarioBLL / NuevoTicketBLL -> investigación guardada con la marca INVESTIGACION_AUTOMATICA -> ColaAgenteTI.Encolar
+ *   -> ProcesadorAgenteTI -> AsistenteTIBLL -> notificación TI.
+ * Consideraciones: La cola solo acelera: la fuente de verdad es la base. La investigación y su evidencia ya están guardadas antes de
+ *   encolar, y MantenimientoAgenteTI vuelve a encolar las marcadas que nadie terminó (por ejemplo, tras un reinicio de la API).
+ *   La investigación automática solo lee y diagnostica; ejecuta una acción únicamente si la política de autonomía lo permite.
  */
 
 using System.Threading.Channels;
 
 namespace SistemaTicketsInteligente.Api.BLL.Agente;
 
-/// <summary>Trabajo en segundo plano: investigar una sesión existente o un ticket nuevo con evidencia mostrada por el colaborador.</summary>
-public sealed record TrabajoAgenteTI(long? SesionNumero, string? IncidenciaNumero, string? EvidenciaJson, string Motivo);
+/// <summary>Trabajo en segundo plano: investigar una sesión que ya tiene la evidencia del colaborador.</summary>
+public sealed record TrabajoAgenteTI(long SesionNumero, string Motivo);
 
 public sealed class ColaAgenteTI
 {
@@ -66,7 +68,15 @@ public sealed class ProcesadorAgenteTI : BackgroundService
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
+                // Se detiene la API: sin marca de fin, el mantenimiento retoma la investigación al volver a iniciar.
                 break;
+            }
+            catch (OperationCanceledException)
+            {
+                logger.LogWarning("La investigación automática {Motivo} superó los 8 minutos y se detuvo.", trabajo.Motivo);
+                using var scope = scopes.CreateScope();
+                await scope.ServiceProvider.GetRequiredService<AsistenteTIBLL>()
+                    .RegistrarFinAutomaticoAsync(trabajo.SesionNumero, false, "La investigación automática superó su tiempo máximo; puedes reintentar con Investigar ahora.");
             }
             catch (Exception ex)
             {

@@ -15,6 +15,13 @@ namespace SistemaTicketsInteligente.Api.Comun;
 public sealed class TrazaAgente
 {
     public static readonly AsyncLocal<TrazaAgente?> Actual = new();
+
+    /// <summary>
+    /// Correlación de la petición en curso: la misma del encabezado X-Correlation-ID, de los registros, del idSeguimiento de un error
+    /// y de la auditoría. Fuera de una petición (procesos en segundo plano) se genera una nueva.
+    /// </summary>
+    public static Guid CorrelacionActual => Actual.Value?.Correlacion ?? Guid.NewGuid();
+
     public Guid Correlacion { get; init; } = Guid.NewGuid();
     public long? Sesion { get; init; }
     public ConcurrentQueue<string> Pasos { get; } = new();

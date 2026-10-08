@@ -1,8 +1,9 @@
 /*
  * Archivo: ReportesTIPage.tsx
  * Objetivo: Implementar el módulo Reportes para el operador TI autenticado.
- * Responsabilidad: Presentar indicadores, filtros, evolución, distribución, tiempos, tickets prioritarios y exportación del período seleccionado.
- * Dependencias: AutenticacionContext, reportesTIApi, NotificacionesCampana, InicioPage.css y ReportesTIPage.css.
+ * Responsabilidad: Presentar indicadores, filtros, evolución, distribución, tiempos, tickets prioritarios y exportación del período seleccionado,
+ *   y los indicadores del agente frente a TI (pestaña Agente).
+ * Dependencias: AutenticacionContext, reportesTIApi, MarcoPortal, Icono, VistaAgente y ReportesTIPage.css.
  * Flujo: Ruta protegida /reportes -> ReportesTIPage -> API /api/reportes/ti -> Stored Procedure -> SQL Server.
  * Consideraciones: No incorpora programación ni envío de reportes porque esas funciones requieren infraestructura adicional; prioriza análisis operativo real, exportación simple y mantenimiento reducido.
  */
@@ -19,12 +20,13 @@ import {
 } from '../../services/reportesTIApi'
 import MarcoPortal from '../../components/MarcoPortal'
 import IconoBase, { type PropsIcono, type NombreIcono } from '../../components/Icono'
+import VistaAgente from './VistaAgente'
 import './ReportesTIPage.css'
 
 // Esta pantalla dibuja sus íconos a 19 px.
 const Icono = (props: PropsIcono) => <IconoBase size={19} {...props} />
 
-type VistaReporte = 'resumen' | 'avance' | 'equipo' | 'areas' | 'listado'
+type VistaReporte = 'resumen' | 'avance' | 'equipo' | 'areas' | 'listado' | 'agente'
 
 function fechaIsoLocal(fecha: Date) {
   const anio = fecha.getFullYear()
@@ -265,6 +267,10 @@ export default function ReportesTIPage() {
             <Icono nombre="ticket" />
             Listado de tickets
           </button>
+          <button type="button" className={vista === 'agente' ? 'activo' : ''} onClick={() => setVista('agente')}>
+            <Icono nombre="agente" />
+            Agente
+          </button>
         </nav>
 
         <section className="reportes-ti-metricas" aria-label="Indicadores del período">
@@ -448,6 +454,7 @@ export default function ReportesTIPage() {
           />
         )}
         {vista === 'listado' && <VistaListado datos={datos} cargando={cargando} busqueda={busqueda} />}
+        {vista === 'agente' && <VistaAgente desde={filtrosAplicados.fechaInicio} hasta={filtrosAplicados.fechaFin} />}
       </main>
     </MarcoPortal>
   )

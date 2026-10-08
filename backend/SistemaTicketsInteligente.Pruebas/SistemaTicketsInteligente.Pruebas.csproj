@@ -1,0 +1,44 @@
+<!--
+    Archivo: SistemaTicketsInteligente.Pruebas.csproj
+    Objetivo: Definir el proyecto de pruebas automatizadas del backend.
+    Responsabilidad: Compilar las pruebas unitarias (reglas puras: política de autonomía, validadores, redacción, ficha, rutas) y las de
+      integración (la API completa en memoria con WebApplicationFactory: matriz de autorización, CSRF, correlación y flujos).
+    Dependencias: xUnit, Microsoft.AspNetCore.Mvc.Testing y el proyecto SistemaTicketsInteligente.Api.
+    Flujo: dotnet test SistemaTicketsInteligente.slnx -> pruebas unitarias -> pruebas de integración.
+    Consideraciones: Las pruebas que leen la base real solo corren con PRUEBAS_BASE_DATOS=1 y las que escriben (flujo completo) solo con
+      PRUEBAS_FLUJOS=1, pensadas para el contenedor desechable del CI. Ninguna prueba llama a un proveedor de IA.
+-->
+
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.12" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="System.Net" />
+    <Using Include="System.Net.Http.Json" />
+    <Using Include="System.Text.Json" />
+    <Using Include="SistemaTicketsInteligente.Api.BLL" />
+    <Using Include="SistemaTicketsInteligente.Api.BLL.Agente" />
+    <Using Include="SistemaTicketsInteligente.Api.BLL.IA" />
+    <Using Include="SistemaTicketsInteligente.Api.Comun" />
+    <Using Include="SistemaTicketsInteligente.Api.DTO" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SistemaTicketsInteligente.Api\SistemaTicketsInteligente.Api.csproj" />
+  </ItemGroup>
+
+</Project>

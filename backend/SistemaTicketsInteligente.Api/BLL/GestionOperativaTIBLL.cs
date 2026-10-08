@@ -79,7 +79,7 @@ public sealed class GestionOperativaTIBLL(BaseDatos baseDatos)
             p.Add("@cTitulo", SqlDbType.NVarChar, 250).Value = titulo;
             p.Add("@cDetalle", SqlDbType.NVarChar, -1).Value = detalle;
             p.Add("@cMensajeError", SqlDbType.NVarChar, 1000).Value = BaseDatos.Opcional(mensajeError);
-            p.Add("@cIdCorrelacion", SqlDbType.UniqueIdentifier).Value = Guid.NewGuid();
+            p.Add("@cIdCorrelacion", SqlDbType.UniqueIdentifier).Value = TrazaAgente.CorrelacionActual;
         }, lector => lector.FilaAsync(f => new TicketMesaAyudaCreado { IncidenciaNumero = f.Texto("IncidenciaNumero"), FechaRegistro = f.Fecha("FechaRegistro") }, ct), ct)
             ?? throw new InvalidOperationException("No se obtuvo el ticket creado por mesa de ayuda.");
     }
@@ -93,7 +93,7 @@ public sealed class GestionOperativaTIBLL(BaseDatos baseDatos)
             p.Add("@cArea", SqlDbType.Char, 3).Value = areaValida;
             p.Add("@cIncidenciaNumero", SqlDbType.VarChar, 12).Value = incidencia;
             parametros(p);
-            p.Add("@cIdCorrelacion", SqlDbType.UniqueIdentifier).Value = Guid.NewGuid();
+            p.Add("@cIdCorrelacion", SqlDbType.UniqueIdentifier).Value = TrazaAgente.CorrelacionActual;
         }, ct);
     }
 

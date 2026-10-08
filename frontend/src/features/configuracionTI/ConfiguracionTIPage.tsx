@@ -1,13 +1,16 @@
 /**
  * Archivo: ConfiguracionTIPage.tsx
  * Objetivo: Administrar los maestros funcionales indispensables del sistema de incidencias TI.
- * Responsabilidad: Mantener catálogos operativos, matriz Ítem/Categoría, SLA y usuarios corporativos desde una vista común para el equipo TI.
- * Dependencias: AutenticacionContext, configuracionTIApi, React Router, InicioPage.css y ConfiguracionTIPage.css.
+ * Responsabilidad: Mantener catálogos operativos, matriz Ítem/Categoría, SLA y usuarios corporativos desde una vista común para el equipo TI,
+ *   y mostrar el control del agente y las fichas de los tipos de ticket.
+ * Dependencias: AutenticacionContext, configuracionTIApi, MarcoPortal, Icono, CabeceraPanel, ControlAgentePanel, FichasPanel y
+ *   ConfiguracionTIPage.css.
  * Flujo: /configuracion-ti -> ConfiguracionTIPage -> configuracionTIApi -> API /api/configuracion-ti.
- * Consideraciones: Los perfiles TI acceden al módulo. Los registros se activan/inactivan para conservar la integridad histórica.
+ * Consideraciones: TEC, SUP y ADM mantienen los maestros. El control del agente y las fichas los consulta todo TI y solo los cambia un ADM.
+ *   Los registros se activan/inactivan para conservar la integridad histórica.
  */
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useAutenticacion } from '../autenticacion/AutenticacionContext'
 import {
   guardarAreaTI,
@@ -24,13 +27,16 @@ import {
   type ConfiguracionTIRespuesta,
 } from '../../services/configuracionTIApi'
 import MarcoPortal from '../../components/MarcoPortal'
-import IconoBase, { type PropsIcono, type NombreIcono } from '../../components/Icono'
+import IconoBase, { type PropsIcono } from '../../components/Icono'
+import CabeceraPanel from './CabeceraPanel'
+import ControlAgentePanel from './ControlAgentePanel'
+import FichasPanel from './FichasPanel'
 import './ConfiguracionTIPage.css'
 
 // Esta pantalla dibuja sus íconos a 19 px.
 const Icono = (props: PropsIcono) => <IconoBase size={19} {...props} />
 
-type Seccion = 'CATALOGOS' | 'MATRIZ' | 'USUARIOS'
+type Seccion = 'CATALOGOS' | 'MATRIZ' | 'USUARIOS' | 'AGENTE' | 'FICHAS'
 type Catalogo = 'AREA' | 'LINEA' | 'ITEM' | 'TIPO' | 'CATEGORIA' | 'SUBTIPO'
 type FormularioCatalogo = {
   codigo: string
@@ -50,33 +56,6 @@ const formularioCatalogoVacio: FormularioCatalogo = {
   abreviatura: '',
   telefono: '',
   estado: 'A',
-}
-
-function CabeceraPanel({
-  icono,
-  titulo,
-  subtitulo,
-  accion,
-}: {
-  icono: NombreIcono
-  titulo: string
-  subtitulo: string
-  accion?: ReactNode
-}) {
-  return (
-    <header className="config-ti-panel__cabecera">
-      <div>
-        <span className="config-ti-panel__icono">
-          <Icono nombre={icono} />
-        </span>
-        <div>
-          <h2>{titulo}</h2>
-          <p>{subtitulo}</p>
-        </div>
-      </div>
-      {accion}
-    </header>
-  )
 }
 
 function nombreCatalogo(catalogo: Catalogo) {
@@ -330,6 +309,14 @@ export default function ConfiguracionTIPage() {
           <button type="button" className={seccion === 'USUARIOS' ? 'activo' : ''} onClick={() => setSeccion('USUARIOS')}>
             <Icono nombre="usuarios" size={16} />
             Usuarios TI
+          </button>
+          <button type="button" className={seccion === 'AGENTE' ? 'activo' : ''} onClick={() => setSeccion('AGENTE')}>
+            <Icono nombre="agente" size={16} />
+            Agente y autonomía
+          </button>
+          <button type="button" className={seccion === 'FICHAS' ? 'activo' : ''} onClick={() => setSeccion('FICHAS')}>
+            <Icono nombre="lista" size={16} />
+            Fichas de tickets
           </button>
         </div>
 
@@ -865,6 +852,9 @@ export default function ConfiguracionTIPage() {
                   </article>
                 </section>
               )}
+
+              {seccion === 'AGENTE' && <ControlAgentePanel esAdministrador={usuario.perfil === 'ADM'} />}
+              {seccion === 'FICHAS' && <FichasPanel tipos={datos.tipos} esAdministrador={usuario.perfil === 'ADM'} />}
             </>
           )
         )}

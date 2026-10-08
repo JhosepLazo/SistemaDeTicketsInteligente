@@ -71,9 +71,10 @@ public sealed class ReproduccionUsuarioBLL(BaseDatos baseDatos, AlmacenGrabacion
 
     public async Task FinalizarAsync(string usuario, long sesion, CancellationToken ct)
     {
+        // El procedimiento deja la marca INVESTIGACION_AUTOMATICA: si la API se reinicia antes de investigar, el mantenimiento la retoma.
         await baseDatos.EjecutarAsync("dbo.Usp_TI_Reproduccion_Finalizar", p => Sesion(p, usuario, sesion), ct);
         // Con lo que el colaborador mostró, el agente investiga en segundo plano y avisa al responsable TI.
-        cola.Encolar(new TrabajoAgenteTI(sesion, null, null, $"reproduccion-{sesion}"));
+        cola.Encolar(new TrabajoAgenteTI(sesion, $"reproduccion-{sesion}"));
     }
 
     private async Task<ReproduccionInvitacion> ObtenerAceptadaAsync(string usuario, long sesion, CancellationToken ct)

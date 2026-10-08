@@ -61,3 +61,28 @@ public sealed class LiveUsuarioSolicitud
 {
     public string Descripcion { get; set; } = string.Empty;
 }
+
+/// <summary>Ficha de un requerimiento que el colaborador pide revisar antes de registrar el ticket.</summary>
+public sealed class RevisarFichaSolicitud
+{
+    public string Tipo { get; set; } = string.Empty;
+    public string? Titulo { get; set; }
+    public string? Detalle { get; set; }
+    public string FichaJson { get; set; } = "{}";
+}
+
+public sealed class RevisionFichaRespuesta
+{
+    /// <summary>false si no hay proveedor de IA: la ficha se registra igual y TI la revisa.</summary>
+    public bool Disponible { get; set; }
+    public string Resumen { get; set; } = string.Empty;
+    public List<ObservacionFicha> Observaciones { get; set; } = [];
+}
+
+public sealed class ObservacionFicha
+{
+    public string Campo { get; set; } = string.Empty;
+    /// <summary>VAGA (no concreta o no medible), CONTRADICCION, DUPLICADO u OTRA.</summary>
+    public string Tipo { get; set; } = string.Empty;
+    public string Detalle { get; set; } = string.Empty;
+}

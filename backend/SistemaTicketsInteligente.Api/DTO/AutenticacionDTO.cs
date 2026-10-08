@@ -36,6 +36,8 @@ public sealed class UsuarioAutenticacion
     public string Perfil { get; init; } = string.Empty;
     public string EstadoUsuario { get; init; } = string.Empty;
     public string EstadoPerfil { get; init; } = string.Empty;
+    /// <summary>INTERNO, EXTERNO o SISTEMA; una cuenta SISTEMA nunca inicia sesión.</summary>
+    public string TipoUsuario { get; init; } = string.Empty;
 }
 
 /// <summary>Identidad corporativa del colaborador según Spring.</summary>

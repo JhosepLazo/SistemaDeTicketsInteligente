@@ -7,14 +7,16 @@ Modernización del sistema corporativo de incidencias con backend ASP.NET Core, 
 ```text
 SistemaTicketsInteligente/
 ├── SistemaTicketsInteligente.slnx
+├── .github/workflows/ci.yml   Integración continua
+├── backend/SistemaTicketsInteligente.Pruebas/   Pruebas del backend (xUnit)
 ├── backend/SistemaTicketsInteligente.Api/
 │   ├── Controllers/     Entrada HTTP (un controlador por módulo)
 │   ├── BLL/             Reglas de cada módulo; llaman a sus Stored Procedures (Agente/ e IA/ aparte)
 │   ├── Comun/           BaseDatos, lectura de resultados, validaciones, archivos y controlador base
 │   └── DTO/             Contratos de cada módulo
 ├── frontend/src/        features/ (pantallas por módulo), components/ (compartidos) y services/ (API)
-├── database/            Scripts SQL Server
-└── docs/                Documentación funcional y técnica
+├── database/            Scripts SQL Server (00 a 40) y pruebas funcionales de la base
+└── docs/                Documentación técnica y funcional, guía de reconstrucción, runbook del agente y decisiones
 ```
 
 El flujo es Controller -> BLL -> Stored Procedures, en un solo proyecto y sin una capa DAO intermedia: cada BLL valida y llama a sus procedimientos mediante `Comun/BaseDatos`. El detalle está en [docs/03_EstructuraSolucion.md](docs/03_EstructuraSolucion.md) y las reglas del proyecto en [CLAUDE.md](CLAUDE.md).
@@ -29,8 +31,10 @@ La aplicación distingue la base propia del sistema nuevo de las fuentes corpora
 | `CnnGestionTi` | `GestionSistemas` | Fuente histórica del sistema de incidencias legado |
 | `CnnSeguridad` | `IntranetCalimod` | Perfiles y menús del sistema legado |
 | `CnnSpring` | `Spring` | Identidad y cargos corporativos |
+| `CnnAgenteLectura` | `GestionSistemas` | Herramientas de diagnóstico del agente (login en `Rol_TI_AgenteLectura`) |
+| `CnnAgenteEscritura` | `GestionSistemas` | Ejecutores catalogados del agente (login en `Rol_TI_AgenteEscritura`) |
 
-En desarrollo las cuatro conexiones utilizan la instancia SQL Server local. En un ambiente corporativo, las credenciales no deben guardarse en el repositorio y deben suministrarse por configuración segura. Por ejemplo, en PowerShell:
+En desarrollo las conexiones utilizan la instancia SQL Server local (las dos del agente son opcionales: sin ellas se usa `CnnSistemaTickets`). En un ambiente corporativo cada una usa su propio login sin permisos administrativos: la API en `Rol_TI_Api` y el agente en sus roles de lectura y escritura (`38_PermisosMinimos.sql`). En un ambiente corporativo, las credenciales no deben guardarse en el repositorio y deben suministrarse por configuración segura. Por ejemplo, en PowerShell:
 
 ```powershell
 $env:ConnectionStrings__CnnGestionTi = "Server=SERVIDOR;Database=GestionSistemas;User ID=USUARIO;Password=CLAVE;Encrypt=True;TrustServerCertificate=True;"
@@ -58,17 +62,35 @@ Ejecucion en la empresa:
 
 ```powershell
 $env:ASPNETCORE_ENVIRONMENT = "Empresa"
-$env:ConnectionStrings__CnnSistemaTickets = "Server=SERVIDOR;Database=GestionSistemas;User ID=USUARIO;Password=CLAVE;Encrypt=True;TrustServerCertificate=True;"
-$env:ConnectionStrings__CnnGestionTi = "Server=SERVIDOR;Database=GestionSistemas;User ID=USUARIO;Password=CLAVE;Encrypt=True;TrustServerCertificate=True;"
-$env:ConnectionStrings__CnnSeguridad = "Server=SERVIDOR;Database=IntranetCalimod;User ID=USUARIO;Password=CLAVE;Encrypt=True;TrustServerCertificate=True;"
-$env:ConnectionStrings__CnnSpring = "Server=SERVIDOR;Database=Spring;User ID=USUARIO;Password=CLAVE;Encrypt=True;TrustServerCertificate=True;"
+$env:ConnectionStrings__CnnSistemaTickets = "Server=SERVIDOR;Database=GestionSistemas;User ID=USUARIO_API;Password=CLAVE;Encrypt=True;TrustServerCertificate=False;"
+$env:ConnectionStrings__CnnGestionTi = "Server=SERVIDOR;Database=GestionSistemas;User ID=USUARIO_API;Password=CLAVE;Encrypt=True;TrustServerCertificate=False;"
+$env:ConnectionStrings__CnnSeguridad = "Server=SERVIDOR;Database=IntranetCalimod;User ID=USUARIO;Password=CLAVE;Encrypt=True;TrustServerCertificate=False;"
+$env:ConnectionStrings__CnnSpring = "Server=SERVIDOR;Database=Spring;User ID=USUARIO;Password=CLAVE;Encrypt=True;TrustServerCertificate=False;"
+$env:ConnectionStrings__CnnAgenteLectura = "Server=SERVIDOR;Database=GestionSistemas;User ID=USUARIO_AGENTE_LECTURA;Password=CLAVE;Encrypt=True;TrustServerCertificate=False;"
+$env:ConnectionStrings__CnnAgenteEscritura = "Server=SERVIDOR;Database=GestionSistemas;User ID=USUARIO_AGENTE_ESCRITURA;Password=CLAVE;Encrypt=True;TrustServerCertificate=False;"
+$env:AllowedHosts = "nombre-del-servidor"
 $env:IdentidadCorporativa__Habilitada = "true"
 dotnet run --project backend/SistemaTicketsInteligente.Api
 ```
 
 Las variables de entorno tienen prioridad sobre los archivos. Las credenciales reales no deben reemplazar los marcadores dentro de un archivo versionado.
 
-El perfil `Diagnostico` (`appsettings.Diagnostico.json`) sirve para probar el agente contra copias de prueba: solo arranca si las cuatro bases terminan en `_TEST` y deshabilita la ejecución de cambios (`AgenteTI:SoloDiagnostico`).
+`TrustServerCertificate=False` exige que el certificado de SQL Server sea de una entidad en la que confíe el servidor de la API. En Empresa la cookie de sesión viaja solo por HTTPS y `AllowedHosts` debe listar el nombre real del servidor.
+
+El perfil `Diagnostico` (`appsettings.Diagnostico.json`) sirve para probar el agente contra copias de prueba: solo arranca si todas las bases configuradas terminan en `_TEST` y deshabilita la ejecución de cambios (`AgenteTI:SoloDiagnostico`).
+
+## Control del agente
+
+Cuánto puede hacer el Agente de Ingeniería lo decide TI desde **Maestros TI → Agente y autonomía** (solo un ADM puede cambiarlo; todo TI lo consulta):
+
+| Interruptor | Efecto |
+|---|---|
+| `APAGADO` | No investiga, no propone ni ejecuta. |
+| `SOMBRA` | Investiga y propone, nunca ejecuta: sirve para medir su acierto en Reportes → Agente. |
+| `ASISTIDO` (inicial) | Ejecuta solo lo que TI decide y, si la acción lo exige, lo que otro operador aprobó. |
+| `AUTONOMO` | Además ejecuta sin humano las acciones que la política libera: solo solicitudes (`SOL`), acciones reversibles, de riesgo no mayor al techo y con la confianza mínima de la política. |
+
+Al instalar, todas las políticas están en "Con aprobación de TI": nada es autónomo hasta que un ADM lo libere. Cómo apagarlo, reconciliar una ejecución o revertir un cambio está en [docs/05_RunbookAgente.md](docs/05_RunbookAgente.md); las decisiones del plan de mejoras, en [docs/06_RegistroDecisiones.md](docs/06_RegistroDecisiones.md).
 
 ## Asistentes IA
 
@@ -156,6 +178,7 @@ Verifica que SQL Server esté encendido y que no haya otra API en el puerto 5000
 ```powershell
 dotnet restore SistemaTicketsInteligente.slnx
 dotnet build SistemaTicketsInteligente.slnx
+dotnet test SistemaTicketsInteligente.slnx
 dotnet run --project backend/SistemaTicketsInteligente.Api
 ```
 
@@ -163,7 +186,9 @@ Comprobación básica: `GET /api/salud`.
 
 El endpoint `GET /api/salud` abre una conexion real a SQL Server: responde `200` con `baseDatos: disponible` o `503` cuando la base no responde.
 
-El perfil `Empresa` valida las cuatro conexiones al arrancar y se detiene con un mensaje claro mientras encuentre los marcadores `SERVIDOR_EMPRESA`, `USUARIO_EMPRESA` o `CLAVE_EMPRESA`. Las conexiones SQL aplican reintentos breves ante fallos transitorios.
+El perfil `Empresa` valida las seis conexiones y `AllowedHosts` al arrancar y se detiene con un mensaje claro mientras encuentre los marcadores `SERVIDOR_EMPRESA`, `USUARIO_EMPRESA`, `CLAVE_EMPRESA` o `HOST_EMPRESA`. Las conexiones SQL aplican reintentos breves ante fallos transitorios.
+
+Toda operación que modifica datos exige el token antifalsificación de la sesión (`X-CSRF-TOKEN`, que entrega `GET /api/autenticacion/token-csrf`); el frontend lo maneja solo. Cada respuesta incluye `X-Correlation-ID`, el mismo identificador que aparece en los registros, en la auditoría y como `idSeguimiento` de un error.
 
 ## Frontend
 
@@ -173,10 +198,21 @@ npm install
 npm run dev
 ```
 
-La aplicación consulta la sesión al abrirse, muestra el Login cuando no existe una cookie válida y protege cada ruta según el perfil (la autorización definitiva la hace cada endpoint). Antes de cerrar un cambio: `npm run typecheck`, `npm run build` y `npx prettier@3 --check "src/**/*.{ts,tsx,css}"`.
+La aplicación consulta la sesión al abrirse, muestra el Login cuando no existe una cookie válida y protege cada ruta según el perfil (la autorización definitiva la hace cada endpoint). Antes de cerrar un cambio: `npm run typecheck`, `npm test`, `npm run build` y `npx prettier@3 --check "src/**/*.{ts,tsx,css}"`.
+
+## Pruebas
+
+| Parte | Comando | Qué cubre |
+|---|---|---|
+| Backend | `dotnet test SistemaTicketsInteligente.slnx` | Política de autonomía, validador de SQL del agente, redacción de datos sensibles, ficha, parámetros del agente, rutas de archivos, matriz de autorización (cada endpoint frente a cada perfil), CSRF y correlación. Sin base de datos. |
+| Backend contra la base | `$env:PRUEBAS_BASE_DATOS = "1"; dotnet test SistemaTicketsInteligente.slnx` | Cada consulta con un usuario de cada perfil permitido y la ficha obligatoria del requerimiento (solo lee). `PRUEBAS_FLUJOS=1` agrega el ciclo completo de un ticket, que **crea datos**: úsalo solo en una base desechable (el CI lo hace en un contenedor). |
+| Base de datos | `sqlcmd -S . -E -C -I -b -f 65001 -i database/pruebas/PruebasFuncionales.sql` | 22 casos con `Rollback` (no deja datos). |
+| Frontend | `npm test` (en `frontend/`) | Cliente de API y CSRF, ficha, guardas de ruta, contexto de sesión y componente de la ficha. |
+
+El CI (`.github/workflows/ci.yml`) repite todo en cada push a `main` y en cada pull request, instala la base desde cero en un SQL Server 2022 en contenedor con tres logins de permisos mínimos, y revisa secretos (gitleaks) y dependencias vulnerables (NuGet y npm).
 
 ## Pendientes
 
 - **Funciones con API pero sin pantalla:** edición temprana del ticket por el colaborador (`POST /api/mis-tickets/{n}/editar`), carga de formatos de soporte (`POST /api/configuracion-ti/formatos`) y visibilidad de artículos para el usuario (`POST /api/configuracion-ti/conocimiento/{codigo}/visibilidad`). Mientras no exista esa pantalla, un artículo solo se publica para colaboradores por API o en la base.
 - **Live:** si el modelo de Gemini Live se satura, no hay un modelo de respaldo para la sesión de voz y pantalla.
-- **Pruebas automatizadas:** el proyecto todavía no tiene un proyecto de pruebas (`tests/`).
+- **Decisiones de TI abiertas:** unificar los tipos heredados del legado (`001` a `003`) con `INC`, `REQ` y `SOL`, qué acciones de escritura se liberan como autónomas, estados AU, EJ y ES, y las demás listadas en [docs/06_RegistroDecisiones.md](docs/06_RegistroDecisiones.md).

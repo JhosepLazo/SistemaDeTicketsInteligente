@@ -2,13 +2,13 @@
  * Archivo: autenticacionApi.ts
  * Objetivo: Iniciar, comprobar y cerrar la sesión del usuario con la API de autenticación.
  * Responsabilidad: Enviar las credenciales y leer la identidad segura que devuelve el backend; la sesión vive en una cookie HttpOnly.
- * Dependencias: api.ts (llamarApi y mensajeError).
+ * Dependencias: api.ts (llamarApi, mensajeError y reiniciarTokenCsrf).
  * Flujo: LoginPage y AutenticacionContext -> autenticacionApi -> /api/autenticacion.
  * Consideraciones: Aquí un 401 no es una sesión vencida: al iniciar son credenciales incorrectas y al comprobar significa "sin sesión".
- *   No se guardan tokens, cookies ni contraseñas.
+ *   No se guardan tokens, cookies ni contraseñas. Al iniciar o cerrar sesión cambia la identidad, así que se olvida el token CSRF.
  */
 
-import { llamarApi, mensajeError } from './api'
+import { llamarApi, mensajeError, reiniciarTokenCsrf } from './api'
 
 export interface SolicitudInicioSesion {
   usuario: string
@@ -34,6 +34,7 @@ export async function iniciarSesion(solicitud: SolicitudInicioSesion): Promise<R
   )
   if (respuesta.status === 429) throw new Error('Se realizaron demasiados intentos. Intenta nuevamente en unos momentos.')
   if (!respuesta.ok) throw new Error(await mensajeError(respuesta, 'No fue posible iniciar sesión.'))
+  reiniciarTokenCsrf()
   return respuesta.json() as Promise<RespuestaInicioSesion>
 }
 
@@ -44,7 +45,10 @@ export async function obtenerSesion(): Promise<RespuestaInicioSesion | null> {
     { method: 'GET' },
     'No fue posible comprobar la sesión. Verifica que el sistema se encuentre disponible.',
   )
-  if (respuesta.status === 401) return null
+  if (respuesta.status === 401) {
+    reiniciarTokenCsrf()
+    return null
+  }
   if (!respuesta.ok) throw new Error(await mensajeError(respuesta, 'No fue posible comprobar la sesión.'))
   return respuesta.json() as Promise<RespuestaInicioSesion>
 }
@@ -56,6 +60,7 @@ export async function cerrarSesion(): Promise<void> {
     { method: 'POST' },
     'No fue posible comunicarse con el sistema al cerrar la sesión.',
   )
+  reiniciarTokenCsrf()
   if (respuesta.status === 401 || respuesta.ok) return
   throw new Error(await mensajeError(respuesta, 'No fue posible cerrar la sesión correctamente.'))
 }

@@ -44,11 +44,11 @@ public sealed class MisTicketsUsuarioBLL(BaseDatos baseDatos)
         }, ct);
     }
 
-    public async Task<MisTicketsUsuarioDetalle> ObtenerDetalleAsync(string usuario, string incidenciaNumero, CancellationToken ct)
+    public async Task<MisTicketsUsuarioDetalle> ObtenerDetalleAsync(string usuario, string area, string incidenciaNumero, CancellationToken ct)
     {
         var usuarioValido = Validacion.Usuario(usuario);
         var incidencia = Validacion.Incidencia(incidenciaNumero);
-        return await baseDatos.LeerAsync("dbo.Usp_TI_Obtener_DetalleTicketUsuario", p =>
+        var detalle = await baseDatos.LeerAsync("dbo.Usp_TI_Obtener_DetalleTicketUsuario", p =>
         {
             p.Add("@cUsuario", SqlDbType.VarChar, 20).Value = usuarioValido;
             p.Add("@cIncidenciaNumero", SqlDbType.VarChar, 12).Value = incidencia;
@@ -91,6 +91,9 @@ public sealed class MisTicketsUsuarioBLL(BaseDatos baseDatos)
             }, ct);
             return detalle;
         }, ct) ?? throw new KeyNotFoundException("El ticket no existe o no pertenece al usuario autenticado.");
+        // La ficha que el colaborador completó al registrar el ticket (requerimientos).
+        detalle.Ficha = await GestionTicketsTIBLL.LeerFichaAsync(baseDatos, usuarioValido, Validacion.Area(area), incidencia, ct);
+        return detalle;
     }
 
     /// <summary>Respuesta del colaborador a la consulta de TI, con sus adjuntos, en una sola transacción.</summary>
@@ -102,8 +105,8 @@ public sealed class MisTicketsUsuarioBLL(BaseDatos baseDatos)
         if (contenido.Length is < 3 or > 2000) throw new ArgumentException("La respuesta debe contener entre 3 y 2000 caracteres.");
         ValidarAdjuntos(solicitud.Adjuntos);
 
-        var idCorrelacion = Guid.NewGuid();
-        var carpeta = $"{Archivos.Incidencias}/{idCorrelacion:N}";
+        var idCorrelacion = TrazaAgente.CorrelacionActual;
+        var carpeta = $"{Archivos.Incidencias}/{Guid.NewGuid():N}";
         try
         {
             var adjuntos = new List<ArchivoGuardado>();
@@ -156,7 +159,7 @@ public sealed class MisTicketsUsuarioBLL(BaseDatos baseDatos)
             p.Add("@cIncidenciaNumero", SqlDbType.VarChar, 12).Value = incidencia;
             p.Add("@lSolucionada", SqlDbType.Bit).Value = solicitud.Solucionada;
             p.Add("@cComentario", SqlDbType.NVarChar, 1000).Value = BaseDatos.Opcional(comentario);
-            p.Add("@cIdCorrelacion", SqlDbType.UniqueIdentifier).Value = Guid.NewGuid();
+            p.Add("@cIdCorrelacion", SqlDbType.UniqueIdentifier).Value = TrazaAgente.CorrelacionActual;
         }, ct);
     }
 
@@ -173,7 +176,7 @@ public sealed class MisTicketsUsuarioBLL(BaseDatos baseDatos)
             p.Add("@cIncidenciaNumero", SqlDbType.VarChar, 12).Value = incidencia;
             p.Add("@nCalificacion", SqlDbType.TinyInt).Value = solicitud.Calificacion;
             p.Add("@cComentario", SqlDbType.NVarChar, 500).Value = BaseDatos.Opcional(comentario);
-            p.Add("@cIdCorrelacion", SqlDbType.UniqueIdentifier).Value = Guid.NewGuid();
+            p.Add("@cIdCorrelacion", SqlDbType.UniqueIdentifier).Value = TrazaAgente.CorrelacionActual;
         }, ct);
     }
 
@@ -211,7 +214,7 @@ public sealed class MisTicketsUsuarioBLL(BaseDatos baseDatos)
             p.Add("@cTitulo", SqlDbType.NVarChar, 250).Value = titulo;
             p.Add("@cDetalle", SqlDbType.NVarChar, -1).Value = detalle;
             p.Add("@cMensajeError", SqlDbType.NVarChar, 1000).Value = BaseDatos.Opcional(mensajeError);
-            p.Add("@cIdCorrelacion", SqlDbType.UniqueIdentifier).Value = Guid.NewGuid();
+            p.Add("@cIdCorrelacion", SqlDbType.UniqueIdentifier).Value = TrazaAgente.CorrelacionActual;
         }, ct);
     }
 

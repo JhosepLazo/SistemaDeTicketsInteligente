@@ -52,14 +52,7 @@ Begin Try
 		('JEF', 'Jefe', 'A', Null, Null),
 		('GER', 'Gerente', 'A', Null, Null)
 
-	Insert dbo.TI_Perfil (Perfil, Descripcion, Estado, UltimoUsuario, UltimaFechaModif)
-	Values
-		('USR', 'Usuario', 'A', Null, Null),
-		('TEC', 'Técnico TI', 'A', Null, Null),
-		('SUP', 'Supervisor TI', 'A', Null, Null),
-		('ADM', 'Administrador', 'A', Null, Null)
-
-	-- Los perfiles USR, TEC, SUP y ADM pertenecen a 07_DatosIniciales.sql.
+	-- Los perfiles USR, TEC, SUP y ADM los carga 07_DatosIniciales.sql, que se ejecuta antes que este archivo.
 	-- La clave de estos usuarios es un marcador no válido para autenticación.
 	Insert dbo.TI_Usuario (Usuario, NombreCompleto, Clave, Area, Cargo, Perfil, Correo, Anexo, Telefono, Estado, UltimoUsuario, UltimaFechaModif, TipoUsuario, Jefe)
 	Values
@@ -257,14 +250,15 @@ Begin Try
 		N'1. Confirmar conectividad. 2. Validar acceso a recursos empresariales. 3. Confirmar disponibilidad del servicio. 4. Escalar a infraestructura si la falla persiste.',
 		'INF', 'CONECTIVIDAD', 'INC', 'DSP', 'DISPONIBILIDAD', Null, 'A', 'TEC001', '2026-08-25T08:00:00', '2026-08-25T09:00:00', Null)
 
+	-- Estado del diagnóstico: P propuesto, V validado por TI (con UsuarioValida) o D descartado (dominio de 34_DominiosYMaquinaEstados.sql).
 	Insert dbo.TI_IncidenciaDiagnostico (IncidenciaNumero, Secuencia, Origen, Diagnostico, CausaProbable, SolucionSugerida, Confianza, Estado, UsuarioValida, FechaDiagnostico)
 	Values
-		('INC-000001', 1, 'I', N'La incidencia presenta características similares a errores de generación de órdenes de compra asociados a inconsistencias de datos.', N'Posible inconsistencia en los datos requeridos para generar la orden de compra.', N'Revisar la información asociada al documento antes de intentar nuevamente la generación.', 88.00, 'I', Null, '2026-09-01T08:35:00'),
-		('INC-000001', 2, 'T', N'Se confirmó una inconsistencia en los datos relacionados con la generación de la orden de compra.', N'Inconsistencia en los datos requeridos por el proceso de generación de la orden de compra.', N'Corregir la inconsistencia identificada y validar nuevamente la generación del documento.', 100.00, 'A', 'TEC001', '2026-09-01T09:20:00'),
-		('INC-000002', 1, 'I', N'La requisición se encuentra detenida dentro del flujo normal de procesamiento.', N'El estado actual del documento o alguno de sus registros asociados podría no cumplir las condiciones necesarias para continuar.', N'Consultar el estado de la requisición y revisar sus registros asociados antes de realizar una corrección.', 76.50, 'A', Null, '2026-09-02T09:15:00'),
-		('INC-000003', 1, 'I', N'La solicitud corresponde a un requerimiento de acceso a una funcionalidad actualmente no disponible para el usuario.', N'El usuario no posee el permiso requerido para acceder a la funcionalidad solicitada.', N'Validar el perfil del usuario y enviar la solicitud al responsable correspondiente para su aprobación.', 96.00, 'A', 'TEC001', '2026-09-03T10:20:00'),
-		('INC-000004', 1, 'I', N'Existe una posible inconsistencia entre la disponibilidad esperada del lote y la información de stock registrada.', N'El lote podría no disponer de la cantidad requerida o existir una diferencia entre stock disponible y stock comprometido.', N'Revisar stock, lote y compromisos asociados antes de realizar cualquier modificación.', 72.00, 'A', Null, '2026-09-04T14:30:00'),
-		('INC-000005', 1, 'I', N'El mensaje reportado corresponde a un posible problema de conectividad con el servidor requerido por la aplicación.', N'Interrupción o imposibilidad de establecer comunicación entre el equipo del usuario y el servicio.', N'Validar conectividad, disponibilidad del servicio y acceso a los recursos empresariales.', 84.00, 'A', Null, '2026-09-05T08:17:00')
+		('INC-000001', 1, 'I', N'La incidencia presenta características similares a errores de generación de órdenes de compra asociados a inconsistencias de datos.', N'Posible inconsistencia en los datos requeridos para generar la orden de compra.', N'Revisar la información asociada al documento antes de intentar nuevamente la generación.', 88.00, 'P', Null, '2026-09-01T08:35:00'),
+		('INC-000001', 2, 'T', N'Se confirmó una inconsistencia en los datos relacionados con la generación de la orden de compra.', N'Inconsistencia en los datos requeridos por el proceso de generación de la orden de compra.', N'Corregir la inconsistencia identificada y validar nuevamente la generación del documento.', 100.00, 'V', 'TEC001', '2026-09-01T09:20:00'),
+		('INC-000002', 1, 'I', N'La requisición se encuentra detenida dentro del flujo normal de procesamiento.', N'El estado actual del documento o alguno de sus registros asociados podría no cumplir las condiciones necesarias para continuar.', N'Consultar el estado de la requisición y revisar sus registros asociados antes de realizar una corrección.', 76.50, 'P', Null, '2026-09-02T09:15:00'),
+		('INC-000003', 1, 'I', N'La solicitud corresponde a un requerimiento de acceso a una funcionalidad actualmente no disponible para el usuario.', N'El usuario no posee el permiso requerido para acceder a la funcionalidad solicitada.', N'Validar el perfil del usuario y enviar la solicitud al responsable correspondiente para su aprobación.', 96.00, 'V', 'TEC001', '2026-09-03T10:20:00'),
+		('INC-000004', 1, 'I', N'Existe una posible inconsistencia entre la disponibilidad esperada del lote y la información de stock registrada.', N'El lote podría no disponer de la cantidad requerida o existir una diferencia entre stock disponible y stock comprometido.', N'Revisar stock, lote y compromisos asociados antes de realizar cualquier modificación.', 72.00, 'P', Null, '2026-09-04T14:30:00'),
+		('INC-000005', 1, 'I', N'El mensaje reportado corresponde a un posible problema de conectividad con el servidor requerido por la aplicación.', N'Interrupción o imposibilidad de establecer comunicación entre el equipo del usuario y el servicio.', N'Validar conectividad, disponibilidad del servicio y acceso a los recursos empresariales.', 84.00, 'P', Null, '2026-09-05T08:17:00')
 
 	Insert dbo.TI_IncidenciaDiagnosticoEvidencia (IncidenciaNumero, DiagnosticoSecuencia, Secuencia, TipoFuente, Referencia, Descripcion, Similitud)
 	Values

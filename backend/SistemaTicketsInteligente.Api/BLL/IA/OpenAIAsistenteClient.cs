@@ -7,8 +7,10 @@
  * Consideraciones: El proveedor sale de AsistenteIA:Proveedor (OpenAI, Gemini o Groq); si no se indica, se usa el primero que tenga clave:
  *   OPENAI_API_KEY, GEMINI_API_KEY o GROQ_API_KEY. Gemini y Groq tienen nivel gratuito para pruebas. Nunca se registra el contenido enviado.
  *   El chat usa un modelo rápido (ModeloChat) y el diagnóstico el modelo completo; los embeddings alimentan la búsqueda semántica.
+ *   Cada intento se anota en RegistroLlamadasModelo (modelo, tokens, duración, resultado) si el llamador abrió un registro.
  */
 
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -318,6 +320,10 @@ public sealed class OpenAIAsistenteClient
                 // Un modelo saturado puede tardar casi un minuto en contestar 503: con límite propio se pasa antes al siguiente.
                 using var limite = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 if (tiempoPorModelo is { } tiempo) limite.CancelAfter(tiempo);
+                var cronometro = Stopwatch.StartNew();
+                void Anotar(bool exito, int estadoHttp, JsonNode? documento = null) => RegistroLlamadasModelo.Anotar(new LlamadaModelo(
+                    proveedor.Nombre, modelo, Tokens(documento, "input_tokens", "prompt_tokens"), Tokens(documento, "output_tokens", "completion_tokens"),
+                    cronometro.ElapsedMilliseconds, exito, estadoHttp));
                 try
                 {
                     using var solicitud = new HttpRequestMessage(HttpMethod.Post, ruta);
@@ -326,6 +332,7 @@ public sealed class OpenAIAsistenteClient
 
                     using var respuesta = await httpClient.SendAsync(solicitud, HttpCompletionOption.ResponseHeadersRead, limite.Token);
                     var estado = (int)respuesta.StatusCode;
+                    if (!respuesta.IsSuccessStatusCode) Anotar(false, estado);
                     if (estado is 400 or 404 or 500 or 502 or 503 or 504)
                     {
                         if (estado >= 500) SaturacionModelos.Marcar(modelo, TimeSpan.FromMinutes(estado == 503 ? 3 : 1));
@@ -360,11 +367,13 @@ public sealed class OpenAIAsistenteClient
                     var documento = await JsonNode.ParseAsync(contenido, cancellationToken: limite.Token);
                     if (documento is null) return null;
                     SaturacionModelos.Liberar(modelo);
+                    Anotar(true, estado, documento);
                     return new RespuestaProveedor(documento, modelo);
                 }
                 catch (OperationCanceledException) when (!ct.IsCancellationRequested)
                 {
                     // Venció el tiempo de este modelo (o el del HttpClient): se marca como saturado y se prueba el siguiente.
+                    Anotar(false, 0);
                     SaturacionModelos.Marcar(modelo, TimeSpan.FromMinutes(2));
                     logger.LogInformation("El modelo {Modelo} de {Proveedor} no respondió a tiempo; se prueba el siguiente.", modelo, proveedor.Nombre);
                     break;
@@ -373,6 +382,14 @@ public sealed class OpenAIAsistenteClient
         }
         logger.LogWarning("Ningún modelo de {Proveedor} respondió; se usa la ruta sin IA.", proveedor.Nombre);
         return null;
+    }
+
+    // Responses API informa input_tokens/output_tokens; Chat Completions, prompt_tokens/completion_tokens.
+    private static int Tokens(JsonNode? documento, string clave, string claveAlterna)
+    {
+        var uso = documento?["usage"];
+        var valor = uso?[clave] ?? uso?[claveAlterna];
+        return valor is JsonValue numero && numero.TryGetValue<int>(out var tokens) ? tokens : 0;
     }
 
     private static JsonObject FormatoResponses(string nombre, JsonObject esquema) =>

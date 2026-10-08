@@ -6,8 +6,8 @@
  *     AsistenteTIBLL.Sesion.cs         sesión de investigación, evidencia (Live, eventos, grabaciones) y gestión de la sesión.
  *     AsistenteTIBLL.Investigacion.cs  investigación con herramientas, diagnóstico, expediente e informe Markdown.
  *     AsistenteTIBLL.Decision.cs       decisión de TI: grabar información, comprobar, simular o realizar el cambio y cerrar el caso.
- * Dependencias: BaseDatos (Usp_TI_Agente_*), ConfiguracionTIBLL, OpenAIAsistenteClient, GeminiLiveClient, InvestigadorAgenteTI,
- *   ConocimientoSemanticoBLL, AgenteCodigoClient, AlmacenGrabaciones, Data Protection y MemoryCache.
+ * Dependencias: BaseDatos (Usp_TI_Agente_*), ConfiguracionTIBLL, ControlAgenteTI, OpenAIAsistenteClient, GeminiLiveClient,
+ *   InvestigadorAgenteTI, ConocimientoSemanticoBLL, AgenteCodigoClient, AlmacenGrabaciones, Data Protection y MemoryCache.
  * Flujo: TI -> sesión/Live -> evidencia -> investigación -> informe -> decisión TI -> acción catalogada -> validación/auditoría.
  * Consideraciones: El modelo no ejecuta SQL, no concede permisos y no convierte texto libre o Markdown en una acción productiva.
  */
@@ -25,6 +25,7 @@ namespace SistemaTicketsInteligente.Api.BLL.Agente;
 public sealed partial class AsistenteTIBLL(
     BaseDatos baseDatos,
     ConfiguracionTIBLL configuracionTI,
+    ControlAgenteTI control,
     OpenAIAsistenteClient openAI,
     GeminiLiveClient geminiLive,
     InvestigadorAgenteTI investigador,

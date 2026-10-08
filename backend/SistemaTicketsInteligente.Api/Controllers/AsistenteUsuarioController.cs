@@ -33,6 +33,11 @@ public sealed class AsistenteUsuarioController(AsistenteUsuarioBLL asistente) : 
             catch (InvalidOperationException ex) { return StatusCode(StatusCodes.Status429TooManyRequests, new { mensaje = ex.Message }); }
         });
 
+    /// <summary>Revisión opcional de la ficha de un requerimiento antes de registrarlo; nunca bloquea el registro.</summary>
+    [HttpPost("ficha/revisar")]
+    public Task<IActionResult> RevisarFicha(RevisarFichaSolicitud solicitud, CancellationToken ct) =>
+        Responder(async () => Ok(await asistente.RevisarFichaAsync(Usuario, solicitud, ct)));
+
     /// <summary>Convierte la evidencia mostrada en pantalla en un borrador de ticket (título, descripción y mensaje de error).</summary>
     [HttpPost("evidencia/borrador")]
     public Task<IActionResult> PrepararBorrador(EvidenciaReproduccionUsuarioSolicitud solicitud, CancellationToken ct) =>

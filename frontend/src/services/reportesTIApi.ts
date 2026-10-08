@@ -1,9 +1,10 @@
 /**
  * Archivo: reportesTIApi.ts
  * Objetivo: Obtener los reportes de gestión de TI para un rango de fechas y filtros.
- * Responsabilidad: Armar la consulta con los filtros elegidos y devolver indicadores, gráficos y detalle exportable.
+ * Responsabilidad: Armar la consulta con los filtros elegidos y devolver indicadores, gráficos y detalle exportable, además de los
+ *   indicadores del agente (investigaciones, aprobaciones, ejecuciones, clasificación, fichas, modelos y comparativo con TI).
  * Dependencias: api.ts (cliente único de la API).
- * Flujo: ReportesTIPage -> reportesTIApi -> /api/reportes/ti.
+ * Flujo: ReportesTIPage -> reportesTIApi -> /api/reportes/ti y /api/reportes/ti/agente.
  * Consideraciones: Los filtros vacíos no se envían; el backend limita el rango a 366 días.
  */
 
@@ -148,3 +149,86 @@ export function obtenerReportesTI(filtros: ReportesTIFiltros) {
   if (filtros.usuarioTI) parametros.set('usuarioTI', filtros.usuarioTI)
   return api<ReportesTIRespuesta>(`/api/reportes/ti?${parametros.toString()}`, { error: 'No fue posible generar el reporte.' })
 }
+
+export interface ConteoTI {
+  valor: string
+  cantidad: number
+}
+
+/** Indicadores del agente para el período: lo que investigó, propuso, ejecutó y cuánto acertó frente a TI. */
+export interface MetricasAgenteTI {
+  investigaciones: {
+    total: number
+    automaticas: number
+    conDiagnostico: number
+    conAccionPropuesta: number
+    solucionValidada: number
+    canceladas: number
+    confianzaPromedio: number | null
+    minutosPromedioDiagnostico: number | null
+  }
+  estadosInvestigacion: ConteoTI[]
+  aprobaciones: {
+    origen: string
+    solicitadas: number
+    aprobadas: number
+    rechazadas: number
+    canceladas: number
+    pendientes: number
+    vencidas: number
+    horasPromedioRespuesta: number | null
+  }[]
+  motivosRechazo: ConteoTI[]
+  ejecuciones: { tipoEjecutor: string; estado: string; cantidad: number; filasAfectadas: number }[]
+  clasificacion: {
+    propuestas: number
+    comparadas: number
+    coincideTipo: number
+    coincideSubTipo: number
+    coincideItem: number
+    confianzaPromedio: number | null
+  }
+  tipos: {
+    tipo: string
+    tipoDescripcion: string
+    total: number
+    resueltos: number
+    reabiertos: number
+    desdeAsistente: number
+    minutosPromedioPrimeraRespuesta: number | null
+    horasPromedioResolucion: number | null
+    calificacionPromedio: number | null
+  }[]
+  fichas: { requerimientos: number; conFichaCompleta: number; devueltosRecopilacion: number }
+  conocimiento: { conocimientoCodigo: string; titulo: string; vecesEvidencia: number; ticketsResueltosSinReapertura: number }[]
+  modelos: {
+    modelo: string
+    llamadas: number
+    tokensEntrada: number
+    tokensSalida: number
+    duracionPromedioMs: number | null
+    fallidas: number
+  }[]
+  comparativo: {
+    sesionNumero: number
+    incidenciaNumero: string
+    titulo: string
+    estadoTicket: string
+    estadoSesion: string
+    causaAgente: string
+    confianza: number | null
+    accionCodigo: string
+    decision: string
+    solucionValidada: boolean
+    causaRaizTI: string
+    solucionTI: string
+    tipoResolucion: string
+    reabierto: boolean
+    fechaDiagnostico: string | null
+  }[]
+}
+
+export const obtenerMetricasAgenteTI = (desde: string, hasta: string) =>
+  api<MetricasAgenteTI>(`/api/reportes/ti/agente?${new URLSearchParams({ desde, hasta }).toString()}`, {
+    error: 'No fue posible obtener los indicadores del agente.',
+  })

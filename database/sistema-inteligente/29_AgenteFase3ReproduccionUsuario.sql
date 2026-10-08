@@ -266,54 +266,7 @@ Go
 -- dbo.Usp_TI_Reproduccion_RegistrarEvento: la versión vigente está en 30_AgenteFase4HerramientasDiagnostico.sql (aquí había una versión anterior que ese script reemplaza).
 Go
 
-Create Or Alter Procedure dbo.Usp_TI_Reproduccion_Finalizar
-/*================================================================================
-Objetivo            : Cerrar la participación del usuario en la reproducción y avisar al responsable TI.
-Creado Por          : Jhosep S. Lazo
-Fecha Creación      : 02/10/2026
-SP Anterior         : Ninguno
-Comentario Cambios  : La investigación sigue en observación; TI decide cuándo cerrar la etapa y analizar.
-================================================================================*/
-	@cUsuario varchar(20),
-	@nSesionNumero bigint
-As
-Begin
-	Set NoCount On
-	Set Xact_Abort On
-
-	Declare @cIncidencia varchar(12), @cResponsable varchar(20), @cCorrelacion uniqueidentifier, @nSecuencia int,
-		@cRuta varchar(250) = Concat('/asistente-ti?sesion=', @nSesionNumero), @dFecha datetime2(0) = SysDateTime()
-
-	Begin Try
-		Begin Transaction
-		Select @cIncidencia = IncidenciaNumero, @cResponsable = UsuarioTI, @cCorrelacion = IdCorrelacion
-		From dbo.TI_AgenteSesion With (UpdLock, HoldLock)
-		Where SesionNumero = @nSesionNumero and UsuarioInvitado = @cUsuario and EstadoInvitacion = 'ACEPTADA'
-		If @@RowCount = 0 Throw 50562, 'La sesión de reproducción ya no está activa.', 1
-
-		Update dbo.TI_AgenteSesion Set EstadoInvitacion = 'FINALIZADA' Where SesionNumero = @nSesionNumero
-
-		Select @nSecuencia = IsNull(Max(Secuencia), 0) + 1 From dbo.TI_AgenteEvento With (UpdLock, HoldLock) Where SesionNumero = @nSesionNumero
-		Insert dbo.TI_AgenteEvento (SesionNumero, Secuencia, Tipo, Fuente, Contenido, DatosJson, Fecha, OrigenServidor)
-		Values (@nSesionNumero, @nSecuencia, 'FIN_LIVE', 'LIVE_USUARIO', N'El usuario finalizó la reproducción guiada desde su portal.', Null, @dFecha, 0)
-
-		Exec dbo.Usp_TI_Registrar_Notificacion
-			@cUsuario = @cResponsable,
-			@cIncidenciaNumero = @cIncidencia,
-			@cTipo = 'REPRODUCCION',
-			@cTitulo = N'Reproducción terminada',
-			@cMensaje = N'El usuario terminó de mostrar el error. Revisa su evidencia y continúa la investigación.',
-			@cRuta = @cRuta
-
-		Insert dbo.TI_Auditoria (IncidenciaNumero, Usuario, TipoActor, Entidad, Registro, Evento, Resultado, DetalleJson, IdCorrelacion, Fecha)
-		Values (@cIncidencia, @cUsuario, 'U', 'TI_AgenteSesion', Convert(varchar(30), @nSesionNumero), 'FINALIZAR_REPRODUCCION_USUARIO', 'FINALIZADA', Null, @cCorrelacion, @dFecha)
-		Commit Transaction
-	End Try
-	Begin Catch
-		If Xact_State() <> 0 Rollback Transaction
-		;Throw
-	End Catch
-End
+-- dbo.Usp_TI_Reproduccion_Finalizar: la versión vigente está en 35_ControlAgenteYAutonomia.sql (aquí había una versión anterior que ese script reemplaza).
 Go
 
 /* ============================== CORRELACIÓN Y TELEMETRÍA ============================== */

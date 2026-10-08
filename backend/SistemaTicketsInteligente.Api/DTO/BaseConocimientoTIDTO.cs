@@ -52,6 +52,7 @@ public sealed class BaseConocimientoTIDetalle : BaseConocimientoTIItem
     public string Causa { get; set; } = string.Empty;
     public string Procedimiento { get; set; } = string.Empty;
     public string UsuarioValida { get; set; } = string.Empty;
+    public List<PasoGuiaDiagnostico> Guia { get; set; } = [];
 }
 
 public class BaseConocimientoTICatalogo
@@ -119,9 +120,21 @@ public sealed class GuardarBaseConocimientoTISolicitud
     public string SubTipo { get; set; } = string.Empty;
     public string Categoria { get; set; } = string.Empty;
     public string? IncidenciaOrigen { get; set; }
+    /// <summary>Guía de diagnóstico que sigue el agente; vacía elimina la guía. Cambiarla en un artículo publicado lo devuelve a validación.</summary>
+    public List<PasoGuiaDiagnostico> Guia { get; set; } = [];
 }
 
 public sealed class BaseConocimientoTICreadoRespuesta
 {
     public string ConocimientoCodigo { get; set; } = string.Empty;
+}
+
+/// <summary>Paso de la guía de diagnóstico de un artículo: qué revisar, con qué herramienta y qué resultado confirma o descarta.</summary>
+public sealed class PasoGuiaDiagnostico
+{
+    public string Paso { get; set; } = string.Empty;
+    /// <summary>Código de herramienta del agente (DIAG_...), opcional.</summary>
+    public string? Herramienta { get; set; }
+    public string? Confirma { get; set; }
+    public string? Descarta { get; set; }
 }

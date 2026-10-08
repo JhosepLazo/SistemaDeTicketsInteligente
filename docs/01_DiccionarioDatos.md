@@ -6,6 +6,8 @@ Este documento describe el significado funcional y técnico de las tablas y colu
 
 El DDL contenido en `database/` continúa siendo la fuente ejecutable de la estructura. Este documento explica la semántica del modelo; no sustituye las restricciones físicas definidas en SQL Server.
 
+> **Alcance:** este diccionario explica las 24 tablas del modelo inicial. Las 14 tablas posteriores (scripts 19 a 36, entre ellas `TI_EstadoTransicion`, `TI_Parametro`, `TI_PoliticaAutonomia`, `TI_IncidenciaClasificacion`, `TI_PlantillaCampo` y `TI_IncidenciaDato`) y las columnas agregadas están documentadas con su catálogo real en `01_DOCUMENTACION_TECNICA.md`, sección 13, que es la referencia completa de las 38 tablas.
+
 ## 2. Convenciones generales
 
 - `TI_` identifica objetos pertenecientes al módulo de Tecnologías de Información.

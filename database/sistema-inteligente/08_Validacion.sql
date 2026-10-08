@@ -2,8 +2,9 @@
 	Archivo: 08_Validacion.sql
 	Objetivo: Verificar que la estructura física y relacional de GestionSistemas coincida con el modelo aprobado antes de utilizarla desde la aplicación.
 	Responsabilidad: Validar tablas, Primary Keys, Foreign Keys, Unique, Check, índices, tipos compatibles, collation, restricciones confiables y uso autorizado de Identity.
-	Dependencias: Requiere la ejecución previa de 00_PrepararGestionSistemas.sql hasta 07_DatosIniciales.sql cuando correspondan datos iniciales.
-	Orden: Ejecutar al finalizar la instalación y después de cualquier modificación estructural significativa.
+	Dependencias: Requiere la instalación completa (00 a 40). Las listas esperadas cubren los objetos de todos los scripts.
+	Orden: Ejecutar al finalizar la instalación (último paso de InstalarLocal.ps1) y después de cualquier modificación estructural;
+		cada script que agregue tablas, claves, restricciones, índices o triggers debe agregarlos también aquí.
 	Consideraciones: Ejecuta inserciones controladas dentro de una transacción y finaliza con Rollback, permitiendo validar los principales Join y relaciones sin dejar registros de prueba.
 */
 
@@ -20,30 +21,44 @@ Declare @TablasEsperadas Table
 
 Insert Into @TablasEsperadas (Tabla)
 Values
+	(N'TI_Accion'),
+	(N'TI_AgenteAccionEjecutor'),
+	(N'TI_AgenteEvento'),
+	(N'TI_AgenteHerramienta'),
+	(N'TI_AgenteSesion'),
 	(N'TI_Area'),
-	(N'TI_Linea'),
-	(N'TI_Cargo'),
-	(N'TI_Perfil'),
-	(N'TI_Usuario'),
-	(N'TI_Item'),
-	(N'TI_Tipo'),
-	(N'TI_Categoria'),
-	(N'TI_SubTipo'),
-	(N'TI_Estado'),
-	(N'TI_ItemCategoria'),
-	(N'TI_Incidencia'),
-	(N'TI_IncidenciaAvance'),
-	(N'TI_IncidenciaEstado'),
-	(N'TI_IncidenciaMensaje'),
-	(N'TI_IncidenciaAdjunto'),
-	(N'TI_IncidenciaDocumento'),
+	(N'TI_Auditoria'),
 	(N'TI_BaseConocimiento'),
+	(N'TI_Cargo'),
+	(N'TI_Categoria'),
+	(N'TI_ConocimientoVector'),
+	(N'TI_EjecucionAccion'),
+	(N'TI_Estado'),
+	(N'TI_EstadoTransicion'),
+	(N'TI_FormatoSoporte'),
+	(N'TI_Incidencia'),
+	(N'TI_IncidenciaAdjunto'),
+	(N'TI_IncidenciaAvance'),
+	(N'TI_IncidenciaClasificacion'),
+	(N'TI_IncidenciaDato'),
 	(N'TI_IncidenciaDiagnostico'),
 	(N'TI_IncidenciaDiagnosticoEvidencia'),
-	(N'TI_Accion'),
+	(N'TI_IncidenciaDocumento'),
+	(N'TI_IncidenciaEstado'),
+	(N'TI_IncidenciaMensaje'),
+	(N'TI_Item'),
+	(N'TI_ItemCategoria'),
+	(N'TI_Linea'),
+	(N'TI_Notificacion'),
+	(N'TI_Parametro'),
+	(N'TI_ParametroSLA'),
+	(N'TI_Perfil'),
+	(N'TI_PlantillaCampo'),
+	(N'TI_PoliticaAutonomia'),
 	(N'TI_SolicitudAprobacion'),
-	(N'TI_EjecucionAccion'),
-	(N'TI_Auditoria')
+	(N'TI_SubTipo'),
+	(N'TI_Tipo'),
+	(N'TI_Usuario')
 
 Declare @ForeignKeysEsperadas Table
 (
@@ -52,62 +67,89 @@ Declare @ForeignKeysEsperadas Table
 
 Insert Into @ForeignKeysEsperadas (Nombre)
 Values
-	(N'FK_TI_Linea_Area'),
-	(N'FK_TI_Usuario_Area'),
-	(N'FK_TI_Usuario_Cargo'),
-	(N'FK_TI_Usuario_Perfil'),
-	(N'FK_TI_Usuario_Jefe'),
-	(N'FK_TI_Item_Linea'),
-	(N'FK_TI_SubTipo_Tipo'),
-	(N'FK_TI_SubTipo_Categoria'),
-	(N'FK_TI_ItemCategoria_Item'),
-	(N'FK_TI_ItemCategoria_Categoria'),
-	(N'FK_TI_Incidencia_UsuarioSolicitante'),
+	(N'FK_TI_AgenteAccionEjecutor_Accion'),
+	(N'FK_TI_AgenteEvento_Sesion'),
+	(N'FK_TI_AgenteHerramienta_Accion'),
+	(N'FK_TI_AgenteSesion_Accion'),
+	(N'FK_TI_AgenteSesion_AreaTI'),
+	(N'FK_TI_AgenteSesion_Incidencia'),
+	(N'FK_TI_AgenteSesion_UsuarioDecision'),
+	(N'FK_TI_AgenteSesion_UsuarioInvitado'),
+	(N'FK_TI_AgenteSesion_UsuarioTI'),
+	(N'FK_TI_Auditoria_Incidencia'),
+	(N'FK_TI_Auditoria_Usuario'),
+	(N'FK_TI_BaseConocimiento_Categoria'),
+	(N'FK_TI_BaseConocimiento_IncidenciaOrigen'),
+	(N'FK_TI_BaseConocimiento_Item'),
+	(N'FK_TI_BaseConocimiento_ItemCategoria'),
+	(N'FK_TI_BaseConocimiento_Linea'),
+	(N'FK_TI_BaseConocimiento_LineaItem'),
+	(N'FK_TI_BaseConocimiento_Tipo'),
+	(N'FK_TI_BaseConocimiento_TipoSubTipoCategoria'),
+	(N'FK_TI_BaseConocimiento_UsuarioValida'),
+	(N'FK_TI_EjecucionAccion_Accion'),
+	(N'FK_TI_EjecucionAccion_Incidencia'),
+	(N'FK_TI_EjecucionAccion_Solicitud'),
+	(N'FK_TI_EjecucionAccion_UsuarioEjecutor'),
+	(N'FK_TI_EstadoTransicion_EstadoDestino'),
+	(N'FK_TI_EstadoTransicion_EstadoOrigen'),
+	(N'FK_TI_FormatoSoporte_Tipo'),
+	(N'FK_TI_Incidencia_AreaCausante'),
 	(N'FK_TI_Incidencia_AreaSolicitante'),
 	(N'FK_TI_Incidencia_AreaTI'),
-	(N'FK_TI_Incidencia_UsuarioTI'),
-	(N'FK_TI_Incidencia_UsuarioAsigno'),
+	(N'FK_TI_Incidencia_Categoria'),
+	(N'FK_TI_Incidencia_Estado'),
+	(N'FK_TI_Incidencia_ItemCategoria'),
 	(N'FK_TI_Incidencia_Linea'),
 	(N'FK_TI_Incidencia_LineaItem'),
 	(N'FK_TI_Incidencia_Tipo'),
 	(N'FK_TI_Incidencia_TipoSubTipoCategoria'),
-	(N'FK_TI_Incidencia_Categoria'),
-	(N'FK_TI_Incidencia_ItemCategoria'),
-	(N'FK_TI_Incidencia_Estado'),
-	(N'FK_TI_Incidencia_AreaCausante'),
-	(N'FK_TI_IncidenciaAvance_Incidencia'),
-	(N'FK_TI_IncidenciaAvance_UsuarioTI'),
-	(N'FK_TI_IncidenciaEstado_Incidencia'),
-	(N'FK_TI_IncidenciaEstado_Estado'),
-	(N'FK_TI_IncidenciaEstado_UsuarioCambio'),
-	(N'FK_TI_IncidenciaMensaje_Incidencia'),
-	(N'FK_TI_IncidenciaMensaje_UsuarioAutor'),
+	(N'FK_TI_Incidencia_UsuarioAsigno'),
+	(N'FK_TI_Incidencia_UsuarioRegistro'),
+	(N'FK_TI_Incidencia_UsuarioSolicitante'),
+	(N'FK_TI_Incidencia_UsuarioTI'),
 	(N'FK_TI_IncidenciaAdjunto_Incidencia'),
 	(N'FK_TI_IncidenciaAdjunto_Mensaje'),
 	(N'FK_TI_IncidenciaAdjunto_UsuarioRegistro'),
-	(N'FK_TI_IncidenciaDocumento_Incidencia'),
-	(N'FK_TI_BaseConocimiento_IncidenciaOrigen'),
-	(N'FK_TI_BaseConocimiento_UsuarioValida'),
-	(N'FK_TI_BaseConocimiento_Linea'),
-	(N'FK_TI_BaseConocimiento_Item'),
-	(N'FK_TI_BaseConocimiento_LineaItem'),
-	(N'FK_TI_BaseConocimiento_Tipo'),
-	(N'FK_TI_BaseConocimiento_TipoSubTipoCategoria'),
-	(N'FK_TI_BaseConocimiento_Categoria'),
-	(N'FK_TI_BaseConocimiento_ItemCategoria'),
+	(N'FK_TI_IncidenciaAvance_AreaCausante'),
+	(N'FK_TI_IncidenciaAvance_Incidencia'),
+	(N'FK_TI_IncidenciaAvance_UsuarioTI'),
+	(N'FK_TI_IncidenciaClasificacion_Incidencia'),
+	(N'FK_TI_IncidenciaClasificacion_LineaItem'),
+	(N'FK_TI_IncidenciaClasificacion_TipoSubTipoCategoria'),
+	(N'FK_TI_IncidenciaClasificacion_Usuario'),
+	(N'FK_TI_IncidenciaDato_Campo'),
+	(N'FK_TI_IncidenciaDato_Incidencia'),
+	(N'FK_TI_IncidenciaDato_Usuario'),
 	(N'FK_TI_IncidenciaDiagnostico_Incidencia'),
 	(N'FK_TI_IncidenciaDiagnostico_UsuarioValida'),
 	(N'FK_TI_IncidenciaDiagnosticoEvidencia_Diagnostico'),
-	(N'FK_TI_SolicitudAprobacion_Incidencia'),
+	(N'FK_TI_IncidenciaDocumento_Incidencia'),
+	(N'FK_TI_IncidenciaEstado_Estado'),
+	(N'FK_TI_IncidenciaEstado_Incidencia'),
+	(N'FK_TI_IncidenciaEstado_UsuarioCambio'),
+	(N'FK_TI_IncidenciaMensaje_Incidencia'),
+	(N'FK_TI_IncidenciaMensaje_UsuarioAutor'),
+	(N'FK_TI_Item_Linea'),
+	(N'FK_TI_ItemCategoria_Categoria'),
+	(N'FK_TI_ItemCategoria_Item'),
+	(N'FK_TI_Linea_Area'),
+	(N'FK_TI_Notificacion_Incidencia'),
+	(N'FK_TI_Notificacion_Usuario'),
+	(N'FK_TI_PlantillaCampo_Tipo'),
+	(N'FK_TI_PoliticaAutonomia_Accion'),
+	(N'FK_TI_PoliticaAutonomia_Tipo'),
 	(N'FK_TI_SolicitudAprobacion_Accion'),
-	(N'FK_TI_SolicitudAprobacion_UsuarioSolicitante'),
+	(N'FK_TI_SolicitudAprobacion_Diagnostico'),
+	(N'FK_TI_SolicitudAprobacion_Incidencia'),
 	(N'FK_TI_SolicitudAprobacion_UsuarioAprobador'),
-	(N'FK_TI_EjecucionAccion_Incidencia'),
-	(N'FK_TI_EjecucionAccion_Accion'),
-	(N'FK_TI_EjecucionAccion_UsuarioEjecutor'),
-	(N'FK_TI_EjecucionAccion_Solicitud'),
-	(N'FK_TI_Auditoria_Incidencia'),
-	(N'FK_TI_Auditoria_Usuario')
+	(N'FK_TI_SolicitudAprobacion_UsuarioSolicitante'),
+	(N'FK_TI_SubTipo_Categoria'),
+	(N'FK_TI_SubTipo_Tipo'),
+	(N'FK_TI_Usuario_Area'),
+	(N'FK_TI_Usuario_Cargo'),
+	(N'FK_TI_Usuario_Jefe'),
+	(N'FK_TI_Usuario_Perfil')
 
 Declare @ObjetosEsperados Table
 (
@@ -118,25 +160,84 @@ Declare @ObjetosEsperados Table
 
 Insert Into @ObjetosEsperados (Tipo, Nombre)
 Values
-	(N'UQ', N'UQ_TI_Item_LineaItem'),
+	(N'UQ', N'UQ_TI_AgenteSesion_IdCorrelacion'),
 	(N'UQ', N'UQ_TI_EjecucionAccion_ClaveIdempotencia'),
-	(N'CK', N'CK_TI_IncidenciaAvance_Porcentaje'),
-	(N'CK', N'CK_TI_IncidenciaMensaje_TipoAutor'),
-	(N'CK', N'CK_TI_IncidenciaAdjunto_TamanoBytes'),
-	(N'CK', N'CK_TI_IncidenciaDiagnostico_Origen'),
-	(N'CK', N'CK_TI_IncidenciaDiagnostico_Confianza'),
-	(N'CK', N'CK_TI_IncidenciaDiagnosticoEvidencia_Similitud'),
+	(N'UQ', N'UQ_TI_Item_LineaItem'),
+	(N'CK', N'CK_TI_Accion_NivelRiesgo'),
 	(N'CK', N'CK_TI_Accion_Tipo'),
-	(N'CK', N'CK_TI_SolicitudAprobacion_Estado'),
+	(N'CK', N'CK_TI_AgenteAccionEjecutor_Esquema'),
+	(N'CK', N'CK_TI_AgenteAccionEjecutor_MaximoFilas'),
+	(N'CK', N'CK_TI_AgenteAccionEjecutor_Procedimiento'),
+	(N'CK', N'CK_TI_AgenteHerramienta_Esquema'),
+	(N'CK', N'CK_TI_AgenteHerramienta_Estado'),
+	(N'CK', N'CK_TI_AgenteHerramienta_MaximoFilas'),
+	(N'CK', N'CK_TI_AgenteHerramienta_TipoProcedimiento'),
+	(N'CK', N'CK_TI_AgenteSesion_Confianza'),
+	(N'CK', N'CK_TI_AgenteSesion_Decision'),
+	(N'CK', N'CK_TI_AgenteSesion_Estado'),
+	(N'CK', N'CK_TI_AgenteSesion_EstadoInvitacion'),
+	(N'CK', N'CK_TI_Auditoria_TipoActor'),
+	(N'CK', N'CK_TI_BaseConocimiento_Estado'),
+	(N'CK', N'CK_TI_BaseConocimiento_Guia'),
+	(N'CK', N'CK_TI_ConocimientoVector_Dimensiones'),
+	(N'CK', N'CK_TI_ConocimientoVector_Origen'),
+	(N'CK', N'CK_TI_EjecucionAccion_Estado'),
 	(N'CK', N'CK_TI_EjecucionAccion_FilasAfectadas'),
-	(N'IX', N'IX_TI_Incidencia_UsuarioSolicitante_FechaRegistro'),
-	(N'IX', N'IX_TI_Incidencia_Estado_AreaTI_FechaRegistro'),
-	(N'IX', N'IX_TI_Incidencia_UsuarioTI_Estado_FechaRegistro'),
-	(N'IX', N'IX_TI_Incidencia_Linea_Item_Categoria'),
-	(N'IX', N'IX_TI_IncidenciaDocumento_Tipo_Numero_Compania'),
-	(N'IX', N'IX_TI_SolicitudAprobacion_Estado_Aprobador_Fecha'),
+	(N'CK', N'CK_TI_EjecucionAccion_TipoEjecutor'),
+	(N'CK', N'CK_TI_EstadoTransicion_Distintos'),
+	(N'CK', N'CK_TI_EstadoTransicion_Estado'),
+	(N'CK', N'CK_TI_Incidencia_Calificacion'),
+	(N'CK', N'CK_TI_Incidencia_CanalRegistro'),
+	(N'CK', N'CK_TI_Incidencia_Complejidad'),
+	(N'CK', N'CK_TI_Incidencia_Impacto'),
+	(N'CK', N'CK_TI_Incidencia_Prioridad'),
+	(N'CK', N'CK_TI_Incidencia_TipoResolucion'),
+	(N'CK', N'CK_TI_IncidenciaAdjunto_TamanoBytes'),
+	(N'CK', N'CK_TI_IncidenciaAvance_Porcentaje'),
+	(N'CK', N'CK_TI_IncidenciaClasificacion_Confianza'),
+	(N'CK', N'CK_TI_IncidenciaClasificacion_Json'),
+	(N'CK', N'CK_TI_IncidenciaClasificacion_Niveles'),
+	(N'CK', N'CK_TI_IncidenciaClasificacion_Origen'),
+	(N'CK', N'CK_TI_IncidenciaDato_Fuente'),
+	(N'CK', N'CK_TI_IncidenciaDiagnostico_Confianza'),
+	(N'CK', N'CK_TI_IncidenciaDiagnostico_Estado'),
+	(N'CK', N'CK_TI_IncidenciaDiagnostico_Origen'),
+	(N'CK', N'CK_TI_IncidenciaDiagnosticoEvidencia_Similitud'),
+	(N'CK', N'CK_TI_IncidenciaMensaje_TipoAutor'),
+	(N'CK', N'CK_TI_ParametroSLA_Minutos'),
+	(N'CK', N'CK_TI_ParametroSLA_Prioridad'),
+	(N'CK', N'CK_TI_PlantillaCampo_Estado'),
+	(N'CK', N'CK_TI_PlantillaCampo_Longitud'),
+	(N'CK', N'CK_TI_PlantillaCampo_TipoDato'),
+	(N'CK', N'CK_TI_PoliticaAutonomia_Autonoma'),
+	(N'CK', N'CK_TI_PoliticaAutonomia_Estado'),
+	(N'CK', N'CK_TI_PoliticaAutonomia_Modo'),
+	(N'CK', N'CK_TI_SolicitudAprobacion_Estado'),
+	(N'CK', N'CK_TI_SolicitudAprobacion_Expiracion'),
+	(N'CK', N'CK_TI_SolicitudAprobacion_Respuesta'),
+	(N'CK', N'CK_TI_Usuario_TipoUsuario'),
+	(N'IX', N'IX_TI_AgenteSesion_IncidenciaFecha'),
+	(N'IX', N'IX_TI_AgenteSesion_UsuarioEstadoFecha'),
+	(N'IX', N'IX_TI_AgenteSesion_UsuarioInvitado'),
 	(N'IX', N'IX_TI_Auditoria_IdCorrelacion'),
-	(N'IX', N'IX_TI_Auditoria_Incidencia_Fecha')
+	(N'IX', N'IX_TI_Auditoria_Incidencia_Fecha'),
+	(N'IX', N'IX_TI_Incidencia_ColaTI'),
+	(N'IX', N'IX_TI_Incidencia_Estado_AreaTI_FechaRegistro'),
+	(N'IX', N'IX_TI_Incidencia_FechaRegistro_Reportes'),
+	(N'IX', N'IX_TI_Incidencia_Linea_Item_Categoria'),
+	(N'IX', N'IX_TI_Incidencia_UsuarioSolicitante_FechaRegistro'),
+	(N'IX', N'IX_TI_Incidencia_UsuarioSolicitante_UltimaFecha'),
+	(N'IX', N'IX_TI_Incidencia_UsuarioTI_Estado_FechaRegistro'),
+	(N'IX', N'IX_TI_IncidenciaAvance_FechaUsuario'),
+	(N'IX', N'IX_TI_IncidenciaDocumento_Tipo_Numero_Compania'),
+	(N'IX', N'IX_TI_Notificacion_UsuarioLeidaFecha'),
+	(N'IX', N'IX_TI_SolicitudAprobacion_Estado_Aprobador_Fecha'),
+	(N'IX', N'IX_TI_SolicitudAprobacion_Pendiente_Incidencia'),
+	(N'TR', N'Tr_TI_Incidencia_BloqueoAprobacion'),
+	(N'TR', N'Tr_TI_Incidencia_NotificacionesOperativas'),
+	(N'TR', N'Tr_TI_Incidencia_NotificacionRespuestaUsuario'),
+	(N'TR', N'Tr_TI_Incidencia_TransicionEstado'),
+	(N'TR', N'Tr_TI_SolicitudAprobacion_SeparacionFunciones')
 
 If DatabasePropertyEx(Db_Name(), 'Collation') <> N'Modern_Spanish_CI_AS'
 Begin
@@ -228,9 +329,20 @@ If Exists
 			Where [name] = esperado.Nombre
 		)
 	)
+	or
+	(
+		esperado.Tipo = 'TR'
+		and Not Exists
+		(
+			Select 1
+			From sys.triggers
+			Where [name] = esperado.Nombre
+				and is_disabled = 0
+		)
+	)
 )
 Begin
-	;Throw 50021, 'Falta una restricción UNIQUE, CHECK o índice crítico.', 1
+	;Throw 50021, 'Falta una restricción UNIQUE, CHECK, un índice crítico o un trigger habilitado.', 1
 End
 
 If Exists
@@ -290,7 +402,7 @@ If
 		on tabla.object_id = columna.object_id
 	Where columna.is_identity = 1
 		and tabla.[name] Like N'TI[_]%'
-) <> 2
+) <> 3
 or Not Exists
 (
 	Select 1
@@ -309,6 +421,16 @@ or Not Exists
 		on tabla.object_id = columna.object_id
 	Where tabla.[name] = N'TI_Notificacion'
 		and columna.[name] = N'NotificacionNumero'
+		and columna.is_identity = 1
+)
+or Not Exists
+(
+	Select 1
+	From sys.columns as columna
+	Inner Join sys.tables as tabla
+		on tabla.object_id = columna.object_id
+	Where tabla.[name] = N'TI_AgenteSesion'
+		and columna.[name] = N'SesionNumero'
 		and columna.is_identity = 1
 )
 Begin
@@ -380,7 +502,7 @@ Begin Try
 	(
 		'TST-00000001', '2099-01-01T00:00:00', 'VALIDACION_SQL', 'VALIDACION_SQL', 'ZZZ', 'ZZZ', 'VALIDACION_SQL', 'VALIDACION_SQL', 'ZZZ',
 		'ITEM_VALIDACION', 'TST', 'TST', 'PRUEBA', 'TS', 'ZZZ', N'Incidencia de validación', N'Detalle de validación',
-		60, 1, 1, 1, 'PRUEBA', 'VALIDACION_SQL', '2099-01-01T00:00:00'
+		60, 1, 1, 1, 'PORTAL', 'VALIDACION_SQL', '2099-01-01T00:00:00'
 	)
 
 	Insert Into dbo.TI_IncidenciaAvance (IncidenciaNumero, Secuencia, UsuarioTI, FechaAvance, Detalle, TiempoUtilizado, PorcentajeAvance)
@@ -410,7 +532,7 @@ Begin Try
 	Values
 	(
 		'TST-00000001', 1, 'T', N'Diagnóstico de validación', N'Causa probable de validación',
-		N'Solución sugerida de validación', 100, 'T', 'VALIDACION_SQL', '2099-01-01T00:05:00'
+		N'Solución sugerida de validación', 100, 'V', 'VALIDACION_SQL', '2099-01-01T00:05:00'
 	)
 
 	Insert Into dbo.TI_IncidenciaDiagnosticoEvidencia (IncidenciaNumero, DiagnosticoSecuencia, Secuencia, TipoFuente, Referencia, Descripcion, Similitud)

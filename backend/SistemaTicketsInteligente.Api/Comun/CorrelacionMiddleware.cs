@@ -1,7 +1,8 @@
 /**
  * Archivo: CorrelacionMiddleware.cs
  * Objetivo: Correlacionar cada petición con la investigación del agente que el usuario está reproduciendo.
- * Responsabilidad: Asignar un X-Correlation-ID, abrir la traza de la petición y, si pertenece a una investigación, guardarla como evidencia.
+ * Responsabilidad: Asignar un X-Correlation-ID, usarlo como identificador de la petición (registros, error y auditoría), abrir la traza
+ *   de la petición y, si pertenece a una investigación, guardarla como evidencia.
  * Dependencias: BaseDatos (Usp_TI_Agente_Correlacion y Usp_TI_Agente_Telemetria), TrazaAgente y la cabecera X-Agente-Sesion.
  * Flujo: Petición -> resolver sesión -> ejecutar la API -> registrar la traza TRAZA_BACKEND de la investigación.
  * Consideraciones: Las consultas de la campana, del asistente y de la autenticación no se guardan: no forman parte del proceso reproducido.
@@ -41,6 +42,9 @@ public sealed class CorrelacionMiddleware(RequestDelegate next)
 
         var traza = new TrazaAgente { Correlacion = correlacion ?? Guid.NewGuid(), Sesion = sesion };
         TrazaAgente.Actual.Value = traza;
+        // Un solo identificador por petición: el idSeguimiento de un error y la auditoría usan este mismo valor.
+        var requestId = contexto.TraceIdentifier;
+        contexto.TraceIdentifier = traza.Correlacion.ToString();
         contexto.Response.Headers["X-Correlation-ID"] = traza.Correlacion.ToString();
         var inicio = Stopwatch.GetTimestamp();
         var ruta = contexto.Request.Path.Value ?? "";
@@ -57,7 +61,7 @@ public sealed class CorrelacionMiddleware(RequestDelegate next)
             traza.Pasos.Enqueue($"RESULTADO {resultado} | {duracion:0.0} ms");
             logger.LogInformation("API {Metodo} {Ruta} {Resultado} {Duracion} ms Correlacion {Correlacion}", contexto.Request.Method, ruta, resultado, duracion, traza.Correlacion);
             if (sesion.HasValue && usuario is not null && !RutasSinTraza.Any(x => ruta.StartsWith(x, StringComparison.Ordinal)))
-                await GuardarTrazaAsync(baseDatos, logger, usuario, sesion.Value, traza, contexto.TraceIdentifier, duracion, resultado);
+                await GuardarTrazaAsync(baseDatos, logger, usuario, sesion.Value, traza, requestId, duracion, resultado);
         }
     }
 

@@ -1,8 +1,9 @@
 /**
  * Archivo: BaseConocimientoTIPage.tsx
  * Objetivo: Implementar el módulo Base de Conocimiento para el operador TI autenticado.
- * Responsabilidad: Permitir buscar, revisar, crear, editar, validar, revalidar e inactivar conocimiento reutilizable, incluyendo la creación guiada desde tickets resueltos.
- * Dependencias: AutenticacionContext, baseConocimientoTIApi, NotificacionesCampana, InicioPage.css y BaseConocimientoTIPage.css.
+ * Responsabilidad: Permitir buscar, revisar, crear, editar, validar, revalidar e inactivar conocimiento reutilizable, incluyendo la creación
+ *   guiada desde tickets resueltos y la guía de diagnóstico que el agente sigue como playbook.
+ * Dependencias: AutenticacionContext, baseConocimientoTIApi, MarcoPortal, Icono, EditorGuiaDiagnostico y BaseConocimientoTIPage.css.
  * Flujo: Ruta protegida /base-conocimiento -> BaseConocimientoTIPage -> API /api/base-conocimiento -> Stored Procedures -> SQL Server.
  * Consideraciones: La vista conserva el patrón visual CALIMOD; no inventa métricas de favoritos o visualizaciones que el modelo actual no registra y separa borrador, validación, publicación e inactivación.
  */
@@ -26,6 +27,7 @@ import {
 } from '../../services/baseConocimientoTIApi'
 import MarcoPortal from '../../components/MarcoPortal'
 import IconoBase, { type PropsIcono } from '../../components/Icono'
+import EditorGuiaDiagnostico from './EditorGuiaDiagnostico'
 import './BaseConocimientoTIPage.css'
 
 // Esta pantalla dibuja sus íconos a 19 px.
@@ -48,6 +50,7 @@ const solicitudVacia: GuardarBaseConocimientoTISolicitud = {
   subTipo: '',
   categoria: '',
   incidenciaOrigen: null,
+  guia: [],
 }
 
 function fechaCorta(fecha: string | null) {
@@ -217,6 +220,7 @@ export default function BaseConocimientoTIPage() {
       subTipo: detalle.subTipo,
       categoria: detalle.categoria,
       incidenciaOrigen: detalle.incidenciaOrigen || null,
+      guia: detalle.guia ?? [],
     })
     setModalAbierto(true)
   }
@@ -489,6 +493,7 @@ export default function BaseConocimientoTIPage() {
                         placeholder="Detalla los pasos en orden cuando la solución requiera una secuencia específica."
                       />
                     </label>
+                    <EditorGuiaDiagnostico pasos={formulario.guia} onCambiar={guia => setFormulario(v => ({ ...v, guia }))} />
                   </div>
                   <div className="conocimiento-ti-modal__nota">
                     <Icono nombre="borrador" size={18} />
@@ -842,6 +847,7 @@ function solicitudDesdeTicket(ticket: BaseConocimientoTITicketOrigen): GuardarBa
     subTipo: ticket.subTipo,
     categoria: ticket.categoria,
     incidenciaOrigen: ticket.incidenciaNumero,
+    guia: [],
   }
 }
 
@@ -954,6 +960,21 @@ function DetalleArticulo({
         <Bloque titulo="Causa" texto={detalle.causa} />
         <Bloque titulo="Solución" texto={detalle.solucion} />
         {detalle.procedimiento && <Bloque titulo="Procedimiento" texto={detalle.procedimiento} />}
+        {(detalle.guia ?? []).length > 0 && (
+          <section className="conocimiento-ti-bloque">
+            <strong>Guía de diagnóstico</strong>
+            <ol className="conocimiento-ti-guia-vista">
+              {detalle.guia.map((x, indice) => (
+                <li key={indice}>
+                  <p>{x.paso}</p>
+                  {x.herramienta && <small>Herramienta: {x.herramienta}</small>}
+                  {x.confirma && <small>Confirma: {x.confirma}</small>}
+                  {x.descarta && <small>Descarta: {x.descarta}</small>}
+                </li>
+              ))}
+            </ol>
+          </section>
+        )}
       </div>
       <div className="conocimiento-ti-detalle__acciones">
         <button onClick={onEditar} disabled={procesando}>

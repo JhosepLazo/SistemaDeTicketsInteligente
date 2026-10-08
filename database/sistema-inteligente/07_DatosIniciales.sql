@@ -4,7 +4,8 @@
 	Responsabilidad: Registrar únicamente catálogos iniciales propios del sistema que hayan sido previamente definidos y aprobados.
 	Dependencias: Requiere los maestros correspondientes creados en 01_Maestros.sql.
 	Orden: Ejecutar después de crear la estructura e índices principales.
-	Consideraciones: No migra información histórica ni inventa códigos corporativos desconocidos; cualquier valor pendiente debe permanecer sin ejecutar hasta ser confirmado.
+	Consideraciones: No migra información histórica ni inventa códigos corporativos. Es el único responsable de cargar TI_Perfil
+		(09_InsertDeDatos.sql ya no los inserta) y puede ejecutarse otra vez: solo agrega los perfiles que falten.
 */
 
 Use [GestionSistemas]
@@ -12,23 +13,8 @@ Go
 
 Set Xact_Abort on
 
--- Debe definirse con el código corporativo que represente un registro activo.
-Declare @cEstadoActivo varchar(2) = Null
-
-If NullIf(LTrim(RTrim(@cEstadoActivo)), '') Is Null
-Begin
-	;Throw 50015, 'Debe definir el valor de @cEstadoActivo antes de insertar los perfiles.', 1
-End
-
-If Exists
-(
-	Select 1
-	From dbo.TI_Perfil
-	Where Perfil In ('USR', 'TEC', 'SUP', 'ADM')
-)
-Begin
-	;Throw 50016, 'Uno o más perfiles iniciales ya existen. No se realizaron cambios.', 1
-End
+-- A (activo) es el código que usan todos los procedimientos y la API para los registros vigentes; I marca los inactivos.
+Declare @cEstadoActivo varchar(2) = 'A'
 
 Begin Try
 	Begin Transaction
@@ -39,11 +25,14 @@ Begin Try
 		Descripcion,
 		Estado
 	)
-	Values
-		('USR', N'Usuario', @cEstadoActivo),
-		('TEC', N'Técnico TI', @cEstadoActivo),
-		('SUP', N'Supervisor TI', @cEstadoActivo),
-		('ADM', N'Administrador', @cEstadoActivo)
+	Select perfil.Perfil, perfil.Descripcion, @cEstadoActivo
+	From (Values
+		('USR', N'Usuario'),
+		('TEC', N'Técnico TI'),
+		('SUP', N'Supervisor TI'),
+		('ADM', N'Administrador')
+	) as perfil (Perfil, Descripcion)
+	Where Not Exists (Select 1 From dbo.TI_Perfil as existente Where existente.Perfil = perfil.Perfil)
 
 	Commit Transaction
 End Try

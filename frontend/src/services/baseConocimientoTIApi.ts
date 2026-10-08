@@ -43,12 +43,21 @@ export interface BaseConocimientoTIItem {
   requiereRevision: boolean
 }
 
+/** Paso de la guía de diagnóstico: qué revisar, con qué herramienta del agente y qué causa confirma o descarta. */
+export interface PasoGuiaDiagnostico {
+  paso: string
+  herramienta?: string | null
+  confirma?: string | null
+  descarta?: string | null
+}
+
 export interface BaseConocimientoTIDetalle extends BaseConocimientoTIItem {
   sintomas: string
   mensajeError: string
   causa: string
   procedimiento: string
   usuarioValida: string
+  guia: PasoGuiaDiagnostico[]
 }
 
 export interface BaseConocimientoTICatalogo {
@@ -109,6 +118,8 @@ export interface GuardarBaseConocimientoTISolicitud {
   subTipo: string
   categoria: string
   incidenciaOrigen: string | null
+  /** Siempre se envía la guía completa: al actualizar, la que llega reemplaza a la guardada. */
+  guia: PasoGuiaDiagnostico[]
 }
 
 interface BaseConocimientoTICreadoRespuesta {

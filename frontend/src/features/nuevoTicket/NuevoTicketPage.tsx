@@ -1,19 +1,24 @@
 /**
  * Archivo: NuevoTicketPage.tsx
  * Objetivo: Implementar el módulo Nuevo Ticket para el usuario autenticado siguiendo la estructura visual definida para Calimod.
- * Responsabilidad: Cargar identidad, catálogos y recursos de soporte; validar formulario, borrador y evidencias; mostrar resumen y registrar la incidencia.
- * Dependencias: React Router, AutenticacionContext, nuevoTicketApi, recursosSoporteApi, NotificacionesCampana, InicioPage.css y NuevoTicketPage.css.
- * Flujo: /nuevo-ticket -> catálogos/recursos -> edición y validación -> POST /api/tickets/nuevo -> confirmación.
- * Consideraciones: El asistente puede preparar o conservar un borrador, pero el usuario confirma el envío; no se expone clasificación técnica, prioridad ni responsable TI.
+ * Responsabilidad: Cargar identidad, catálogos, fichas y recursos de soporte; validar formulario, ficha, borrador y evidencias; mostrar
+ *   resumen y registrar la incidencia.
+ * Dependencias: React Router, AutenticacionContext, nuevoTicketApi, fichaTicketService, FichaTicket, recursosSoporteApi, MarcoPortal,
+ *   Icono y NuevoTicketPage.css.
+ * Flujo: /nuevo-ticket -> catálogos/recursos -> edición y validación (con la ficha del tipo) -> POST /api/tickets/nuevo -> confirmación.
+ * Consideraciones: El asistente puede preparar o conservar un borrador, pero el usuario confirma el envío; no se expone clasificación técnica,
+ *   prioridad ni responsable TI. Si el tipo elegido tiene ficha (por ejemplo, el requerimiento), sus obligatorias se completan antes de enviar.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { primerNombre, useAutenticacion } from '../autenticacion/AutenticacionContext'
 import { crearNuevoTicket, obtenerDatosNuevoTicket, type NuevoTicketDatos, type NuevoTicketFormulario } from '../../services/nuevoTicketApi'
+import { avanceFicha, camposDelTipo, fichaJson, validarFicha, type RespuestasFicha } from '../../services/fichaTicketService'
 import { obtenerRecursosSoporte, urlFormatoSoporte, type RecursosSoporteRespuesta } from '../../services/recursosSoporteApi'
 import MarcoPortal from '../../components/MarcoPortal'
 import Icono from '../../components/Icono'
+import FichaTicket from './FichaTicket'
 import './NuevoTicketPage.css'
 
 const formularioInicial: NuevoTicketFormulario = { linea: '', tipo: '', titulo: '', detalle: '', mensajeError: '', adjuntos: [] }
@@ -54,6 +59,7 @@ export default function NuevoTicketPage() {
     mensajeError: borradorAsistente?.mensajeError ?? '',
     adjuntos: (borradorAsistente?.grabaciones ?? []).filter(x => x instanceof File).slice(0, 2),
   }))
+  const [ficha, setFicha] = useState<RespuestasFicha>({})
   const [cargando, setCargando] = useState(true)
   const [enviando, setEnviando] = useState(false)
   const [arrastrando, setArrastrando] = useState(false)
@@ -94,8 +100,11 @@ export default function NuevoTicketPage() {
     const guardado = localStorage.getItem(claveBorrador)
     if (!guardado) return
     try {
-      const borrador = JSON.parse(guardado) as Omit<NuevoTicketFormulario, 'adjuntos'>
+      const { ficha: fichaGuardada, ...borrador } = JSON.parse(guardado) as Omit<NuevoTicketFormulario, 'adjuntos'> & {
+        ficha?: RespuestasFicha
+      }
       setFormulario(actual => ({ ...actual, ...borrador, adjuntos: [] }))
+      setFicha(fichaGuardada ?? {})
       setMensaje('Se recuperó tu último borrador. Los archivos deben adjuntarse nuevamente.')
     } catch {
       localStorage.removeItem(claveBorrador)
@@ -106,10 +115,17 @@ export default function NuevoTicketPage() {
   const tipoSeleccionado = datos?.tipos.find(x => x.codigo === formulario.tipo)?.descripcion ?? 'Sin seleccionar'
   const documentos = useMemo(() => extraerDocumentos(`${formulario.titulo} ${formulario.detalle}`), [formulario.titulo, formulario.detalle])
   const formatosVisibles = recursos.formatos.filter(x => !x.tipoTicket || !formulario.tipo || x.tipoTicket === formulario.tipo)
+  const camposFicha = useMemo(() => (datos ? camposDelTipo(datos.ficha, formulario.tipo) : []), [datos, formulario.tipo])
+  const avance = avanceFicha(camposFicha, formulario.tipo, ficha)
   if (!usuario) return null
 
   function actualizar<K extends keyof NuevoTicketFormulario>(campo: K, valor: NuevoTicketFormulario[K]) {
     setFormulario(actual => ({ ...actual, [campo]: valor }))
+    setError('')
+    setTicketCreado('')
+  }
+  function actualizarFicha(campo: string, valor: string) {
+    setFicha(actual => ({ ...actual, [campo]: valor }))
     setError('')
     setTicketCreado('')
   }
@@ -147,12 +163,12 @@ export default function NuevoTicketPage() {
   function guardarBorrador(silencioso = false) {
     if (!claveBorrador) return
     const { adjuntos: _, ...borrador } = formulario
-    const tieneContenido = Object.values(borrador).some(valor => valor.trim().length > 0)
+    const tieneContenido = [...Object.values(borrador), ...Object.values(ficha)].some(valor => valor.trim().length > 0)
     if (!tieneContenido) {
       if (!silencioso) setMensaje('Completa al menos un dato antes de guardar el borrador.')
       return
     }
-    localStorage.setItem(claveBorrador, JSON.stringify(borrador))
+    localStorage.setItem(claveBorrador, JSON.stringify({ ...borrador, ficha }))
     if (!silencioso) setMensaje('Borrador guardado en este equipo.')
     setError('')
   }
@@ -167,7 +183,7 @@ export default function NuevoTicketPage() {
     if (formulario.detalle.trim().length < 20) return 'Describe con mayor detalle el proceso realizado y el problema encontrado.'
     if (formulario.tipo === 'REQ' && formulario.adjuntos.length === 0)
       return 'Los requerimientos deben incluir al menos un archivo de sustento.'
-    return ''
+    return validarFicha(camposFicha, formulario.tipo, ficha)
   }
   async function enviarTicket(event: React.FormEvent) {
     event.preventDefault()
@@ -188,10 +204,12 @@ export default function NuevoTicketPage() {
           mensajeError: formulario.mensajeError.trim(),
         },
         evidenciaAsistente,
+        fichaJson(camposFicha, formulario.tipo, ficha),
       )
       setTicketConEvidencia(!!evidenciaAsistente)
       setTicketCreado(creado.incidenciaNumero)
       setFormulario(formularioInicial)
+      setFicha({})
       if (claveBorrador) localStorage.removeItem(claveBorrador)
       if (archivoRef.current) archivoRef.current.value = ''
     } catch (e) {
@@ -345,6 +363,16 @@ export default function NuevoTicketPage() {
                 />
                 <small className="nuevo-ticket-contador">{formulario.detalle.length}/1000</small>
               </div>
+              {camposFicha.length > 0 && (
+                <FichaTicket
+                  campos={camposFicha}
+                  respuestas={ficha}
+                  alCambiar={actualizarFicha}
+                  tipo={formulario.tipo}
+                  titulo={formulario.titulo}
+                  detalle={formulario.detalle}
+                />
+              )}
               <div className="nuevo-ticket-adjuntos">
                 <div className="nuevo-ticket-adjuntos__cabecera">
                   <strong>
@@ -470,6 +498,16 @@ export default function NuevoTicketPage() {
                     </dt>
                     <dd>{tipoSeleccionado}</dd>
                   </div>
+                  {avance.total > 0 && (
+                    <div>
+                      <dt>
+                        <Icono nombre="lista" size={18} /> Ficha
+                      </dt>
+                      <dd>
+                        {avance.respondidos} de {avance.total} respuestas
+                      </dd>
+                    </div>
+                  )}
                   <div>
                     <dt>
                       <Icono nombre="archivoLineas" size={18} /> Documentos mencionados

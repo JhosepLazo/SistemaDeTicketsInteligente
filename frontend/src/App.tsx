@@ -2,7 +2,7 @@
  * Archivo: App.tsx
  * Objetivo: Definir las rutas públicas y protegidas de la aplicación.
  * Responsabilidad: Esperar la comprobación inicial de sesión y dirigir al usuario a las vistas permitidas según su perfil autenticado.
- * Dependencias: React Router, AutenticacionContext y páginas funcionales del portal.
+ * Dependencias: React Router, AutenticacionContext, GuardiasRuta y páginas funcionales del portal.
  * Flujo: main.tsx -> App -> comprobación de sesión -> validación de perfil -> ruta pública o protegida.
  * Consideraciones: La navegación visual aplica una primera separación por perfil; la autorización definitiva de cada endpoint permanece en el backend.
  */
@@ -10,6 +10,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Component, lazy, Suspense, type ErrorInfo, type ReactNode } from 'react'
 import { AutenticacionProvider, useAutenticacion } from './features/autenticacion/AutenticacionContext'
+import { RutaProtegida, RutaPublica, RutaTI, RutaUsuario } from './features/autenticacion/GuardiasRuta'
 import LoginPage from './features/autenticacion/LoginPage'
 
 const InicioUsuarioPage = lazy(() => import('./features/inicio/InicioUsuarioPage'))
@@ -62,26 +63,6 @@ function CargandoModulo() {
       <strong>Preparando tu espacio de trabajo</strong>
     </main>
   )
-}
-
-function RutaProtegida({ children }: { children: ReactNode }) {
-  const { estado } = useAutenticacion()
-  return estado === 'autenticado' ? children : <Navigate to="/login" replace />
-}
-
-function RutaPublica({ children }: { children: ReactNode }) {
-  const { estado } = useAutenticacion()
-  return estado === 'autenticado' ? <Navigate to="/inicio" replace /> : children
-}
-
-function RutaUsuario({ children }: { children: ReactNode }) {
-  const { usuario } = useAutenticacion()
-  return usuario?.perfil === 'USR' ? children : <Navigate to="/inicio" replace />
-}
-
-function RutaTI({ children }: { children: ReactNode }) {
-  const { usuario } = useAutenticacion()
-  return usuario && ['TEC', 'SUP', 'ADM'].includes(usuario.perfil) ? children : <Navigate to="/inicio" replace />
 }
 
 function InicioSegunPerfil() {

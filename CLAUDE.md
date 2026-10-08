@@ -23,14 +23,18 @@ Stored Procedures. La estructura y el flujo están en [docs/03_EstructuraSolucio
 - Cada archivo empieza con su encabezado: Archivo, Objetivo, Responsabilidad, Dependencias, Flujo y Consideraciones.
 - Una clase pública por archivo; si crece demasiado, se divide por tema con archivos parciales.
 - Constructores primarios y `using` globales (definidos en el `.csproj`).
-- `dotnet build SistemaTicketsInteligente.slnx` debe terminar con 0 errores y 0 advertencias.
+- `dotnet build SistemaTicketsInteligente.slnx` debe terminar con 0 errores y 0 advertencias, y `dotnet test SistemaTicketsInteligente.slnx`
+  sin fallas. Un endpoint nuevo necesita su fila en la matriz de `MatrizAutorizacionPruebas` (la prueba falla si falta).
+- Toda operación que modifica datos exige el token CSRF; el agente lee con `CrearConexionAgenteLectura` y ejecuta con
+  `CrearConexionAgenteEscritura`, nunca con la conexión de la API.
 
 ## Frontend
 
 - `features/<módulo>/` para pantallas y componentes de un módulo; `components/` solo para lo que usan varias pantallas
-  (`MarcoPortal`, `Icono`, `NotificacionesCampana`).
+  (`MarcoPortal`, `Icono`, `NotificacionesCampana`, `FichaRegistrada`).
 - Toda petición pasa por `services/api.ts` mediante un `<módulo>Api.ts`; los servicios sin red se llaman `<asunto>Service.ts`.
-- Formato con Prettier (`frontend/.prettierrc.json`); `npm run typecheck` y `npm run build` sin errores.
+- Formato con Prettier (`frontend/.prettierrc.json`); `npm run typecheck`, `npm test` y `npm run build` sin errores. Las pruebas van junto
+  al código que prueban (`*.test.ts(x)`).
 
 ## Base de datos
 
@@ -38,6 +42,9 @@ Stored Procedures. La estructura y el flujo están en [docs/03_EstructuraSolucio
 - Cada procedimiento tiene una sola definición vigente: si un script posterior lo reemplaza, el anterior deja solo una línea
   que indica dónde está la nueva.
 - Archivos UTF-8 con BOM; aplicar siempre con `sqlcmd ... -C -I -f 65001`.
+- `08_Validacion.sql` se ejecuta al final y sus listas se actualizan con cada objeto nuevo. Un procedimiento nuevo exige volver a ejecutar
+  `38_PermisosMinimos.sql` (otorga los permisos por rol según los procedimientos existentes). `database/pruebas/PruebasFuncionales.sql`
+  debe seguir terminando en "todas correctas".
 - Objetos propios con prefijo `TI_` y procedimientos `Usp_TI_<Asunto>_<Acción>`.
 - Estándar T-SQL: palabras clave con inicial mayúscula (`Select`, `From`, `Where`, `Create`, `Begin`); tipos en minúscula
   (`varchar`, `nvarchar`, `int`, `decimal`, `datetime2`, `bit`, `uniqueidentifier`); conectores en minúscula (`as`, `on`,

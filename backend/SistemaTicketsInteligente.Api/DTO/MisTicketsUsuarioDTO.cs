@@ -41,6 +41,8 @@ public sealed class MisTicketsUsuarioItem
 
 public sealed class MisTicketsUsuarioDetalle
 {
+    /// <summary>Ficha registrada con el ticket (vacía si el tipo no tiene ficha).</summary>
+    public List<DatoFichaTicket> Ficha { get; set; } = [];
     public string IncidenciaNumero { get; set; } = string.Empty;
     public string Titulo { get; set; } = string.Empty;
     public string Detalle { get; set; } = string.Empty;

@@ -5,15 +5,19 @@
  * Responsabilidad: Validar cada acción con la identidad y el área del operador y ejecutar el procedimiento correspondiente.
  * Dependencias: BaseDatos (Usp_TI_Obtener_GestionTicketsTI, Usp_TI_Obtener_DetalleGestionTicketTI, Usp_TI_Clasificar_Ticket,
  *   Usp_TI_Asignar_Ticket, Usp_TI_Solicitar_InformacionTicket, Usp_TI_Resolver_TicketTI, Usp_TI_NoProcede_Ticket,
- *   Usp_TI_Responder_AprobacionTicket, Usp_TI_Obtener_AdjuntoTicketTI) y Archivos.
+ *   Usp_TI_Responder_AprobacionTicket, Usp_TI_Obtener_AdjuntoTicketTI), Archivos y OpenAIAsistenteClient (clasificación propuesta).
  * Flujo: GestionTicketsTIController -> GestionTicketsTIBLL -> Stored Procedures.
- * Consideraciones: Los avances técnicos se registran en GestionOperativaTIBLL, que exige minutos y área causante.
+ * Consideraciones: Los avances técnicos se registran en GestionOperativaTIBLL, que exige minutos y área causante. La clasificación
+ *   propuesta por IA y la ficha del ticket están en GestionTicketsTIBLL.Clasificacion.cs. La auditoría usa la correlación de la petición.
  */
 
 namespace SistemaTicketsInteligente.Api.BLL;
 
-public sealed class GestionTicketsTIBLL(BaseDatos baseDatos)
+public sealed partial class GestionTicketsTIBLL(BaseDatos baseDatos, OpenAIAsistenteClient openAI)
 {
+    // Las cuatro opciones de la pantalla; la restricción CK_TI_Incidencia_TipoResolucion aplica la misma regla en la base.
+    private static readonly HashSet<string> TiposResolucion = new(StringComparer.Ordinal) { "CORRECCION", "CONFIGURACION", "GUIA", "REPROCESO" };
+
     public Task<GestionTicketsTIRespuesta> ObtenerAsync(string usuario, string area, CancellationToken ct)
     {
         var (usuarioValido, areaValida) = (Validacion.Usuario(usuario), Validacion.Area(area));
@@ -155,7 +159,7 @@ public sealed class GestionTicketsTIBLL(BaseDatos baseDatos)
         var solucion = Validacion.Texto(s.Solucion, 5, 4000, "La solución");
         var respuestaUsuario = Validacion.Texto(s.RespuestaUsuario, 5, 4000, "La respuesta al usuario");
         var tipoResolucion = s.TipoResolucion.Trim().ToUpperInvariant();
-        if (tipoResolucion.Length > 20) throw new ArgumentException("El tipo de resolución no puede superar los 20 caracteres.");
+        if (!TiposResolucion.Contains(tipoResolucion)) throw new ArgumentException("Selecciona el tipo de resolución: corrección, configuración, guía o reproceso.");
         return EjecutarAccionAsync("dbo.Usp_TI_Resolver_TicketTI", usuario, area, incidenciaNumero, p =>
         {
             p.Add("@cCausaRaiz", SqlDbType.NVarChar, -1).Value = causaRaiz;
@@ -205,7 +209,7 @@ public sealed class GestionTicketsTIBLL(BaseDatos baseDatos)
         {
             Ticket(p, usuarioValido, areaValida, incidencia);
             parametros(p);
-            p.Add("@cIdCorrelacion", SqlDbType.UniqueIdentifier).Value = Guid.NewGuid();
+            p.Add("@cIdCorrelacion", SqlDbType.UniqueIdentifier).Value = TrazaAgente.CorrelacionActual;
         }, ct);
     }
 

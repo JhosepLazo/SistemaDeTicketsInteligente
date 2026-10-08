@@ -48,29 +48,7 @@ Go
 -- dbo.Usp_TI_Agente_DryRun: la versión vigente está en 32_AgenteFase6ReplicaTecnica.sql (aquí había una versión anterior que ese script reemplaza).
 Go
 
-Create Or Alter Procedure dbo.Usp_TI_Agente_ValidarSolucion
-    @cUsuario varchar(20), @cArea char(3), @nSesionNumero bigint
-As
-Begin
-    Set NoCount On
-    Set Xact_Abort On
-    Begin Try
-        Begin Transaction
-        Declare @cIncidencia varchar(12), @cCorrelacion uniqueidentifier
-        Select @cIncidencia = IncidenciaNumero, @cCorrelacion = IdCorrelacion From dbo.TI_AgenteSesion With (UpdLock, HoldLock)
-        Where SesionNumero = @nSesionNumero and UsuarioTI = @cUsuario and AreaTI = @cArea
-            and Estado In ('INFORME_GRABADO','CAMBIO_VALIDADO') and Diagnostico Is Not Null and SolucionPropuesta Is Not Null
-        If @@RowCount = 0 Throw 50534, 'Finaliza la investigacion antes de validar su solucion.', 1
-        Update dbo.TI_AgenteSesion Set SolucionValidada = 1 Where SesionNumero = @nSesionNumero
-        Insert dbo.TI_Auditoria (IncidenciaNumero, Usuario, TipoActor, Entidad, Registro, Evento, Resultado, IdCorrelacion, Fecha)
-        Values (@cIncidencia, @cUsuario, 'T', 'TI_AgenteSesion', Convert(varchar(30), @nSesionNumero), 'VALIDAR_SOLUCION_AGENTE', 'VALIDADO_TI', @cCorrelacion, SysDateTime())
-        Commit Transaction
-    End Try
-    Begin Catch
-        If Xact_State() <> 0 Rollback Transaction
-        Throw
-    End Catch
-End
+-- dbo.Usp_TI_Agente_ValidarSolucion: la versión vigente está en 34_DominiosYMaquinaEstados.sql (aquí había una versión anterior que ese script reemplaza).
 Go
 
 Create Or Alter Procedure dbo.Usp_TI_Agente_CrearBorrador

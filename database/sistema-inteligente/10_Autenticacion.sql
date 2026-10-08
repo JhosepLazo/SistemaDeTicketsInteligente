@@ -10,28 +10,8 @@
 Use [GestionSistemas]
 Go
 
--- Exec dbo.Usp_TI_Buscar_UsuarioAutenticacion 'USR001'
-Create Or Alter Procedure Usp_TI_Buscar_UsuarioAutenticacion
-/*================================================================================
-Objetivo            : Obtener los datos mínimos necesarios para validar la autenticación de un usuario.
-Creado Por          : Jhosep S. Lazo
-Fecha Creación      : Sep. 2026
-SP Anterior         : 
-Comentario Cambios  : 
-================================================================================*/
-@cUsuario varchar(20)
-As
-Begin
-	Set NoCount On
-
-	Select u.Usuario, u.NombreCompleto, u.Clave as ClaveHash, u.Area, u.Perfil,
-		u.Estado as EstadoUsuario, p.Estado as EstadoPerfil
-	From dbo.TI_Usuario u
-	Inner Join dbo.TI_Perfil p on p.Perfil = u.Perfil
-	Where u.Usuario = @cUsuario
-End
+-- dbo.Usp_TI_Buscar_UsuarioAutenticacion: la versión vigente está en 40_SeguridadSesion.sql (aquí había una versión anterior que ese script reemplaza).
 Go
-/* Ejecuta Procedure */
 
 -- Exec dbo.Usp_TI_Registrar_AuditoriaAutenticacion Null, 'USR001', 'LOGIN_FALLIDO', 'DENEGADO', '00000000-0000-0000-0000-000000000000'
 Create Or Alter Procedure Usp_TI_Registrar_AuditoriaAutenticacion

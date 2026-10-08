@@ -1,13 +1,15 @@
 /**
  * Archivo: AutenticacionController.cs
  * Objetivo: Iniciar, consultar y cerrar la sesión web del usuario.
- * Responsabilidad: Traducir el resultado del inicio de sesión a HTTP, crear la cookie con los claims mínimos y cerrarla.
- * Dependencias: AutenticacionBLL, Cookie Authentication y el rate limiting "Login".
+ * Responsabilidad: Traducir el resultado del inicio de sesión a HTTP, crear la cookie con los claims mínimos, entregar el token
+ *   antifalsificación (CSRF) de la sesión y cerrarla.
+ * Dependencias: AutenticacionBLL, Cookie Authentication, IAntiforgery y el rate limiting "Login".
  * Flujo: LoginPage -> AutenticacionController -> AutenticacionBLL -> cookie HttpOnly.
  * Consideraciones: Las respuestas de error son genéricas para no revelar si un usuario existe; la contraseña nunca se registra.
  */
 
 using System.Security.Claims;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -18,7 +20,7 @@ namespace SistemaTicketsInteligente.Api.Controllers;
 
 [ApiController]
 [Route("api/autenticacion")]
-public sealed class AutenticacionController(AutenticacionBLL autenticacion) : ControladorBase
+public sealed class AutenticacionController(AutenticacionBLL autenticacion, IAntiforgery antiforgery) : ControladorBase
 {
     [AllowAnonymous]
     [EnableRateLimiting("Login")]
@@ -36,6 +38,7 @@ public sealed class AutenticacionController(AutenticacionBLL autenticacion) : Co
                 ResultadoInicioSesion.PerfilInactivo => StatusCode(StatusCodes.Status403Forbidden, new { mensaje = "El perfil del usuario no se encuentra habilitado para ingresar al sistema." }),
                 ResultadoInicioSesion.UsuarioSinConfiguracionLocal => StatusCode(StatusCodes.Status403Forbidden, new { mensaje = "Tu identidad corporativa es válida, pero todavía no tiene área y perfil configurados en Gestión TI. Comunícate con TI." }),
                 ResultadoInicioSesion.IdentidadCorporativaNoDisponible => StatusCode(StatusCodes.Status503ServiceUnavailable, new { mensaje = "El servicio de identidad corporativa no se encuentra disponible. Intenta nuevamente en unos minutos." }),
+                ResultadoInicioSesion.DemasiadosIntentos => StatusCode(StatusCodes.Status429TooManyRequests, new { mensaje = "Demasiados intentos fallidos para este usuario. Espera un minuto e intenta nuevamente." }),
                 _ => StatusCode(StatusCodes.Status500InternalServerError, new { mensaje = "Se produjo un error al procesar la solicitud." })
             };
         }
@@ -66,6 +69,11 @@ public sealed class AutenticacionController(AutenticacionBLL autenticacion) : Co
             Perfil = User.FindFirst(ClaimTypes.Role)?.Value ?? string.Empty
         });
     }
+
+    /// <summary>Token antifalsificación de la sesión: el frontend lo envía en X-CSRF-TOKEN en toda operación que modifica datos.</summary>
+    [Authorize]
+    [HttpGet("token-csrf")]
+    public IActionResult TokenCsrf() => Ok(new { token = antiforgery.GetAndStoreTokens(HttpContext).RequestToken });
 
     [Authorize]
     [HttpPost("cerrar-sesion")]

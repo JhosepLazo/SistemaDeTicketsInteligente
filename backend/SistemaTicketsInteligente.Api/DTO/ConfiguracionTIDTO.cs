@@ -217,3 +217,109 @@ public sealed class VisibilidadConocimientoSolicitud
 {
     public bool VisibleUsuario { get; set; }
 }
+
+/// <summary>Control del agente en Configuración TI: parámetros, política de autonomía y catálogo de acciones.</summary>
+public sealed class ControlAgenteTIRespuesta
+{
+    public List<ParametroTI> Parametros { get; set; } = [];
+    public List<PoliticaAutonomiaTI> Politica { get; set; } = [];
+    public List<AccionCatalogoTI> Acciones { get; set; } = [];
+}
+
+public sealed class ParametroTI
+{
+    public string Parametro { get; set; } = string.Empty;
+    public string Valor { get; set; } = string.Empty;
+    public string Descripcion { get; set; } = string.Empty;
+    public string UltimoUsuario { get; set; } = string.Empty;
+    public DateTime? UltimaFechaModif { get; set; }
+}
+
+public sealed class PoliticaAutonomiaTI
+{
+    public string Tipo { get; set; } = string.Empty;
+    public string TipoDescripcion { get; set; } = string.Empty;
+    public string AccionCodigo { get; set; } = string.Empty;
+    public string AccionNombre { get; set; } = string.Empty;
+    /// <summary>AUTONOMA, APROBACION o PROHIBIDA.</summary>
+    public string Modo { get; set; } = string.Empty;
+    public decimal? ConfianzaMinima { get; set; }
+    public string Estado { get; set; } = string.Empty;
+    /// <summary>false: la acción no tiene fila de política y se comporta como APROBACION.</summary>
+    public bool Configurada { get; set; }
+}
+
+public sealed class AccionCatalogoTI
+{
+    public string AccionCodigo { get; set; } = string.Empty;
+    public string Nombre { get; set; } = string.Empty;
+    public string Descripcion { get; set; } = string.Empty;
+    public string Tipo { get; set; } = string.Empty;
+    public string NivelRiesgo { get; set; } = string.Empty;
+    public bool RequiereAprobacion { get; set; }
+    public bool Reversible { get; set; }
+    public string Estado { get; set; } = string.Empty;
+    public bool TieneEjecutor { get; set; }
+    public string Procedimiento { get; set; } = string.Empty;
+    public int MaximoFilas { get; set; }
+    public string ParametrosDescripcion { get; set; } = string.Empty;
+}
+
+public sealed class GuardarParametroTISolicitud
+{
+    public string Parametro { get; set; } = string.Empty;
+    /// <summary>Vacío deja el parámetro sin valor (por ejemplo, aprobaciones sin vencimiento).</summary>
+    public string? Valor { get; set; }
+}
+
+public sealed class GuardarPoliticaAutonomiaSolicitud
+{
+    public string Tipo { get; set; } = string.Empty;
+    public string AccionCodigo { get; set; } = string.Empty;
+    public string Modo { get; set; } = string.Empty;
+    public decimal? ConfianzaMinima { get; set; }
+    public string Estado { get; set; } = "A";
+}
+
+public sealed class GuardarAccionCatalogoSolicitud
+{
+    public string AccionCodigo { get; set; } = string.Empty;
+    public string NivelRiesgo { get; set; } = string.Empty;
+    public bool RequiereAprobacion { get; set; } = true;
+    public bool Reversible { get; set; }
+    public string Estado { get; set; } = "A";
+}
+
+/// <summary>Campo de ficha para administrarlo (incluye los inactivos).</summary>
+public sealed class CampoFichaTI
+{
+    public string Tipo { get; set; } = string.Empty;
+    public string TipoDescripcion { get; set; } = string.Empty;
+    public string Campo { get; set; } = string.Empty;
+    public string Bloque { get; set; } = string.Empty;
+    public int Orden { get; set; }
+    public string Pregunta { get; set; } = string.Empty;
+    public string Ayuda { get; set; } = string.Empty;
+    public string TipoDato { get; set; } = string.Empty;
+    public bool Obligatorio { get; set; }
+    public int LongitudMinima { get; set; }
+    public int LongitudMaxima { get; set; }
+    public string Estado { get; set; } = string.Empty;
+    public string UltimoUsuario { get; set; } = string.Empty;
+    public DateTime? UltimaFechaModif { get; set; }
+}
+
+public sealed class GuardarCampoFichaSolicitud
+{
+    public string Tipo { get; set; } = string.Empty;
+    public string Campo { get; set; } = string.Empty;
+    public string Bloque { get; set; } = string.Empty;
+    public int Orden { get; set; }
+    public string Pregunta { get; set; } = string.Empty;
+    public string? Ayuda { get; set; }
+    public string TipoDato { get; set; } = "TEXTO";
+    public bool Obligatorio { get; set; }
+    public int LongitudMinima { get; set; }
+    public int LongitudMaxima { get; set; } = 500;
+    public string Estado { get; set; } = "A";
+}

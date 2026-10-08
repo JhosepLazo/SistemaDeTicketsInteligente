@@ -1,11 +1,12 @@
 /**
  * Archivo: asistenteUsuarioApi.ts
  * Objetivo: Comunicar el Asistente TI del colaborador con su API.
- * Responsabilidad: Enviar consultas con el historial reciente, pedir el token para mostrar el error en pantalla y convertir lo
- *   mostrado en un borrador de ticket.
+ * Responsabilidad: Enviar consultas con el historial reciente, pedir el token para mostrar el error en pantalla, convertir lo
+ *   mostrado en un borrador de ticket y revisar la ficha de un requerimiento antes de enviarlo.
  * Dependencias: api.ts (cliente único de la API).
  * Flujo: AsistenteUsuarioPage / MostrarErrorLive -> asistenteUsuarioApi -> /api/asistente/usuario.
- * Consideraciones: Solo viajan los últimos 10 mensajes del historial; la identidad sale de la cookie en el backend.
+ * Consideraciones: Solo viajan los últimos 10 mensajes del historial; la identidad sale de la cookie en el backend. La revisión de la
+ *   ficha es una ayuda: no bloquea el envío y, sin proveedor de IA, TI revisa la ficha al recibir el ticket.
  */
 
 import { crearApi } from './api'
@@ -71,4 +72,25 @@ export const prepararBorradorEvidencia = (evidencia: EvidenciaReproduccion) =>
   api<AsistenteUsuarioAccion>('/api/asistente/usuario/evidencia/borrador', {
     cuerpo: evidencia,
     error: 'No fue posible preparar el ticket.',
+  })
+
+/** VAGA (no concreta o no medible), CONTRADICCION, DUPLICADO u OTRA. */
+export interface ObservacionFicha {
+  campo: string
+  tipo: 'VAGA' | 'CONTRADICCION' | 'DUPLICADO' | 'OTRA'
+  detalle: string
+}
+
+export interface RevisionFicha {
+  /** false si no hay proveedor de IA. */
+  disponible: boolean
+  resumen: string
+  observaciones: ObservacionFicha[]
+}
+
+/** La IA señala respuestas vagas, contradicciones o tickets que parecen atender lo mismo; no cambia la ficha. */
+export const revisarFicha = (tipo: string, titulo: string, detalle: string, fichaJson: string) =>
+  api<RevisionFicha>('/api/asistente/usuario/ficha/revisar', {
+    cuerpo: { tipo, titulo, detalle, fichaJson },
+    error: 'No fue posible revisar la ficha. Puedes enviarla igual: TI la revisará.',
   })

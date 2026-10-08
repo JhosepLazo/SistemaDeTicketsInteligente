@@ -5,10 +5,12 @@
  * Responsabilidad: Validar identidad, código, contenido y clasificación, y ejecutar los procedimientos del módulo.
  * Dependencias: BaseDatos (Usp_TI_Obtener_BaseConocimientoTI, Usp_TI_Obtener_DetalleBaseConocimientoTI, Usp_TI_Crear_BaseConocimientoTI,
  *   Usp_TI_Actualizar_BaseConocimientoTI, Usp_TI_EnviarValidacion_BaseConocimientoTI, Usp_TI_Validar_BaseConocimientoTI,
- *   Usp_TI_Inactivar_BaseConocimientoTI).
+ *   Usp_TI_Inactivar_BaseConocimientoTI, Usp_TI_Obtener_GuiaDiagnostico y Usp_TI_Guardar_GuiaDiagnostico).
  * Flujo: BaseConocimientoTIController -> BaseConocimientoTIBLL -> Stored Procedures.
  * Consideraciones: La coherencia entre línea, item, tipo, subtipo y categoría se valida definitivamente en los procedimientos.
+ *   La guía de diagnóstico (pasos que sigue el agente) se guarda con el artículo: cambiarla en uno publicado lo devuelve a validación.
  */
+using System.Text.Json;
 
 namespace SistemaTicketsInteligente.Api.BLL;
 
@@ -54,7 +56,7 @@ public sealed class BaseConocimientoTIBLL(BaseDatos baseDatos)
     public async Task<BaseConocimientoTIDetalle> ObtenerDetalleAsync(string codigo, CancellationToken ct)
     {
         var codigoValido = ValidarCodigo(codigo);
-        return await baseDatos.LeerAsync("dbo.Usp_TI_Obtener_DetalleBaseConocimientoTI", p => p.Add("@cConocimientoCodigo", SqlDbType.VarChar, 20).Value = codigoValido,
+        var detalle = await baseDatos.LeerAsync("dbo.Usp_TI_Obtener_DetalleBaseConocimientoTI", p => p.Add("@cConocimientoCodigo", SqlDbType.VarChar, 20).Value = codigoValido,
             lector => lector.FilaAsync(f => new BaseConocimientoTIDetalle
             {
                 ConocimientoCodigo = f.Texto("ConocimientoCodigo"), Titulo = f.Texto("Titulo"), Problema = f.Texto("Problema"), Sintomas = f.Texto("Sintomas"),
@@ -67,7 +69,40 @@ public sealed class BaseConocimientoTIBLL(BaseDatos baseDatos)
                 RequiereRevision = f.Booleano("RequiereRevision")
             }, ct), ct)
             ?? throw new KeyNotFoundException("El artículo de conocimiento no existe.");
+        detalle.Guia = await LeerGuiaAsync(codigoValido, ct);
+        return detalle;
     }
+
+    private async Task<List<PasoGuiaDiagnostico>> LeerGuiaAsync(string codigo, CancellationToken ct)
+    {
+        var guia = (await baseDatos.EscalarAsync("dbo.Usp_TI_Obtener_GuiaDiagnostico", p => p.Add("@cConocimientoCodigo", SqlDbType.VarChar, 20).Value = codigo, ct))?.ToString();
+        if (string.IsNullOrWhiteSpace(guia)) return [];
+        try { return JsonSerializer.Deserialize<List<PasoGuiaDiagnostico>>(guia, OpcionesGuia) ?? []; }
+        catch (JsonException) { return []; }
+    }
+
+    // La base vuelve a validar el formato y que cada herramienta exista en el catálogo del agente.
+    private Task GuardarGuiaAsync(string usuario, string codigo, List<PasoGuiaDiagnostico> guia, CancellationToken ct)
+    {
+        if (guia.Count > 15) throw new ArgumentException("La guía de diagnóstico admite como máximo 15 pasos.");
+        var pasos = guia.Select(x => new PasoGuiaDiagnostico
+        {
+            Paso = Validacion.Texto(x.Paso ?? string.Empty, 5, 500, "Cada paso de la guía"),
+            Herramienta = Validacion.Opcional(x.Herramienta, 40, "La herramienta del paso")?.ToUpperInvariant(),
+            Confirma = Validacion.Opcional(x.Confirma, 500, "Lo que confirma el paso"),
+            Descarta = Validacion.Opcional(x.Descarta, 500, "Lo que descarta el paso")
+        }).ToList();
+        return baseDatos.EjecutarAsync("dbo.Usp_TI_Guardar_GuiaDiagnostico", p =>
+        {
+            p.Add("@cUsuario", SqlDbType.VarChar, 20).Value = usuario;
+            p.Add("@cConocimientoCodigo", SqlDbType.VarChar, 20).Value = codigo;
+            p.Add("@cGuiaJson", SqlDbType.NVarChar, -1).Value = pasos.Count == 0 ? DBNull.Value : JsonSerializer.Serialize(pasos, OpcionesGuia);
+            p.Add("@cIdCorrelacion", SqlDbType.UniqueIdentifier).Value = TrazaAgente.CorrelacionActual;
+        }, ct);
+    }
+
+    private static readonly JsonSerializerOptions OpcionesGuia = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, PropertyNameCaseInsensitive = true,
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull };
 
     public async Task<BaseConocimientoTICreadoRespuesta> CrearAsync(string usuario, GuardarBaseConocimientoTISolicitud solicitud, CancellationToken ct)
     {
@@ -75,18 +110,21 @@ public sealed class BaseConocimientoTIBLL(BaseDatos baseDatos)
         var usuarioValido = Validacion.Usuario(usuario);
         var codigo = (await baseDatos.EscalarAsync("dbo.Usp_TI_Crear_BaseConocimientoTI", p => ParametrosArticulo(p, usuarioValido, solicitud), ct))?.ToString()?.Trim();
         if (string.IsNullOrWhiteSpace(codigo)) throw new InvalidOperationException("No fue posible obtener el código del artículo creado.");
+        if (solicitud.Guia.Count > 0) await GuardarGuiaAsync(usuarioValido, codigo, solicitud.Guia, ct);
         return new BaseConocimientoTICreadoRespuesta { ConocimientoCodigo = codigo };
     }
 
-    public Task ActualizarAsync(string usuario, string codigo, GuardarBaseConocimientoTISolicitud solicitud, CancellationToken ct)
+    public async Task ActualizarAsync(string usuario, string codigo, GuardarBaseConocimientoTISolicitud solicitud, CancellationToken ct)
     {
         Normalizar(solicitud);
         var (usuarioValido, codigoValido) = (Validacion.Usuario(usuario), ValidarCodigo(codigo));
-        return baseDatos.EjecutarAsync("dbo.Usp_TI_Actualizar_BaseConocimientoTI", p =>
+        await baseDatos.EjecutarAsync("dbo.Usp_TI_Actualizar_BaseConocimientoTI", p =>
         {
             ParametrosArticulo(p, usuarioValido, solicitud);
             p.Add("@cConocimientoCodigo", SqlDbType.VarChar, 20).Value = codigoValido;
         }, ct);
+        // Si la guía no cambió, el procedimiento no la vuelve a guardar ni la audita.
+        await GuardarGuiaAsync(usuarioValido, codigoValido, solicitud.Guia, ct);
     }
 
     public Task EnviarValidacionAsync(string usuario, string codigo, CancellationToken ct) => CambiarEstadoAsync("dbo.Usp_TI_EnviarValidacion_BaseConocimientoTI", usuario, codigo, ct);
@@ -100,7 +138,7 @@ public sealed class BaseConocimientoTIBLL(BaseDatos baseDatos)
         {
             p.Add("@cUsuario", SqlDbType.VarChar, 20).Value = usuarioValido;
             p.Add("@cConocimientoCodigo", SqlDbType.VarChar, 20).Value = codigoValido;
-            p.Add("@cIdCorrelacion", SqlDbType.UniqueIdentifier).Value = Guid.NewGuid();
+            p.Add("@cIdCorrelacion", SqlDbType.UniqueIdentifier).Value = TrazaAgente.CorrelacionActual;
         }, ct);
     }
 
@@ -120,7 +158,7 @@ public sealed class BaseConocimientoTIBLL(BaseDatos baseDatos)
         p.Add("@cSubTipo", SqlDbType.Char, 3).Value = s.SubTipo;
         p.Add("@cCategoria", SqlDbType.VarChar, 20).Value = s.Categoria;
         p.Add("@cIncidenciaOrigen", SqlDbType.VarChar, 12).Value = BaseDatos.Opcional(s.IncidenciaOrigen);
-        p.Add("@cIdCorrelacion", SqlDbType.UniqueIdentifier).Value = Guid.NewGuid();
+        p.Add("@cIdCorrelacion", SqlDbType.UniqueIdentifier).Value = TrazaAgente.CorrelacionActual;
     }
 
     private static string ValidarCodigo(string codigo)

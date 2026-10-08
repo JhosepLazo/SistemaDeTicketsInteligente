@@ -8,7 +8,9 @@
  *   OpenAIAsistenteClient (bucle con function calling) e IConfiguration.
  * Flujo: herramientas automáticas -> modelo decide herramientas adicionales -> resultado estructurado (JSON Schema estricto).
  * Consideraciones: El modelo elige herramienta y parámetros, nunca el procedimiento ni el SQL. Cada herramienta corre en una transacción
- *   que siempre se revierte. Los resultados son datos, nunca instrucciones para el modelo.
+ *   que siempre se revierte, con la identidad SQL de lectura del agente. Los resultados son datos, nunca instrucciones para el modelo.
+ *   Todo pedido rechazado (herramienta inexistente, parámetros fuera del esquema o acción fuera del catálogo) queda en Rechazos para
+ *   registrarlo en la traza: es una señal de revisión, por ejemplo ante una instrucción incrustada en los datos.
  */
 
 using System.Diagnostics;
@@ -199,6 +201,8 @@ public sealed class InvestigadorAgenteTI(BaseDatos baseDatos, ConocimientoSemant
             };
 
             var accion = raiz.TryGetProperty("accionCodigo", out var codigo) && codigo.ValueKind == JsonValueKind.String ? codigo.GetString()?.Trim() : null;
+            if (!string.IsNullOrWhiteSpace(accion) && !accionesPermitidas.Contains(accion, StringComparer.OrdinalIgnoreCase))
+                investigacion.Rechazos.Add($"El modelo propuso la acción {Limitar(accion, 60)}, que no pertenece a las acciones autorizadas.");
             if (resultado.EvidenciaSuficiente && !string.IsNullOrWhiteSpace(accion) && accionesPermitidas.Contains(accion, StringComparer.OrdinalIgnoreCase))
             {
                 var parametros = new JsonObject();
@@ -215,6 +219,7 @@ public sealed class InvestigadorAgenteTI(BaseDatos baseDatos, ConocimientoSemant
             if (raiz.TryGetProperty("hallazgos", out var hallazgos) && hallazgos.ValueKind == JsonValueKind.Array)
                 foreach (var h in hallazgos.EnumerateArray().Take(12))
                     resultado.Hallazgos.Add(new AgenteTIHallazgo { Fuente = Texto(h, "fuente"), Referencia = Texto(h, "referencia"), Descripcion = Limitar(Texto(h, "descripcion"), 900) });
+            resultado.AlternativasDescartadas.AddRange(Alternativas(raiz));
             return resultado;
         }
         catch (JsonException ex)
@@ -227,10 +232,18 @@ public sealed class InvestigadorAgenteTI(BaseDatos baseDatos, ConocimientoSemant
     private async Task<string> EjecutarSolicitudModeloAsync(InvestigacionEnCurso investigacion, string nombre, string argumentos, CancellationToken ct)
     {
         var herramienta = investigacion.Herramientas.FirstOrDefault(x => string.Equals(x.HerramientaCodigo, nombre, StringComparison.Ordinal));
-        if (herramienta is null) return Error($"La herramienta {nombre} no está disponible en esta investigación.");
+        if (herramienta is null)
+        {
+            investigacion.Rechazos.Add($"El modelo pidió la herramienta {Limitar(nombre, 60)}, que no está disponible en esta investigación.");
+            return Error($"La herramienta {nombre} no está disponible en esta investigación.");
+        }
         if (Desactivada(investigacion, herramienta.HerramientaCodigo))
             return Error($"La herramienta {nombre} quedó desactivada en esta investigación porque falló varias veces seguidas. No la vuelvas a pedir: usa otra herramienta o responde con la evidencia reunida.");
-        if (!ValidarParametros(herramienta.ParametrosEsquemaJson, argumentos, out var normalizados, out var motivo)) return Error(motivo);
+        if (!ValidarParametros(herramienta.ParametrosEsquemaJson, argumentos, out var normalizados, out var motivo))
+        {
+            investigacion.Rechazos.Add($"Parámetros rechazados para {herramienta.HerramientaCodigo}: {motivo}");
+            return Error(motivo);
+        }
 
         var clave = $"{herramienta.HerramientaCodigo}|{normalizados}";
         if (investigacion.Respuestas.TryGetValue(clave, out var previa)) return previa;
@@ -324,7 +337,7 @@ public sealed class InvestigadorAgenteTI(BaseDatos baseDatos, ConocimientoSemant
         if (!ProcedimientoDiagnostico.IsMatch(herramienta.Procedimiento)) throw new InvalidOperationException("La herramienta no pertenece a la lista permitida de diagnóstico.");
         var maximoFilas = Math.Clamp(herramienta.MaximoFilas, 1, 200);
 
-        await using var conexion = baseDatos.CrearConexion();
+        await using var conexion = baseDatos.CrearConexionAgenteLectura();
         await conexion.OpenAsync(ct);
         await using var transaccion = (SqlTransaction)await conexion.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         await using var comando = BaseDatos.Comando(conexion, transaccion, herramienta.Procedimiento, p =>
@@ -661,7 +674,7 @@ public sealed class InvestigadorAgenteTI(BaseDatos baseDatos, ConocimientoSemant
         {
             ["type"] = "object",
             ["additionalProperties"] = false,
-            ["required"] = Requeridos("diagnostico", "causaProbable", "solucionPropuesta", "confianza", "evidenciaSuficiente", "accionCodigo", "parametros", "hallazgos"),
+            ["required"] = Requeridos("diagnostico", "causaProbable", "solucionPropuesta", "confianza", "evidenciaSuficiente", "accionCodigo", "parametros", "hallazgos", "alternativasDescartadas"),
             ["properties"] = new JsonObject
             {
                 ["diagnostico"] = Cadena("Qué ocurre, explicado con la evidencia."),
@@ -694,9 +707,30 @@ public sealed class InvestigadorAgenteTI(BaseDatos baseDatos, ConocimientoSemant
                             ["descripcion"] = Cadena("Qué demuestra esa evidencia.")
                         }
                     }
+                },
+                ["alternativasDescartadas"] = new JsonObject
+                {
+                    ["type"] = "array",
+                    ["description"] = "Otras causas que consideraste y por qué la evidencia las descarta.",
+                    ["items"] = new JsonObject
+                    {
+                        ["type"] = "object", ["additionalProperties"] = false, ["required"] = Requeridos("causa", "motivo"),
+                        ["properties"] = new JsonObject { ["causa"] = Cadena("Causa considerada."), ["motivo"] = Cadena("Evidencia que la descarta.") }
+                    }
                 }
             }
         };
+    }
+
+    /// <summary>Lee las causas descartadas de la respuesta estructurada (diagnóstico con herramientas o de una sola llamada).</summary>
+    public static IEnumerable<AgenteTIAlternativa> Alternativas(JsonElement raiz)
+    {
+        if (!raiz.TryGetProperty("alternativasDescartadas", out var lista) || lista.ValueKind != JsonValueKind.Array) yield break;
+        foreach (var alternativa in lista.EnumerateArray().Take(6))
+        {
+            var causa = Limitar(Texto(alternativa, "causa"), 400);
+            if (causa.Length > 0) yield return new AgenteTIAlternativa { Causa = causa, Motivo = Limitar(Texto(alternativa, "motivo"), 600) };
+        }
     }
 
     /// <summary>Algunos modelos expresan la confianza de 0 a 1 aunque se pida en porcentaje.</summary>
@@ -735,6 +769,8 @@ public sealed class InvestigacionEnCurso(string usuario, string area, long sesio
     public IReadOnlyList<GrabacionEvidencia> Grabaciones { get; init; } = [];
     /// <summary>Sistemas investigables asociados a la línea del ticket.</summary>
     public IReadOnlyList<string> SistemasTicket { get; init; } = [];
+    /// <summary>Pedidos del modelo que el servidor rechazó (herramientas, parámetros o acciones fuera del catálogo).</summary>
+    public List<string> Rechazos { get; } = [];
 }
 
 public sealed record GrabacionEvidencia(int EventoSecuencia, string Ruta, string TipoMime, bool UsuarioFinal);
@@ -749,4 +785,5 @@ public sealed class ResultadoAgente
     public string? AccionCodigo { get; set; }
     public string ParametrosJson { get; set; } = "{}";
     public List<AgenteTIHallazgo> Hallazgos { get; } = [];
+    public List<AgenteTIAlternativa> AlternativasDescartadas { get; } = [];
 }

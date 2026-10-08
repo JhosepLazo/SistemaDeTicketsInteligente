@@ -1096,3 +1096,111 @@
     max-height: 96vh;
   }
 }
+
+/* Guía de diagnóstico: editor de pasos en el modal y lista en el detalle del artículo. */
+.conocimiento-ti-guia {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px 12px;
+  border: 1px solid #d6e3e6;
+  border-radius: 10px;
+}
+
+.conocimiento-ti-guia legend {
+  padding: 0 6px;
+  color: #3b555e;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.conocimiento-ti-guia legend span,
+.conocimiento-ti-guia > p {
+  color: #87989e;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.conocimiento-ti-guia > p {
+  margin: 0;
+}
+
+.conocimiento-ti-guia__paso {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid #e2eaec;
+  border-radius: 9px;
+  background: #fbfcfd;
+}
+
+.conocimiento-ti-guia__paso > header {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: space-between;
+  color: #35515a;
+  font-size: 10px;
+}
+
+.conocimiento-ti-guia__paso > header div {
+  display: flex;
+  gap: 4px;
+}
+
+.conocimiento-ti-guia__paso > label:first-of-type {
+  grid-column: 1 / -1;
+}
+
+.conocimiento-ti-guia button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid #d6e3e6;
+  border-radius: 7px;
+  background: #fff;
+  color: #35515a;
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.conocimiento-ti-guia button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.conocimiento-ti-guia__agregar {
+  justify-self: start;
+}
+
+.conocimiento-ti-guia-vista {
+  display: grid;
+  gap: 6px;
+  margin: 6px 0 0;
+  padding-left: 18px;
+  color: #5f747d;
+  font-size: 9px;
+}
+
+.conocimiento-ti-guia-vista p {
+  margin: 0;
+  color: #35515a;
+  line-height: 1.5;
+}
+
+.conocimiento-ti-guia-vista small {
+  display: block;
+  line-height: 1.5;
+}
+
+@media (max-width: 720px) {
+  .conocimiento-ti-guia__paso {
+    grid-template-columns: 1fr;
+  }
+}

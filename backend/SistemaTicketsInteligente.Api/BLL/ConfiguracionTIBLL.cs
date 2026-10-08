@@ -3,7 +3,8 @@
  * Objetivo: Administrar los maestros de TI: áreas, líneas, ítems, tipos, categorías, subtipos, matriz de clasificación, SLA,
  *   usuarios y cargos corporativos, formatos de soporte y visibilidad de artículos.
  * Responsabilidad: Validar cada maestro y ejecutar su procedimiento; sincronizar usuarios y cargos desde Spring.
- * Dependencias: BaseDatos (Usp_TI_Obtener_ConfiguracionTI y Usp_TI_Guardar_*), IdentidadCorporativa y Archivos.
+ * Dependencias: BaseDatos (Usp_TI_Obtener_ConfiguracionTI y Usp_TI_Guardar_*), IdentidadCorporativa, Archivos y ControlAgenteTI.
+ *   El control del agente y las fichas están en ConfiguracionTIBLL.Agente.cs.
  * Flujo: ConfiguracionTIController -> ConfiguracionTIBLL -> Stored Procedures (y Spring para la sincronización).
  * Consideraciones: Los textos opcionales vacíos se guardan como NULL. Formatos y visibilidad de artículos tienen backend
  *   completo pero no pantalla (pendiente): sin la visibilidad, ningún artículo llega al colaborador.
@@ -11,7 +12,7 @@
 
 namespace SistemaTicketsInteligente.Api.BLL;
 
-public sealed class ConfiguracionTIBLL(BaseDatos baseDatos, IdentidadCorporativa identidadCorporativa)
+public sealed partial class ConfiguracionTIBLL(BaseDatos baseDatos, IdentidadCorporativa identidadCorporativa, ControlAgenteTI control)
 {
     private const long MaximoFormatoBytes = 15 * 1024 * 1024;
     private static readonly HashSet<string> ExtensionesFormato = new(StringComparer.OrdinalIgnoreCase) { ".pdf", ".doc", ".docx", ".xls", ".xlsx" };

@@ -1,11 +1,13 @@
 /**
  * Archivo: configuracionTIApi.ts
  * Objetivo: Administrar los maestros de TI: áreas, líneas, ítems, tipos, categorías, subtipos, matriz, SLA, usuarios,
- *   formatos y visibilidad de artículos.
+ *   formatos, visibilidad de artículos, control del agente (interruptor, límites, política de autonomía y catálogo de acciones) y
+ *   fichas de los tipos de ticket.
  * Responsabilidad: Consultar la configuración vigente y enviar cada alta o cambio al endpoint de su catálogo.
  * Dependencias: api.ts (cliente único de la API).
  * Flujo: ConfiguracionTIPage / AsistenteTIPage -> configuracionTIApi -> /api/configuracion-ti.
- * Consideraciones: Solo SUP y ADM pueden guardar; el backend vuelve a validar el perfil en cada operación.
+ * Consideraciones: TEC, SUP y ADM mantienen los maestros; el control del agente y las fichas solo los cambia un ADM. El backend y
+ *   cada procedimiento vuelven a validar el perfil en cada operación.
  */
 
 import { crearApi } from './api'
@@ -114,7 +116,76 @@ export interface ConfiguracionTIRespuesta {
   conocimientos: ConocimientoTIConfig[]
 }
 
+/** Parámetro operativo del agente (TI_Parametro). Valor null = desactivado (vigencia de aprobaciones, autocierre). */
+export interface ParametroTI {
+  parametro: string
+  valor: string
+  descripcion: string
+  ultimoUsuario: string
+  ultimaFechaModif: string | null
+}
+
+export type ModoPolitica = 'AUTONOMA' | 'APROBACION' | 'PROHIBIDA'
+
+/** Política de autonomía por tipo de ticket y acción; configurada = false muestra el valor por defecto (APROBACION). */
+export interface PoliticaAutonomiaTI {
+  tipo: string
+  tipoDescripcion: string
+  accionCodigo: string
+  accionNombre: string
+  modo: ModoPolitica
+  confianzaMinima: number | null
+  estado: string
+  configurada: boolean
+}
+
+export interface AccionCatalogoTI {
+  accionCodigo: string
+  nombre: string
+  descripcion: string
+  /** L lectura, E ejecución. */
+  tipo: string
+  nivelRiesgo: string
+  requiereAprobacion: boolean
+  reversible: boolean
+  estado: string
+  tieneEjecutor: boolean
+  procedimiento: string
+  maximoFilas: number
+  parametrosDescripcion: string
+}
+
+export interface ControlAgenteTI {
+  parametros: ParametroTI[]
+  politica: PoliticaAutonomiaTI[]
+  acciones: AccionCatalogoTI[]
+}
+
+/** Campo de la ficha de un tipo de ticket, activo o inactivo. */
+export interface CampoFichaTI {
+  tipo: string
+  tipoDescripcion: string
+  campo: string
+  bloque: string
+  orden: number
+  pregunta: string
+  ayuda: string
+  tipoDato: 'TEXTO' | 'TEXTO_LARGO' | 'FECHA' | 'SI_NO'
+  obligatorio: boolean
+  longitudMinima: number
+  longitudMaxima: number
+  estado: string
+  ultimoUsuario: string
+  ultimaFechaModif: string | null
+}
+
+export const NIVELES_RIESGO = ['MUY_BAJO', 'BAJO', 'MEDIO', 'ALTO', 'MUY_ALTO'] as const
+
 const api = crearApi({ conexion: 'No fue posible comunicarse con el sistema.', sinPermiso: 'Tu perfil no tiene acceso a Maestros TI.' })
+const apiAdministrador = crearApi({
+  conexion: 'No fue posible comunicarse con el sistema.',
+  sinPermiso: 'Solo un administrador puede cambiar el control del agente y las fichas.',
+})
 const ERROR_GUARDAR = 'No fue posible guardar la configuración.'
 const guardar = (ruta: string, cuerpo: unknown) => api(`/api/configuracion-ti/${ruta}`, { cuerpo, error: ERROR_GUARDAR })
 
@@ -134,3 +205,27 @@ export const sincronizarCargosCorporativos = () =>
 export const actualizarVisibilidadConocimiento = (codigo: string, visibleUsuario: boolean) =>
   guardar(`conocimiento/${encodeURIComponent(codigo)}/visibilidad`, { visibleUsuario })
 export const guardarFormatoSoporte = (formulario: FormData) => guardar('formatos', formulario)
+
+export const obtenerControlAgenteTI = () =>
+  api<ControlAgenteTI>('/api/configuracion-ti/agente', { error: 'No fue posible cargar el control del agente.' })
+const guardarAdministrador = (ruta: string, cuerpo: unknown) =>
+  apiAdministrador(`/api/configuracion-ti/${ruta}`, { cuerpo, error: ERROR_GUARDAR })
+export const guardarParametroAgenteTI = (parametro: string, valor: string | null) =>
+  guardarAdministrador('agente/parametros', { parametro, valor })
+export const guardarPoliticaAutonomiaTI = (x: {
+  tipo: string
+  accionCodigo: string
+  modo: ModoPolitica
+  confianzaMinima: number | null
+  estado: string
+}) => guardarAdministrador('agente/politica', x)
+export const guardarAccionCatalogoTI = (x: {
+  accionCodigo: string
+  nivelRiesgo: string
+  requiereAprobacion: boolean
+  reversible: boolean
+  estado: string
+}) => guardarAdministrador('agente/acciones', x)
+export const obtenerFichasTI = () => api<CampoFichaTI[]>('/api/configuracion-ti/fichas', { error: 'No fue posible cargar las fichas.' })
+export const guardarCampoFichaTI = (x: Omit<CampoFichaTI, 'tipoDescripcion' | 'ultimoUsuario' | 'ultimaFechaModif'>) =>
+  guardarAdministrador('fichas', x)

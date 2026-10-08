@@ -146,3 +146,127 @@ public sealed class ReportesTIRespuesta
     public ReportesTICatalogos Catalogos { get; set; } = new();
     public List<ReportesTIDetalleExportacion> DetalleExportacion { get; set; } = [];
 }
+
+/// <summary>Indicadores del agente y del flujo de tickets (Anexo B del plan de mejoras) y comparación agente frente a TI.</summary>
+public sealed class MetricasAgenteTIRespuesta
+{
+    public MetricasInvestigacionesTI Investigaciones { get; set; } = new();
+    public List<ConteoTI> EstadosInvestigacion { get; set; } = [];
+    public List<MetricasAprobacionesTI> Aprobaciones { get; set; } = [];
+    public List<ConteoTI> MotivosRechazo { get; set; } = [];
+    public List<MetricaEjecucionTI> Ejecuciones { get; set; } = [];
+    public MetricasClasificacionTI Clasificacion { get; set; } = new();
+    public List<MetricaTipoTicketTI> Tipos { get; set; } = [];
+    public MetricasFichaTI Fichas { get; set; } = new();
+    public List<MetricaConocimientoTI> Conocimiento { get; set; } = [];
+    public List<MetricaModeloTI> Modelos { get; set; } = [];
+    public List<ComparativoAgenteTI> Comparativo { get; set; } = [];
+}
+
+public sealed class MetricasInvestigacionesTI
+{
+    public int Total { get; set; }
+    public int Automaticas { get; set; }
+    public int ConDiagnostico { get; set; }
+    public int ConAccionPropuesta { get; set; }
+    public int SolucionValidada { get; set; }
+    public int Canceladas { get; set; }
+    public decimal? ConfianzaPromedio { get; set; }
+    public decimal? MinutosPromedioDiagnostico { get; set; }
+}
+
+public sealed class ConteoTI
+{
+    public string Valor { get; set; } = string.Empty;
+    public int Cantidad { get; set; }
+}
+
+public sealed class MetricasAprobacionesTI
+{
+    /// <summary>AGENTE o MANUAL.</summary>
+    public string Origen { get; set; } = string.Empty;
+    public int Solicitadas { get; set; }
+    public int Aprobadas { get; set; }
+    public int Rechazadas { get; set; }
+    public int Canceladas { get; set; }
+    public int Pendientes { get; set; }
+    public int Vencidas { get; set; }
+    public decimal? HorasPromedioRespuesta { get; set; }
+}
+
+public sealed class MetricaEjecucionTI
+{
+    /// <summary>T: decidida por TI. I: autónoma.</summary>
+    public string TipoEjecutor { get; set; } = string.Empty;
+    public string Estado { get; set; } = string.Empty;
+    public int Cantidad { get; set; }
+    public int FilasAfectadas { get; set; }
+}
+
+public sealed class MetricasClasificacionTI
+{
+    public int Propuestas { get; set; }
+    public int Comparadas { get; set; }
+    public int CoincideTipo { get; set; }
+    public int CoincideSubTipo { get; set; }
+    public int CoincideItem { get; set; }
+    public decimal? ConfianzaPromedio { get; set; }
+}
+
+public sealed class MetricaTipoTicketTI
+{
+    public string Tipo { get; set; } = string.Empty;
+    public string TipoDescripcion { get; set; } = string.Empty;
+    public int Total { get; set; }
+    public int Resueltos { get; set; }
+    public int Reabiertos { get; set; }
+    public int DesdeAsistente { get; set; }
+    public decimal? MinutosPromedioPrimeraRespuesta { get; set; }
+    public decimal? HorasPromedioResolucion { get; set; }
+    public decimal? CalificacionPromedio { get; set; }
+}
+
+public sealed class MetricasFichaTI
+{
+    public int Requerimientos { get; set; }
+    public int ConFichaCompleta { get; set; }
+    public int DevueltosRecopilacion { get; set; }
+}
+
+public sealed class MetricaConocimientoTI
+{
+    public string ConocimientoCodigo { get; set; } = string.Empty;
+    public string Titulo { get; set; } = string.Empty;
+    public int VecesEvidencia { get; set; }
+    public int TicketsResueltosSinReapertura { get; set; }
+}
+
+public sealed class MetricaModeloTI
+{
+    public string Modelo { get; set; } = string.Empty;
+    public int Llamadas { get; set; }
+    public long TokensEntrada { get; set; }
+    public long TokensSalida { get; set; }
+    public decimal? DuracionPromedioMs { get; set; }
+    public int Fallidas { get; set; }
+}
+
+/// <summary>Lo que propuso el agente frente a lo que TI registró al resolver (vista del modo sombra).</summary>
+public sealed class ComparativoAgenteTI
+{
+    public long SesionNumero { get; set; }
+    public string IncidenciaNumero { get; set; } = string.Empty;
+    public string Titulo { get; set; } = string.Empty;
+    public string EstadoTicket { get; set; } = string.Empty;
+    public string EstadoSesion { get; set; } = string.Empty;
+    public string CausaAgente { get; set; } = string.Empty;
+    public decimal? Confianza { get; set; }
+    public string AccionCodigo { get; set; } = string.Empty;
+    public string Decision { get; set; } = string.Empty;
+    public bool SolucionValidada { get; set; }
+    public string CausaRaizTI { get; set; } = string.Empty;
+    public string SolucionTI { get; set; } = string.Empty;
+    public string TipoResolucion { get; set; } = string.Empty;
+    public bool Reabierto { get; set; }
+    public DateTime? FechaDiagnostico { get; set; }
+}

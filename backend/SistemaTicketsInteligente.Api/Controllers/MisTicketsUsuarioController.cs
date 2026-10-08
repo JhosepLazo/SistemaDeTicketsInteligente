@@ -22,7 +22,7 @@ public sealed class MisTicketsUsuarioController(MisTicketsUsuarioBLL misTickets)
 
     [HttpGet("{incidenciaNumero}")]
     public Task<IActionResult> ObtenerDetalle(string incidenciaNumero, CancellationToken ct) =>
-        Responder(async () => Ok(await misTickets.ObtenerDetalleAsync(Usuario, incidenciaNumero, ct)));
+        Responder(async () => Ok(await misTickets.ObtenerDetalleAsync(Usuario, Area, incidenciaNumero, ct)));
 
     [HttpPost("{incidenciaNumero}/responder-observacion")]
     [RequestSizeLimit(55 * 1024 * 1024)]

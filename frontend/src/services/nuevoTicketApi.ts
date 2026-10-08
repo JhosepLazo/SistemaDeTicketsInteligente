@@ -1,14 +1,16 @@
 /**
  * Archivo: nuevoTicketApi.ts
  * Objetivo: Comunicar Nuevo Ticket con la API de registro de incidencias del colaborador.
- * Responsabilidad: Obtener los catálogos del formulario y registrar el ticket con sus adjuntos y, si existe, la evidencia
- *   que el colaborador mostró en pantalla al Asistente TI.
- * Dependencias: api.ts (cliente único de la API).
+ * Responsabilidad: Obtener los catálogos del formulario (con la ficha de cada tipo) y registrar el ticket con sus adjuntos, su
+ *   ficha y, si existe, la evidencia que el colaborador mostró en pantalla al Asistente TI.
+ * Dependencias: api.ts (cliente único de la API) y fichaTicketService.ts (tipos de la ficha).
  * Flujo: NuevoTicketPage -> nuevoTicketApi -> /api/tickets/nuevo.
- * Consideraciones: La evidencia del asistente activa la investigación automática de TI en el backend.
+ * Consideraciones: La evidencia del asistente activa la investigación automática de TI en el backend. La ficha viaja como JSON en
+ *   FichaJson y el backend la valida con las mismas reglas que el formulario.
  */
 
 import { crearApi } from './api'
+import type { CampoFichaTicket } from './fichaTicketService'
 
 export interface NuevoTicketCatalogoItem {
   codigo: string
@@ -22,6 +24,8 @@ export interface NuevoTicketDatos {
   areaDescripcion: string
   lineas: NuevoTicketCatalogoItem[]
   tipos: NuevoTicketCatalogoItem[]
+  /** Campos activos de la ficha de cada tipo; el formulario muestra los del tipo elegido. */
+  ficha: CampoFichaTicket[]
 }
 
 export interface NuevoTicketFormulario {
@@ -47,10 +51,14 @@ const apiRegistro = crearApi({
 export const obtenerDatosNuevoTicket = () =>
   api<NuevoTicketDatos>('/api/tickets/nuevo/datos', { error: 'No fue posible cargar los datos del formulario.' })
 
-/** evidenciaAsistente: pasos, error y conversación que el colaborador mostró en pantalla; activa la investigación automática de TI. */
-export function crearNuevoTicket(formulario: NuevoTicketFormulario, evidenciaAsistente?: unknown) {
+/**
+ * evidenciaAsistente: pasos, error y conversación que el colaborador mostró en pantalla; activa la investigación automática de TI.
+ * ficha: JSON con las respuestas de la ficha del tipo (fichaTicketService.fichaJson).
+ */
+export function crearNuevoTicket(formulario: NuevoTicketFormulario, evidenciaAsistente?: unknown, ficha?: string) {
   const datos = new FormData()
   if (evidenciaAsistente) datos.append('EvidenciaAsistenteJson', JSON.stringify(evidenciaAsistente))
+  if (ficha) datos.append('FichaJson', ficha)
   datos.append('Linea', formulario.linea)
   datos.append('Tipo', formulario.tipo)
   datos.append('Titulo', formulario.titulo)

@@ -464,47 +464,7 @@ Go
 
 /* ============================== MATRIZ Y GESTIÓN DE TICKETS ============================== */
 
-Create Or Alter Procedure dbo.Usp_TI_Clasificar_Ticket
-/*================================================================================
-Objetivo            : Clasificar una incidencia aplicando la matriz configurada de forma obligatoria.
-Creado Por          : Jhosep S. Lazo
-Fecha Creación      : 13/09/2026
-SP Anterior         : dbo.Usp_TI_Clasificar_Ticket
-Comentario Cambios  : Prioridad, impacto y complejidad dejan de depender de selección manual y se obtienen de TI_ItemCategoria.
-================================================================================*/
-    @cUsuario varchar(20), @cArea char(3), @cIncidenciaNumero varchar(12), @cLinea char(3), @cItem varchar(20),
-    @cTipo char(3), @cSubTipo char(3), @cCategoria varchar(20), @cAreaCausante char(3) = Null,
-    @nPrioridad int = Null, @nImpacto int = Null, @nComplejidad int = Null, @cIdCorrelacion uniqueidentifier
-As
-Begin
-    Set NoCount On
-
-    Declare @nPrioridadMatriz int, @nImpactoMatriz int, @nComplejidadMatriz int, @nSla int
-
-    If Not Exists (Select 1 From dbo.TI_Usuario Where Usuario = @cUsuario and Area = @cArea and Estado = 'A' and Perfil In ('TEC','SUP','ADM')) Throw 50203, 'El operador TI no es válido.', 1
-    If Not Exists (Select 1 From dbo.TI_Incidencia Where IncidenciaNumero = @cIncidenciaNumero and Estado Not In ('RS','CA','PA')) Throw 50204, 'El ticket no existe, está cerrado o espera una aprobación.', 1
-    If Not Exists (Select 1 From dbo.TI_Item Where Item = @cItem and Linea = @cLinea and Estado = 'A') Throw 50205, 'El item no corresponde a la línea seleccionada.', 1
-    If Not Exists (Select 1 From dbo.TI_SubTipo Where Tipo = @cTipo and SubTipo = @cSubTipo and Categoria = @cCategoria and Estado = 'A') Throw 50206, 'La combinación de tipo, subtipo y categoría no es válida.', 1
-    If @cAreaCausante Is Not Null and Not Exists (Select 1 From dbo.TI_Area Where Area = @cAreaCausante and Estado = 'A') Throw 50208, 'El área causante no es válida.', 1
-
-    Select @nPrioridadMatriz = Convert(int, Prioridad), @nImpactoMatriz = Convert(int, Impacto), @nComplejidadMatriz = Convert(int, Complejidad)
-    From dbo.TI_ItemCategoria
-    Where Item = @cItem and Categoria = @cCategoria and Estado = 'A'
-
-    If @nPrioridadMatriz Is Null or @nImpactoMatriz Is Null or @nComplejidadMatriz Is Null
-        Throw 50207, 'La matriz Item/Categoría no está configurada completamente. Configúrala antes de clasificar el ticket.', 1
-
-    Select @nSla = SlaObjetivoMinutos From dbo.TI_ParametroSLA Where Prioridad = @nPrioridadMatriz and Estado = 'A'
-
-    Update dbo.TI_Incidencia
-    Set AreaTI = @cArea, Linea = @cLinea, Item = @cItem, Tipo = @cTipo, SubTipo = @cSubTipo, Categoria = @cCategoria,
-        AreaCausante = @cAreaCausante, Prioridad = @nPrioridadMatriz, Impacto = @nImpactoMatriz, Complejidad = @nComplejidadMatriz,
-        SlaObjetivoMinutos = @nSla, UltimoUsuario = @cUsuario, UltimaFechaModif = SysDateTime()
-    Where IncidenciaNumero = @cIncidenciaNumero
-
-    Insert dbo.TI_Auditoria (IncidenciaNumero, Usuario, TipoActor, Entidad, Registro, Evento, Resultado, DetalleJson, IdCorrelacion, Fecha)
-    Values (@cIncidenciaNumero, @cUsuario, 'T', 'TI_Incidencia', @cIncidenciaNumero, 'CLASIFICAR_TICKET', 'EXITOSO', Concat('{"prioridad":', @nPrioridadMatriz, ',"impacto":', @nImpactoMatriz, ',"complejidad":', @nComplejidadMatriz, '}'), @cIdCorrelacion, SysDateTime())
-End
+-- dbo.Usp_TI_Clasificar_Ticket: la versión vigente está en 36_ClasificacionFichaYGuias.sql (aquí había una versión anterior que ese script reemplaza).
 Go
 
 -- dbo.Usp_TI_Registrar_AvanceTicket: la versión vigente está en 22_CierreMejorasFuncionalesSinIA.sql (aquí había una versión anterior que ese script reemplaza).
@@ -566,32 +526,7 @@ Go
 
 /* ============================== USUARIO: EDICIÓN Y RECURSOS ============================== */
 
-Create Or Alter Procedure dbo.Usp_TI_Editar_TicketUsuario
-/*================================================================================
-Objetivo            : Permitir corregir datos básicos del ticket propio antes de que la atención técnica avance.
-Creado Por          : Jhosep S. Lazo
-Fecha Creación      : 13/09/2026
-SP Anterior         : Ninguno
-Comentario Cambios  : Solo admite estados NV/RC y nunca expone clasificación técnica, prioridad ni responsable.
-================================================================================*/
-    @cUsuario varchar(20), @cIncidenciaNumero varchar(12), @cLinea char(3), @cTipo char(3), @cTitulo nvarchar(250), @cDetalle nvarchar(max), @cMensajeError nvarchar(1000) = Null, @cIdCorrelacion uniqueidentifier
-As
-Begin
-    Set NoCount On
-
-    If Not Exists (Select 1 From dbo.TI_Incidencia Where IncidenciaNumero = @cIncidenciaNumero and UsuarioSolicitante = @cUsuario and Estado In ('NV','RC')) Throw 50430, 'El ticket ya fue tomado por TI o no pertenece al usuario autenticado.', 1
-    If Not Exists (Select 1 From dbo.TI_Linea Where Linea = @cLinea and Estado = 'A') Throw 50431, 'La línea seleccionada no es válida.', 1
-    If Not Exists (Select 1 From dbo.TI_Tipo Where Tipo = @cTipo and Estado = 'A') Throw 50432, 'El tipo seleccionado no es válido.', 1
-    If @cTipo = 'REQ' and Not Exists (Select 1 From dbo.TI_IncidenciaAdjunto Where IncidenciaNumero = @cIncidenciaNumero) Throw 50433, 'Un requerimiento debe conservar al menos un archivo de sustento.', 1
-
-    Update dbo.TI_Incidencia
-    Set Linea = @cLinea, Tipo = @cTipo, Titulo = LTrim(RTrim(@cTitulo)), Detalle = LTrim(RTrim(@cDetalle)), MensajeError = NullIf(LTrim(RTrim(@cMensajeError)), ''),
-        UltimoUsuario = @cUsuario, UltimaFechaModif = SysDateTime()
-    Where IncidenciaNumero = @cIncidenciaNumero and UsuarioSolicitante = @cUsuario
-
-    Insert dbo.TI_Auditoria (IncidenciaNumero, Usuario, TipoActor, Entidad, Registro, Evento, Resultado, DetalleJson, IdCorrelacion, Fecha)
-    Values (@cIncidenciaNumero, @cUsuario, 'U', 'TI_Incidencia', @cIncidenciaNumero, 'EDITAR_TICKET_PREVIO', 'EXITOSO', Null, @cIdCorrelacion, SysDateTime())
-End
+-- dbo.Usp_TI_Editar_TicketUsuario: la versión vigente está en 36_ClasificacionFichaYGuias.sql (aquí había una versión anterior que ese script reemplaza).
 Go
 
 Create Or Alter Procedure dbo.Usp_TI_Obtener_RecursosSoporteUsuario
@@ -688,53 +623,7 @@ Go
 
 /* ============================== COMPATIBILIDAD DEL REGISTRO NORMAL ============================== */
 
-Create Or Alter Procedure dbo.Usp_TI_Registrar_Incidencia
-/*================================================================================
-Objetivo            : Registrar una incidencia nueva utilizando únicamente datos permitidos al usuario.
-Creado Por          : Jhosep S. Lazo
-Fecha Creación      : 13/09/2026
-SP Anterior         : dbo.Usp_TI_Registrar_Incidencia
-Comentario Cambios  : Guarda UsuarioRegistro para distinguir el origen sin alterar el contrato del módulo existente.
-================================================================================*/
-    @cUsuario varchar(20), @cLinea char(3), @cTipo char(3), @cTitulo nvarchar(250), @cDetalle nvarchar(max), @cMensajeError nvarchar(1000) = Null, @cIdCorrelacion uniqueidentifier
-As
-Begin
-    Set NoCount On
-    Set Xact_Abort On
-
-    Declare @cArea char(3), @cIncidenciaNumero varchar(12), @nCorrelativo int, @dFecha datetime2(0) = SysDateTime()
-    Select @cArea = Area From dbo.TI_Usuario Where Usuario = @cUsuario and Estado = 'A'
-
-    If @cArea Is Null Throw 50001, 'El usuario autenticado no se encuentra habilitado.', 1
-    If Not Exists (Select 1 From dbo.TI_Linea Where Linea = @cLinea and Estado = 'A') Throw 50002, 'El sistema o módulo seleccionado no se encuentra disponible.', 1
-    If Not Exists (Select 1 From dbo.TI_Tipo Where Tipo = @cTipo and Estado = 'A') Throw 50003, 'El tipo de ticket seleccionado no se encuentra disponible.', 1
-    If NullIf(LTrim(RTrim(@cTitulo)), '') Is Null Throw 50004, 'El título del problema es obligatorio.', 1
-    If NullIf(LTrim(RTrim(@cDetalle)), '') Is Null Throw 50005, 'La descripción detallada es obligatoria.', 1
-
-    Begin Try
-        Begin Transaction
-        Select @nCorrelativo = IsNull(Max(Try_Convert(int, Right(IncidenciaNumero, 6))), 0) + 1 From dbo.TI_Incidencia With (UpdLock, HoldLock) Where IncidenciaNumero Like 'INC-[0-9][0-9][0-9][0-9][0-9][0-9]'
-        If @nCorrelativo > 999999 Throw 50006, 'Se alcanzó el límite del correlativo de incidencias.', 1
-        Set @cIncidenciaNumero = 'INC-' + Right('000000' + Convert(varchar(6), @nCorrelativo), 6)
-
-        Insert dbo.TI_Incidencia (IncidenciaNumero, FechaRegistro, UsuarioSolicitante, UsuarioRegistro, AreaSolicitante, Linea, Tipo, Estado, Titulo, Detalle, MensajeError, CanalRegistro, UltimoUsuario, UltimaFechaModif)
-        Values (@cIncidenciaNumero, @dFecha, @cUsuario, @cUsuario, @cArea, @cLinea, @cTipo, 'NV', LTrim(RTrim(@cTitulo)), LTrim(RTrim(@cDetalle)), NullIf(LTrim(RTrim(@cMensajeError)), ''), 'PORTAL', @cUsuario, @dFecha)
-
-        Insert dbo.TI_IncidenciaEstado (IncidenciaNumero, Secuencia, Estado, UsuarioCambio, FechaCambio, Observacion)
-        Values (@cIncidenciaNumero, 1, 'NV', @cUsuario, @dFecha, N'Ticket registrado por el usuario desde el portal.')
-
-        Insert dbo.TI_Auditoria (IncidenciaNumero, Usuario, TipoActor, Entidad, Registro, Evento, Resultado, DetalleJson, IdCorrelacion, Fecha)
-        Values (@cIncidenciaNumero, @cUsuario, 'U', 'TI_Incidencia', @cIncidenciaNumero, 'CREAR_TICKET', 'EXITOSO', Null, @cIdCorrelacion, @dFecha)
-
-        Commit Transaction
-    End Try
-    Begin Catch
-        If Xact_State() <> 0 Rollback Transaction
-        ;Throw
-    End Catch
-
-    Select IncidenciaNumero = @cIncidenciaNumero, FechaRegistro = @dFecha
-End
+-- dbo.Usp_TI_Registrar_Incidencia: la versión vigente está en 36_ClasificacionFichaYGuias.sql (aquí había una versión anterior que ese script reemplaza).
 Go
 
 /* Ejecuta Procedure */

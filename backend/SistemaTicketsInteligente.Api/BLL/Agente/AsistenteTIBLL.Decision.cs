@@ -3,12 +3,15 @@
  * Objetivo: Aplicar la decisión de TI sobre el diagnóstico: grabar la información o realizar el cambio propuesto, y cerrar el caso.
  * Responsabilidad: Grabar el expediente, comprobar precondiciones (dry-run), simular la acción en una transacción revertida, ejecutarla
  *   con aprobación y postcondiciones verificadas, validar la solución y convertir la investigación en un borrador de conocimiento.
+ *   En modo AUTONOMO, ejecutar sin humano solo lo que PoliticaAutonomia libera, con una simulación inmediata antes.
  * Dependencias: BaseDatos (Usp_TI_Agente_GrabarInformacion, DryRun, ObtenerEjecutorSimulacion, RegistrarSimulacion, PrepararCambio,
- *   FinalizarCambio, ValidarSolucion, CrearBorrador y los ejecutores catalogados dbo.Usp_TI_AgenteAccion_*) e IConfiguration.
+ *   FinalizarCambio, ValidarSolucion, CrearBorrador, DatosAutonomia y los ejecutores catalogados dbo.Usp_TI_AgenteAccion_*),
+ *   ControlAgenteTI, PoliticaAutonomia e IConfiguration.
  * Flujo: decisión TI -> preparación (aprobación e idempotencia en SQL) -> ejecutor en transacción -> postcondiciones -> auditoría.
  * Consideraciones: Solo se ejecutan procedimientos del catálogo con el prefijo contractual; jamás SQL generado por IA. El ejecutor debe
  *   devolver una única fila con validacionPosterior=true y no superar el máximo de filas autorizado; si no, se revierte todo.
- *   Con AgenteTI:SoloDiagnostico=true (entorno Diagnostico) la ejecución de cambios queda deshabilitada.
+ *   Con AgenteTI:SoloDiagnostico=true (entorno Diagnostico) o con el agente en modo APAGADO o SOMBRA, la ejecución queda deshabilitada.
+ *   Los ejecutores corren con la identidad SQL de escritura del agente y sus parámetros se validan contra el esquema del catálogo.
  */
 
 using System.Text.Json;
@@ -93,7 +96,61 @@ public sealed partial class AsistenteTIBLL
     public async Task<AgenteTIDecisionRespuesta> RealizarCambioAsync(string usuario, string area, long sesionNumero, RealizarCambioAgenteTISolicitud solicitud, CancellationToken ct)
     {
         if (!solicitud.Confirmar) throw new ArgumentException("La ejecución requiere confirmación explícita de TI.");
+        return await EjecutarCambioAsync(usuario, area, sesionNumero, autonoma: false, ct);
+    }
+
+    /// <summary>
+    /// Ejecución sin humano (plan de mejoras §3.3): solo si PoliticaAutonomia no deja ningún motivo; las precondiciones se confirman con una
+    /// simulación revertida inmediatamente antes y PrepararCambio vuelve a comprobar todo en la base. Fuera del modo AUTONOMO no hace nada;
+    /// si algo no se cumple, el caso queda para la decisión de TI, como siempre.
+    /// </summary>
+    private async Task EjecutarSiPoliticaPermiteAsync(string usuario, string area, long sesion, CancellationToken ct)
+    {
+        var datos = await baseDatos.LeerAsync("dbo.Usp_TI_Agente_DatosAutonomia", p => p.Add("@nSesionNumero", SqlDbType.BigInt).Value = sesion,
+            lector => lector.FilaAsync(f => new AgenteTIDatosAutonomia
+            {
+                SesionNumero = f.Largo("SesionNumero"), UsuarioTI = f.Texto("UsuarioTI"), AreaTI = f.Texto("AreaTI"), EstadoSesion = f.Texto("EstadoSesion"),
+                Confianza = f.DecimalNulo("Confianza"), AccionCodigo = f.Texto("AccionCodigo"), ParametrosJson = f.Texto("ParametrosJson"),
+                SolicitudPendiente = f.Booleano("SolicitudPendiente"), IncidenciaNumero = f.Texto("IncidenciaNumero"), TipoTicket = f.Texto("TipoTicket"),
+                SubTipo = f.Texto("SubTipo"), EstadoTicket = f.Texto("EstadoTicket"), PerfilSolicitante = f.Texto("PerfilSolicitante"),
+                AccionTipo = f.Texto("AccionTipo"), AccionEstado = f.Texto("AccionEstado"), RequiereAprobacion = f.Booleano("RequiereAprobacion"),
+                Reversible = f.Booleano("Reversible"), NivelRiesgo = f.Texto("NivelRiesgo"), TieneEjecutor = f.Booleano("TieneEjecutor"),
+                ParametrosEsquemaJson = f.Texto("ParametrosEsquemaJson"), ModoPolitica = f.Texto("ModoPolitica"), ConfianzaMinima = f.DecimalNulo("ConfianzaMinima"),
+                EstadoPolitica = f.Texto("EstadoPolitica"), ModoAgente = f.Texto("ModoAgente"), RiesgoMaximo = f.Texto("RiesgoMaximo")
+            }, ct), ct);
+        if (datos is null || datos.ModoAgente != "AUTONOMO" || string.IsNullOrWhiteSpace(datos.AccionCodigo)) return;
+
+        var evaluacion = PoliticaAutonomia.Evaluar(datos);
+        await RegistrarEventoServidorAsync(sesion, "EVALUACION_AUTONOMIA",
+            evaluacion.Permitida
+                ? $"La política de TI libera {datos.AccionCodigo} para ejecución autónoma; se simula antes de ejecutar."
+                : $"{datos.AccionCodigo} queda para la decisión de TI: {string.Join(" ", evaluacion.Motivos)}",
+            new { accionCodigo = datos.AccionCodigo, permitida = evaluacion.Permitida, motivos = evaluacion.Motivos }, ct);
+        if (!evaluacion.Permitida) return;
+
+        try
+        {
+            var simulacion = await SimularCambioAsync(usuario, area, sesion, ct);
+            if (!simulacion.Exito)
+            {
+                await RegistrarEventoServidorAsync(sesion, "EJECUCION_AUTONOMA", $"No se ejecutó: la simulación previa no confirmó las precondiciones. {simulacion.Mensaje}", new { ejecutado = false }, ct);
+                return;
+            }
+            var resultado = await EjecutarCambioAsync(usuario, area, sesion, autonoma: true, ct);
+            await RegistrarEventoServidorAsync(sesion, "EJECUCION_AUTONOMA", resultado.Mensaje, new { ejecutado = resultado.Ejecutado, estado = resultado.Estado }, ct);
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning("La ejecución autónoma de la sesión {Sesion} no se aplicó: {Motivo}", sesion, ex.Message);
+            await RegistrarEventoServidorAsync(sesion, "EJECUCION_AUTONOMA", $"La ejecución autónoma no se aplicó: {ex.Message}", new { ejecutado = false }, CancellationToken.None);
+        }
+    }
+
+    private async Task<AgenteTIDecisionRespuesta> EjecutarCambioAsync(string usuario, string area, long sesionNumero, bool autonoma, CancellationToken ct)
+    {
         if (configuration.GetValue<bool>("AgenteTI:SoloDiagnostico")) throw new InvalidOperationException("Este entorno es de diagnóstico: la ejecución de cambios está deshabilitada.");
+        if ((await control.ObtenerAsync(ct)).EjecucionDeshabilitada)
+            throw new InvalidOperationException("El agente está en modo APAGADO o SOMBRA: TI deshabilitó la ejecución de cambios. Puedes grabar la información.");
         var contexto = await ObtenerPropiaAsync(usuario, area, sesionNumero, ct);
         if (!contexto.Sesion.InformeDisponible || string.IsNullOrWhiteSpace(contexto.Sesion.AccionCodigo)) throw new InvalidOperationException("El diagnóstico no contiene una acción correctiva catalogada.");
         if (string.IsNullOrWhiteSpace(contexto.Sesion.IncidenciaNumero)) throw new InvalidOperationException("La investigación debe estar asociada a una incidencia antes de ejecutar un cambio.");
@@ -105,9 +162,11 @@ public sealed partial class AsistenteTIBLL
             Sesion(p, usuario, area, sesionNumero);
             p.Add("@cClaveIdempotencia", SqlDbType.UniqueIdentifier).Value = correlacion;
             p.Add("@cIdCorrelacion", SqlDbType.UniqueIdentifier).Value = correlacion;
+            p.Add("@lAutonoma", SqlDbType.Bit).Value = autonoma;
         }, lector => lector.FilaAsync(f => new AgenteTIPreparacionCambio
         {
             MaximoFilas = f.Booleano("PuedeEjecutar") ? f.Entero("MaximoFilas") : 0,
+            ParametrosEsquemaJson = f.TieneColumna("ParametrosEsquemaJson") ? f.Texto("ParametrosEsquemaJson") : string.Empty,
             Estado = f.Texto("Estado"), Mensaje = f.Texto("Mensaje"), PuedeEjecutar = f.Booleano("PuedeEjecutar"),
             ProcedimientoEjecutor = f.Texto("ProcedimientoEjecutor"), EjecucionSecuencia = f.EnteroNulo("EjecucionSecuencia"),
             SolicitudAprobacionSecuencia = f.EnteroNulo("SolicitudAprobacionSecuencia"), ParametrosJson = f.Texto("ParametrosJson")
@@ -137,6 +196,10 @@ public sealed partial class AsistenteTIBLL
 
         try
         {
+            // Los parámetros aprobados deben cumplir el esquema del ejecutor: el modelo nunca decide la forma de lo que se ejecuta.
+            if (!string.IsNullOrWhiteSpace(preparacion.ParametrosEsquemaJson)
+                && !InvestigadorAgenteTI.ValidarParametros(preparacion.ParametrosEsquemaJson, preparacion.ParametrosJson, out _, out var motivoEsquema))
+                throw new InvalidOperationException($"Los parámetros no cumplen el esquema del ejecutor: {motivoEsquema}");
             // El ejecutor solo confirma la transacción si verificó sus postcondiciones (validacionPosterior = true).
             var resultado = await EjecutarEjecutorAsync(preparacion.ProcedimientoEjecutor, usuario, area, contexto.Sesion.IncidenciaNumero,
                 preparacion.ParametrosJson, correlacion, preparacion.MaximoFilas, simular: false, ct);
@@ -144,7 +207,9 @@ public sealed partial class AsistenteTIBLL
             return new AgenteTIDecisionRespuesta
             {
                 SesionNumero = sesionNumero, Estado = "CAMBIO_VALIDADO", Ejecutado = true,
-                Mensaje = "La acción autorizada fue ejecutada y el procedimiento confirmó la validación posterior. La trazabilidad quedó registrada."
+                Mensaje = autonoma
+                    ? "El agente ejecutó la acción que la política de TI libera y el procedimiento confirmó la validación posterior. TI debe confirmar la solución con el usuario."
+                    : "La acción autorizada fue ejecutada y el procedimiento confirmó la validación posterior. La trazabilidad quedó registrada."
             };
         }
         catch (Exception ex)
@@ -184,7 +249,7 @@ public sealed partial class AsistenteTIBLL
     {
         if (!EjecutorPermitido.IsMatch(procedimiento)) throw new InvalidOperationException("El procedimiento ejecutor no pertenece a la lista permitida del agente.");
 
-        await using var conexion = baseDatos.CrearConexion();
+        await using var conexion = baseDatos.CrearConexionAgenteEscritura();
         await conexion.OpenAsync(ct);
         await using var transaccion = (SqlTransaction)await conexion.BeginTransactionAsync(ct);
         await using var comando = BaseDatos.Comando(conexion, transaccion, procedimiento, p =>

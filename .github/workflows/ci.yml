@@ -1,0 +1,135 @@
+# Archivo: ci.yml
+# Objetivo: Comprobar en cada cambio que el sistema compila, pasa sus pruebas, instala su base desde cero y no contiene secretos.
+# Responsabilidad: Backend (compilación sin advertencias, pruebas y paquetes vulnerables), frontend (formato, tipos, pruebas, build y
+#   auditoría), base de datos (instalación 00 a 40 en SQL Server 2022, validación 08, pruebas funcionales SQL y pruebas de integración
+#   con identidades de permisos mínimos) y escaneo de secretos en todo el historial.
+# Dependencias: GitHub Actions, .NET (global.json), Node 24, Docker (SQL Server 2022), sqlcmd y gitleaks.
+# Flujo: push a main o pull request -> cuatro trabajos en paralelo (la base espera al backend).
+# Consideraciones: Las contraseñas del contenedor se generan en cada ejecución, se enmascaran en los registros y mueren con él: no hay
+#   secretos guardados. La API corre con ci_api (Rol_TI_Api) y el agente con sus identidades de lectura y escritura, igual que en Empresa.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+      - name: Compilar sin advertencias
+        run: dotnet build SistemaTicketsInteligente.slnx -c Release -warnaserror
+      - name: Pruebas unitarias y de autorización
+        run: dotnet test SistemaTicketsInteligente.slnx -c Release --no-build
+      - name: Paquetes NuGet vulnerables
+        run: |
+          dotnet list SistemaTicketsInteligente.slnx package --vulnerable --include-transitive --format json > vulnerables.json
+          jq -e '[.projects[].frameworks[]? | ((.topLevelPackages // []) + (.transitivePackages // [])) | .[] | select(.vulnerabilities)] | length == 0' vulnerables.json
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Formato (Prettier)
+        run: npx --yes prettier@3 --check "src/**/*.{ts,tsx,css}" vite.config.ts
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Dependencias vulnerables
+        run: npm audit --audit-level=high
+
+  base-datos:
+    name: Base de datos e integración
+    runs-on: ubuntu-latest
+    needs: backend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+      - name: Instalar sqlcmd
+        run: |
+          curl -sSL https://packages.microsoft.com/keys/microsoft.asc | sudo tee /etc/apt/trusted.gpg.d/microsoft.asc > /dev/null
+          sudo add-apt-repository -y "$(curl -sSL https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list)"
+          sudo apt-get update
+          sudo apt-get install -y sqlcmd
+      - name: Generar contraseñas de un solo uso
+        run: |
+          for nombre in SA API LECTURA ESCRITURA; do
+            clave="Ci$(openssl rand -hex 16)!"
+            echo "::add-mask::$clave"
+            echo "CLAVE_$nombre=$clave" >> "$GITHUB_ENV"
+          done
+      - name: Levantar SQL Server 2022
+        run: |
+          docker run -d --name sql -p 1433:1433 -e ACCEPT_EULA=Y -e MSSQL_PID=Developer -e MSSQL_COLLATION=Modern_Spanish_CI_AS \
+            -e "MSSQL_SA_PASSWORD=$CLAVE_SA" mcr.microsoft.com/mssql/server:2022-latest
+          for intento in $(seq 1 60); do
+            if SQLCMDPASSWORD="$CLAVE_SA" sqlcmd -S localhost -U sa -C -l 5 -Q "Select 1" > /dev/null 2>&1; then exit 0; fi
+            sleep 2
+          done
+          docker logs sql
+          exit 1
+      - name: Instalar la base (00 a 40) y validar (08)
+        shell: pwsh
+        run: |
+          $env:SQLCMDPASSWORD = $env:CLAVE_SA
+          ./database/InstalarLocal.ps1 -ConfirmarRecreacion -Servidor localhost -Usuario sa
+      - name: Pruebas funcionales SQL
+        run: SQLCMDPASSWORD="$CLAVE_SA" sqlcmd -S localhost -U sa -C -I -b -f 65001 -i database/pruebas/PruebasFuncionales.sql
+      - name: Crear identidades de permisos mínimos
+        run: |
+          SQLCMDPASSWORD="$CLAVE_SA" sqlcmd -S localhost -U sa -C -I -b -d GestionSistemas -Q "
+            Create Login ci_api With Password = N'$CLAVE_API';
+            Create User ci_api For Login ci_api;
+            Alter Role Rol_TI_Api Add Member ci_api;
+            Create Login ci_agente_lectura With Password = N'$CLAVE_LECTURA';
+            Create User ci_agente_lectura For Login ci_agente_lectura;
+            Alter Role Rol_TI_AgenteLectura Add Member ci_agente_lectura;
+            Create Login ci_agente_escritura With Password = N'$CLAVE_ESCRITURA';
+            Create User ci_agente_escritura For Login ci_agente_escritura;
+            Alter Role Rol_TI_AgenteEscritura Add Member ci_agente_escritura;"
+      - name: Pruebas de integración contra la base
+        env:
+          PRUEBAS_BASE_DATOS: '1'
+          PRUEBAS_FLUJOS: '1'
+        run: |
+          base="Server=localhost,1433;Database=GestionSistemas;Encrypt=True;TrustServerCertificate=True"
+          export ConnectionStrings__CnnSistemaTickets="$base;User ID=ci_api;Password=$CLAVE_API"
+          export ConnectionStrings__CnnGestionTi="$ConnectionStrings__CnnSistemaTickets"
+          export ConnectionStrings__CnnAgenteLectura="$base;User ID=ci_agente_lectura;Password=$CLAVE_LECTURA"
+          export ConnectionStrings__CnnAgenteEscritura="$base;User ID=ci_agente_escritura;Password=$CLAVE_ESCRITURA"
+          export PRUEBAS_CNN_ADMIN="$base;User ID=sa;Password=$CLAVE_SA"
+          dotnet test SistemaTicketsInteligente.slnx -c Release --filter "FullyQualifiedName~Integracion"
+
+  secretos:
+    name: Escaneo de secretos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: gitleaks (historial completo)
+        run: |
+          curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.28.0/gitleaks_8.28.0_linux_x64.tar.gz | tar xz gitleaks
+          ./gitleaks git . --redact --verbose

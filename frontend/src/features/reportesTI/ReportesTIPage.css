@@ -840,3 +840,117 @@
     justify-content: flex-start;
   }
 }
+
+/* Pestaña Agente: indicadores del agente frente a TI. */
+.reportes-ti-agente {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.reportes-ti-agente__kpis {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.reportes-ti-agente__kpis article {
+  display: grid;
+  gap: 3px;
+  padding: 14px 16px;
+  border: 1px solid var(--reportes-borde);
+  border-radius: 14px;
+  background: linear-gradient(135deg, #fff 0%, #fbfdfe 100%);
+  box-shadow: var(--reportes-sombra);
+}
+
+.reportes-ti-agente__kpis small,
+.reportes-ti-agente__kpis span {
+  color: var(--reportes-secundario);
+  font-size: 11px;
+}
+
+.reportes-ti-agente__kpis strong {
+  color: var(--reportes-texto);
+  font-size: 22px;
+}
+
+.reportes-ti-agente__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.reportes-ti-agente__panel {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 16px 18px;
+}
+
+.reportes-ti-agente__tabla {
+  overflow: auto;
+  max-height: 420px;
+}
+
+.reportes-ti-agente__tabla table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.reportes-ti-agente__tabla th {
+  position: sticky;
+  top: 0;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--reportes-borde);
+  background: #f6f9fa;
+  color: var(--reportes-secundario);
+  text-align: left;
+}
+
+.reportes-ti-agente__tabla td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #edf2f3;
+  color: var(--reportes-texto);
+  vertical-align: top;
+}
+
+.reportes-ti-agente__lista {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+}
+
+.reportes-ti-agente__lista li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 10px;
+  border: 1px solid #edf2f3;
+  border-radius: 8px;
+  color: var(--reportes-secundario);
+}
+
+.reportes-ti-agente__lista b {
+  color: var(--reportes-texto);
+}
+
+@media (max-width: 1100px) {
+  .reportes-ti-agente__kpis {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .reportes-ti-agente__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .reportes-ti-agente__kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

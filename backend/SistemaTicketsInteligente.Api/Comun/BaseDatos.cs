@@ -3,10 +3,12 @@
  * Objetivo: Ejecutar los Stored Procedures del sistema con el mismo manejo de conexión y de errores en todos los módulos.
  * Responsabilidad: Abrir la conexión, ejecutar el procedimiento con sus parámetros tipados y convertir los errores de negocio
  *   (Throw 50000-50999 dentro del procedimiento) en InvalidOperationException, que el controlador devuelve como 409 con su mensaje.
- * Dependencias: Microsoft.Data.SqlClient y la cadena CnnSistemaTickets.
+ * Dependencias: Microsoft.Data.SqlClient y las cadenas CnnSistemaTickets (API), CnnAgenteLectura y CnnAgenteEscritura (agente).
  * Flujo: BLL -> BaseDatos -> Stored Procedure -> filas (LecturaSql) o resultado.
  * Consideraciones: Cada BLL declara sus parámetros con tipo y largo exactos (un varchar no viaja como nvarchar) y lee cada
  *   columna por su nombre: una columna mal escrita falla de inmediato en vez de quedar vacía sin aviso.
+ *   Tres identidades: la API ejecuta los Usp_TI_* de la aplicación; las herramientas de diagnóstico del agente usan la de lectura y
+ *   los ejecutores de acciones la de escritura (roles de 38_PermisosMinimos.sql). Sin esas cadenas, en desarrollo se usa la de la API.
  */
 
 namespace SistemaTicketsInteligente.Api.Comun;
@@ -14,14 +16,24 @@ namespace SistemaTicketsInteligente.Api.Comun;
 public sealed class BaseDatos
 {
     private readonly string cadenaConexion;
+    private readonly string cadenaAgenteLectura;
+    private readonly string cadenaAgenteEscritura;
 
-    public BaseDatos(string cadenaConexion)
+    public BaseDatos(string cadenaConexion, string? cadenaAgenteLectura = null, string? cadenaAgenteEscritura = null)
     {
         if (string.IsNullOrWhiteSpace(cadenaConexion)) throw new ArgumentException("La cadena de conexión no puede estar vacía.", nameof(cadenaConexion));
         this.cadenaConexion = PrepararCadena(cadenaConexion);
+        this.cadenaAgenteLectura = string.IsNullOrWhiteSpace(cadenaAgenteLectura) ? this.cadenaConexion : PrepararCadena(cadenaAgenteLectura);
+        this.cadenaAgenteEscritura = string.IsNullOrWhiteSpace(cadenaAgenteEscritura) ? this.cadenaConexion : PrepararCadena(cadenaAgenteEscritura);
     }
 
     public SqlConnection CrearConexion() => new(cadenaConexion);
+
+    /// <summary>Identidad de solo lectura del agente: ejecuta únicamente herramientas Usp_TI_AgenteDiag_*.</summary>
+    public SqlConnection CrearConexionAgenteLectura() => new(cadenaAgenteLectura);
+
+    /// <summary>Identidad de escritura del agente: ejecuta únicamente ejecutores catalogados Usp_TI_AgenteAccion_*.</summary>
+    public SqlConnection CrearConexionAgenteEscritura() => new(cadenaAgenteEscritura);
 
     /// <summary>Ejecuta un procedimiento que no devuelve filas.</summary>
     public Task EjecutarAsync(string procedimiento, Action<SqlParameterCollection> parametros, CancellationToken ct) =>
